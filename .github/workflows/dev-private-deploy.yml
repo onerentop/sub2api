@@ -19,11 +19,11 @@ jobs:
             network=host
 
       - name: Log in to Private Registry
-        env:
-          REGISTRY_USER: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
-          REGISTRY_PWD: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
-        run: |
-          echo "$REGISTRY_PWD" | docker login ${{ secrets.PRIVATE_REGISTRY_HOST }} -u "$REGISTRY_USER" --password-stdin
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.PRIVATE_REGISTRY_HOST }}
+          username: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
+          password: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
 
       - name: Extract metadata (tags, labels)
         id: meta
@@ -83,11 +83,14 @@ jobs:
           script: |
             set -e  # 遇到错误立即退出
 
-            # 1. 登录私有仓库
-            echo "$PRIVATE_REGISTRY_PASSWORD" | docker login $PRIVATE_REGISTRY_HOST -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
+            # 1. 登录私有仓库（确保 root 用户的 docker config）
+            echo "$PRIVATE_REGISTRY_PASSWORD" | docker login "$PRIVATE_REGISTRY_HOST" -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
 
             # 2. 进入部署目录
             cd "$DEPLOY_DIR"
+
+            # 确保 docker-compose 能读取登录凭证
+            export DOCKER_CONFIG="$HOME/.docker"
 
             # 3. 设置镜像名环境变量并写入 .env 文件（确保 docker-compose 能读取）
             export DOCKER_IMAGE_NAME="${PRIVATE_REGISTRY_HOST}/sub2api:${IMAGE_TAG}"
@@ -103,8 +106,9 @@ jobs:
               echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >> .env
             fi
 
-            # 4. 拉取并重启
-            docker-compose pull
+            # 4. 拉取并重启（先单独拉取私有镜像以便排查问题）
+            echo "Pulling image: $DOCKER_IMAGE_NAME"
+            docker pull "$DOCKER_IMAGE_NAME"
             docker-compose up -d
 
             # 5. 清理旧镜像 (释放空间)
