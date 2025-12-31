@@ -1,0 +1,115 @@
+name: Dev Private Deploy
+
+on:
+  push:
+    branches-ignore:
+      - 'gh-pages'  # 忽略非代码分支
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+
+      - name: Log in to Private Registry
+        env:
+          REGISTRY_USER: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
+          REGISTRY_PWD: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
+        run: |
+          echo "$REGISTRY_PWD" | docker login ${{ secrets.PRIVATE_REGISTRY_HOST }} -u "$REGISTRY_USER" --password-stdin
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.PRIVATE_REGISTRY_HOST }}/sub2api
+          # 生成两种 tag:
+          # 1. 分支名 (例如: dev, fix-bug) - 总是指向该分支最新代码
+          # 2. commit hash (例如: sha-7b3f1a2) - 用于回溯历史版本
+          tags: |
+            type=ref,event=branch
+            type=sha,format=short,prefix=dev-
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      # 处理分支名，将 / 替换为 - 以适配 Docker Tag 规范
+      - name: Sanitize Branch Name
+        id: branch_name
+        run: |
+          # 获取原始分支名
+          RAW_BRANCH="${{ github.ref_name }}"
+          # 将 / 替换为 -
+          SANITIZED_BRANCH="${RAW_BRANCH//\//-}"
+          echo "Original: $RAW_BRANCH"
+          echo "Sanitized: $SANITIZED_BRANCH"
+          echo "tag=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
+
+      # 远程执行部署命令
+      # 注意：不上传 docker-compose.yml，避免覆盖服务器的 JWT_SECRET/ENCRYPTION_KEY 配置
+      - name: SSH Remote Deploy
+        uses: appleboy/ssh-action@v1
+        env:
+          PRIVATE_REGISTRY_HOST: ${{ secrets.PRIVATE_REGISTRY_HOST }}
+          PRIVATE_REGISTRY_USERNAME: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
+          PRIVATE_REGISTRY_PASSWORD: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
+          DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
+          # 使用处理后的 Tag
+          IMAGE_TAG: ${{ steps.branch_name.outputs.tag }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          password: ${{ secrets.DEPLOY_PASSWORD }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          envs: PRIVATE_REGISTRY_HOST,PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,IMAGE_TAG
+          script: |
+            set -e  # 遇到错误立即退出
+
+            # 1. 登录私有仓库
+            echo "$PRIVATE_REGISTRY_PASSWORD" | docker login $PRIVATE_REGISTRY_HOST -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
+
+            # 2. 进入部署目录
+            cd "$DEPLOY_DIR"
+
+            # 3. 设置镜像名环境变量并写入 .env 文件（确保 docker-compose 能读取）
+            export DOCKER_IMAGE_NAME="${PRIVATE_REGISTRY_HOST}/sub2api:${IMAGE_TAG}"
+            echo "Deploying image: $DOCKER_IMAGE_NAME"
+
+            # 确保 .env 文件存在
+            touch .env
+
+            # 更新 .env 中的镜像名（如果存在 DOCKER_IMAGE_NAME 行则替换，否则追加）
+            if grep -q "^DOCKER_IMAGE_NAME=" .env 2>/dev/null; then
+              sed -i "s|^DOCKER_IMAGE_NAME=.*|DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}|" .env
+            else
+              echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >> .env
+            fi
+
+            # 4. 拉取并重启
+            docker-compose pull
+            docker-compose up -d
+
+            # 5. 清理旧镜像 (释放空间)
+            docker image prune -f
+
+            # 6. 显示部署状态
+            echo "Deploy completed!"
+            docker-compose ps
