@@ -95,15 +95,7 @@ jobs:
             AUTH_STRING=$(echo -n "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" | base64)
 
             # 直接写入 config.json，避免使用 docker login（可能会添加 credsStore）
-            cat > /root/.docker/config.json << EOF
-{
-  "auths": {
-    "docker.topren.top": {
-      "auth": "$AUTH_STRING"
-    }
-  }
-}
-EOF
+            echo "{\"auths\":{\"docker.topren.top\":{\"auth\":\"$AUTH_STRING\"}}}" > /root/.docker/config.json
 
             # 验证配置
             echo "=== Docker Config ==="
