@@ -81,35 +81,31 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,IMAGE_TAG
           script: |
-            # 设置 DOCKER_CONFIG 环境变量
-            export DOCKER_CONFIG=/root/.docker
-
-            # 0. 完全清除 docker 认证状态
-            docker logout docker.topren.top 2>/dev/null || true
-            rm -rf /root/.docker/config.json
-
-            # 1. 创建干净的 config.json（不使用 credential helper）
-            mkdir -p /root/.docker
-
-            # 生成 base64 编码的认证信息
-            AUTH_STRING=$(echo -n "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" | base64)
-
-            # 直接写入 config.json，避免使用 docker login（可能会添加 credsStore）
-            echo "{\"auths\":{\"docker.topren.top\":{\"auth\":\"$AUTH_STRING\"}}}" > /root/.docker/config.json
-
-            # 验证配置
-            echo "=== Docker Config ==="
-            cat /root/.docker/config.json
-            echo "==================="
-
-            # 2. 进入部署目录
-            cd "$DEPLOY_DIR"
-
-            # 3. 设置镜像名
+            # 设置变量
             DOCKER_IMAGE_NAME="docker.topren.top/sub2api:${IMAGE_TAG}"
             echo "Deploying image: $DOCKER_IMAGE_NAME"
 
-            # 4. 更新 .env 中的镜像名
+            # 方案1: 尝试使用 skopeo 复制镜像到本地 docker daemon
+            if command -v skopeo &> /dev/null; then
+              echo "Using skopeo to copy image..."
+              skopeo copy --src-creds "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" \
+                docker://$DOCKER_IMAGE_NAME \
+                docker-daemon:$DOCKER_IMAGE_NAME
+            else
+              # 方案2: 安装 skopeo 并使用
+              echo "Installing skopeo..."
+              apt-get update && apt-get install -y skopeo
+
+              echo "Using skopeo to copy image..."
+              skopeo copy --src-creds "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" \
+                docker://$DOCKER_IMAGE_NAME \
+                docker-daemon:$DOCKER_IMAGE_NAME
+            fi
+
+            # 进入部署目录
+            cd "$DEPLOY_DIR"
+
+            # 更新 .env 中的镜像名
             touch .env
             if grep -q "^DOCKER_IMAGE_NAME=" .env 2>/dev/null; then
               sed -i "s|^DOCKER_IMAGE_NAME=.*|DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}|" .env
@@ -117,16 +113,12 @@ jobs:
               echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >> .env
             fi
 
-            # 5. 拉取镜像
-            echo "=== Pulling Image ==="
-            docker pull "$DOCKER_IMAGE_NAME"
-
-            # 6. 使用环境变量重启
+            # 使用环境变量重启
             DOCKER_IMAGE_NAME="$DOCKER_IMAGE_NAME" docker-compose up -d
 
-            # 7. 清理旧镜像
+            # 清理旧镜像
             docker image prune -f
 
-            # 8. 显示部署状态
+            # 显示部署状态
             echo "Deploy completed!"
             docker-compose ps
