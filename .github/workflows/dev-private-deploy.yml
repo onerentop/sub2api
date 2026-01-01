@@ -44,6 +44,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # 禁用 provenance 和 attestation，生成简单的单层 manifest
+          provenance: false
+          sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -85,37 +88,13 @@ jobs:
             DOCKER_IMAGE_NAME="docker.topren.top/sub2api:${IMAGE_TAG}"
             echo "Deploying image: $DOCKER_IMAGE_NAME"
 
-            # 调试：验证凭证（显示长度，不显示实际值）
-            echo "=== Credential Check ==="
-            echo "Username length: ${#PRIVATE_REGISTRY_USERNAME}"
-            echo "Password length: ${#PRIVATE_REGISTRY_PASSWORD}"
-            echo "========================"
+            # 清除旧的 docker 配置并重新登录
+            rm -f ~/.docker/config.json
+            echo "$PRIVATE_REGISTRY_PASSWORD" | docker login docker.topren.top -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
 
-            # 使用 curl 测试认证（这个之前是成功的）
-            echo "=== Test API with curl ==="
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -u "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" \
-              https://docker.topren.top/v2/sub2api/tags/list)
-            echo "HTTP Code: $HTTP_CODE"
-
-            if [ "$HTTP_CODE" != "200" ]; then
-              echo "ERROR: API authentication failed!"
-              echo "Testing with hardcoded credentials..."
-              curl -s -u "admin:Password123" https://docker.topren.top/v2/sub2api/tags/list
-            fi
-            echo "========================"
-
-            # 使用 skopeo 复制镜像（使用 --debug 获取更多信息）
-            echo "Using skopeo to copy image..."
-            if command -v skopeo &> /dev/null; then
-              skopeo --debug copy --src-creds "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" \
-                docker://$DOCKER_IMAGE_NAME \
-                docker-daemon:$DOCKER_IMAGE_NAME 2>&1 | head -100
-            else
-              apt-get update && apt-get install -y skopeo
-              skopeo --debug copy --src-creds "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" \
-                docker://$DOCKER_IMAGE_NAME \
-                docker-daemon:$DOCKER_IMAGE_NAME 2>&1 | head -100
-            fi
+            # 拉取镜像
+            echo "=== Pulling Image ==="
+            docker pull "$DOCKER_IMAGE_NAME"
 
             # 进入部署目录
             cd "$DEPLOY_DIR"
