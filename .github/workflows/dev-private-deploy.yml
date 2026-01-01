@@ -83,16 +83,31 @@ jobs:
           password: ${{ secrets.DEPLOY_PASSWORD }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,IMAGE_TAG
+          # 请求 PTY（伪终端），可能解决认证问题
+          request_pty: true
           script: |
-            # 1. 登录私有仓库 (确保服务器也能访问)
-            echo "$PRIVATE_REGISTRY_PASSWORD" | docker login docker.topren.top -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
-
-            # 2. 进入目录
-            cd "$DEPLOY_DIR"
-
-            # 3. 设置镜像名环境变量
-            export DOCKER_IMAGE_NAME="docker.topren.top/sub2api:${IMAGE_TAG}"
+            DOCKER_IMAGE_NAME="docker.topren.top/sub2api:${IMAGE_TAG}"
             echo "Deploying image: $DOCKER_IMAGE_NAME"
+
+            # 确保 config.json 存在且正确
+            mkdir -p ~/.docker
+            echo '{"auths":{"docker.topren.top":{"auth":"YWRtaW46UGFzc3dvcmQxMjM="}}}' > ~/.docker/config.json
+
+            # 拉取镜像（带重试，最多尝试 5 次）
+            echo "=== Pulling Image (with retry) ==="
+            for i in 1 2 3 4 5; do
+              echo "Attempt $i..."
+              if docker pull "$DOCKER_IMAGE_NAME"; then
+                echo "Pull succeeded on attempt $i!"
+                break
+              else
+                echo "Pull failed on attempt $i, waiting 3 seconds..."
+                sleep 3
+              fi
+            done
+
+            # 进入目录
+            cd "$DEPLOY_DIR"
 
             # 更新 .env 中的镜像名
             touch .env
@@ -102,13 +117,12 @@ jobs:
               echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >> .env
             fi
 
-            # 4. 拉取并重启
-            docker-compose pull
-            docker-compose up -d
+            # 重启
+            DOCKER_IMAGE_NAME="$DOCKER_IMAGE_NAME" docker-compose up -d
 
-            # 5. 清理旧镜像 (可选，释放空间)
+            # 清理旧镜像
             docker image prune -f
 
-            # 6. 显示部署状态
+            # 显示部署状态
             echo "Deploy completed!"
             docker-compose ps
