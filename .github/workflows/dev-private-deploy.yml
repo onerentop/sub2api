@@ -81,11 +81,25 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,IMAGE_TAG
           script: |
-            # 0. 清除旧的 docker 配置，避免缓存冲突
+            # 调试：显示环境信息
+            echo "=== Environment ==="
+            echo "USER: $(whoami)"
+            echo "HOME: $HOME"
+            echo "PWD: $(pwd)"
+            echo "==================="
+
+            # 0. 清除旧的 docker 配置（使用绝对路径）
+            rm -f /root/.docker/config.json
             rm -f ~/.docker/config.json
 
-            # 1. 登录私有仓库
-            echo "$PRIVATE_REGISTRY_PASSWORD" | docker login docker.topren.top -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
+            # 1. 登录私有仓库（使用 --config 明确指定配置目录）
+            mkdir -p /root/.docker
+            echo "$PRIVATE_REGISTRY_PASSWORD" | docker --config /root/.docker login docker.topren.top -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
+
+            # 验证配置
+            echo "=== Docker Config ==="
+            cat /root/.docker/config.json
+            echo "==================="
 
             # 2. 进入部署目录
             cd "$DEPLOY_DIR"
@@ -107,10 +121,10 @@ jobs:
             grep "DOCKER_IMAGE_NAME" .env
             echo "===================="
 
-            # 5. 先拉取私有镜像
-            docker pull "$DOCKER_IMAGE_NAME"
+            # 5. 使用明确的 config 路径拉取镜像
+            docker --config /root/.docker pull "$DOCKER_IMAGE_NAME"
 
-            # 6. 使用环境变量重启（确保 docker-compose 使用正确的镜像）
+            # 6. 使用环境变量重启
             DOCKER_IMAGE_NAME="$DOCKER_IMAGE_NAME" docker-compose up -d
 
             # 7. 清理旧镜像
