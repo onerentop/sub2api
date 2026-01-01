@@ -126,18 +126,9 @@ jobs:
               echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >> .env
             fi
 
-            # 5. 尝试拉取（带重试）
+            # 5. 尝试拉取（使用 --debug 选项）
             echo "=== Pulling Image ==="
-            for i in 1 2 3; do
-              echo "Attempt $i..."
-              if docker pull "$DOCKER_IMAGE_NAME"; then
-                echo "Pull succeeded!"
-                break
-              else
-                echo "Pull failed, retrying..."
-                sleep 2
-              fi
-            done
+            docker --debug pull "$DOCKER_IMAGE_NAME"
 
             # 6. 使用环境变量重启
             DOCKER_IMAGE_NAME="$DOCKER_IMAGE_NAME" docker-compose up -d
