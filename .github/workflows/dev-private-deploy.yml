@@ -87,27 +87,32 @@ jobs:
             # 2. 进入部署目录
             cd "$DEPLOY_DIR"
 
-            # 3. 设置镜像名环境变量并写入 .env 文件
-            export DOCKER_IMAGE_NAME="docker.topren.top/sub2api:${IMAGE_TAG}"
+            # 3. 设置镜像名
+            DOCKER_IMAGE_NAME="docker.topren.top/sub2api:${IMAGE_TAG}"
             echo "Deploying image: $DOCKER_IMAGE_NAME"
 
-            # 确保 .env 文件存在
+            # 4. 更新 .env 中的镜像名
             touch .env
-
-            # 更新 .env 中的镜像名
             if grep -q "^DOCKER_IMAGE_NAME=" .env 2>/dev/null; then
               sed -i "s|^DOCKER_IMAGE_NAME=.*|DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}|" .env
             else
               echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >> .env
             fi
 
-            # 4. 拉取并重启
-            docker-compose pull
-            docker-compose up -d
+            # 验证 .env 内容
+            echo "=== .env content ==="
+            grep "DOCKER_IMAGE_NAME" .env
+            echo "===================="
 
-            # 5. 清理旧镜像 (释放空间)
+            # 5. 先拉取私有镜像
+            docker pull "$DOCKER_IMAGE_NAME"
+
+            # 6. 使用环境变量重启（确保 docker-compose 使用正确的镜像）
+            DOCKER_IMAGE_NAME="$DOCKER_IMAGE_NAME" docker-compose up -d
+
+            # 7. 清理旧镜像
             docker image prune -f
 
-            # 6. 显示部署状态
+            # 8. 显示部署状态
             echo "Deploy completed!"
             docker-compose ps
