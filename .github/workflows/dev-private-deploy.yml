@@ -81,6 +81,9 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,IMAGE_TAG
           script: |
+            # 0. 清除旧的 docker 配置，避免缓存冲突
+            rm -f ~/.docker/config.json
+
             # 1. 登录私有仓库
             echo "$PRIVATE_REGISTRY_PASSWORD" | docker login docker.topren.top -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
 
