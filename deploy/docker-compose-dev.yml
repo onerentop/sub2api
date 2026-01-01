@@ -1,0 +1,71 @@
+# =============================================================================
+# Sub2API Development Docker Compose
+# =============================================================================
+# 本地开发专用配置，仅启动中间件服务（PostgreSQL + Redis）
+# 后端服务通过 GoLand 运行调试
+#
+# 使用方法：
+#   docker-compose -f docker-compose-dev.yml up -d
+#
+# 端口映射：
+#   - PostgreSQL: localhost:5432
+#   - Redis: localhost:6380 (避免与本地 Redis 6379 冲突)
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # PostgreSQL Database
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: sub2api-dev-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=XZeRr7nkjHWhm8fw
+      - POSTGRES_DB=sub2api
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sub2api"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===========================================================================
+  # Redis Cache (端口 6380，避免与本地 Redis 冲突)
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: sub2api-dev-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis_dev_data:/data
+    command: >
+      redis-server
+      --save 60 1
+      --appendonly yes
+      --appendfsync everysec
+    environment:
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
