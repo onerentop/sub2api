@@ -83,8 +83,19 @@ jobs:
           script: |
             set -e  # 遇到错误立即退出
 
+            # 调试：显示变量值
+            echo "=== Debug Info ==="
+            echo "PRIVATE_REGISTRY_HOST: $PRIVATE_REGISTRY_HOST"
+            echo "IMAGE_TAG: $IMAGE_TAG"
+            echo "=================="
+
             # 1. 登录私有仓库（确保 root 用户的 docker config）
             echo "$PRIVATE_REGISTRY_PASSWORD" | docker login "$PRIVATE_REGISTRY_HOST" -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
+
+            # 验证登录状态
+            echo "=== Docker Config ==="
+            cat ~/.docker/config.json | grep -A2 "$PRIVATE_REGISTRY_HOST" || echo "No auth found for $PRIVATE_REGISTRY_HOST"
+            echo "=================="
 
             # 2. 进入部署目录
             cd "$DEPLOY_DIR"
@@ -108,6 +119,13 @@ jobs:
 
             # 4. 拉取并重启（先单独拉取私有镜像以便排查问题）
             echo "Pulling image: $DOCKER_IMAGE_NAME"
+
+            # 检查镜像是否存在于仓库
+            echo "=== Checking if image exists ==="
+            curl -s -u "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" \
+              "https://$PRIVATE_REGISTRY_HOST/v2/sub2api/tags/list" || echo "Failed to list tags"
+            echo "=================="
+
             docker pull "$DOCKER_IMAGE_NAME"
             docker-compose up -d
 
