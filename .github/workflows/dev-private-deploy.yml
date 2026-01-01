@@ -84,31 +84,30 @@ jobs:
             # 设置 DOCKER_CONFIG 环境变量
             export DOCKER_CONFIG=/root/.docker
 
-            # 调试：显示环境信息
-            echo "=== Environment ==="
-            echo "USER: $(whoami)"
-            echo "HOME: $HOME"
-            echo "DOCKER_CONFIG: $DOCKER_CONFIG"
-            echo "==================="
-
             # 0. 完全清除 docker 认证状态
             docker logout docker.topren.top 2>/dev/null || true
             rm -rf /root/.docker/config.json
 
-            # 1. 重新登录
+            # 1. 创建干净的 config.json（不使用 credential helper）
             mkdir -p /root/.docker
-            echo "$PRIVATE_REGISTRY_PASSWORD" | docker login docker.topren.top -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
+
+            # 生成 base64 编码的认证信息
+            AUTH_STRING=$(echo -n "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" | base64)
+
+            # 直接写入 config.json，避免使用 docker login（可能会添加 credsStore）
+            cat > /root/.docker/config.json << EOF
+{
+  "auths": {
+    "docker.topren.top": {
+      "auth": "$AUTH_STRING"
+    }
+  }
+}
+EOF
 
             # 验证配置
             echo "=== Docker Config ==="
             cat /root/.docker/config.json
-            echo "==================="
-
-            # 测试 API 连接
-            echo "=== Test Registry API ==="
-            curl -s -u "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" \
-              https://docker.topren.top/v2/sub2api/tags/list
-            echo ""
             echo "==================="
 
             # 2. 进入部署目录
@@ -126,9 +125,9 @@ jobs:
               echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >> .env
             fi
 
-            # 5. 尝试拉取（使用 --debug 选项）
+            # 5. 拉取镜像
             echo "=== Pulling Image ==="
-            docker --debug pull "$DOCKER_IMAGE_NAME"
+            docker pull "$DOCKER_IMAGE_NAME"
 
             # 6. 使用环境变量重启
             DOCKER_IMAGE_NAME="$DOCKER_IMAGE_NAME" docker-compose up -d
