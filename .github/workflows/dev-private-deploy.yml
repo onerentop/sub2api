@@ -19,17 +19,17 @@ jobs:
             network=host
 
       - name: Log in to Private Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ secrets.PRIVATE_REGISTRY_HOST }}
-          username: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
-          password: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
+        env:
+          REGISTRY_USER: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
+          REGISTRY_PWD: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
+        run: |
+          echo "$REGISTRY_PWD" | docker login docker.topren.top -u "$REGISTRY_USER" --password-stdin
 
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.PRIVATE_REGISTRY_HOST }}/sub2api
+          images: docker.topren.top/sub2api
           # 生成两种 tag:
           # 1. 分支名 (例如: dev, fix-bug) - 总是指向该分支最新代码
           # 2. commit hash (例如: sha-7b3f1a2) - 用于回溯历史版本
@@ -51,6 +51,9 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       # 处理分支名，将 / 替换为 - 以适配 Docker Tag 规范
       - name: Sanitize Branch Name
         id: branch_name
@@ -64,69 +67,42 @@ jobs:
           echo "tag=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
 
       # 远程执行部署命令
-      # 注意：不上传 docker-compose.yml，避免覆盖服务器的 JWT_SECRET/ENCRYPTION_KEY 配置
       - name: SSH Remote Deploy
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@master
         env:
-          PRIVATE_REGISTRY_HOST: ${{ secrets.PRIVATE_REGISTRY_HOST }}
           PRIVATE_REGISTRY_USERNAME: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
           PRIVATE_REGISTRY_PASSWORD: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
           DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
-          # 使用处理后的 Tag
           IMAGE_TAG: ${{ steps.branch_name.outputs.tag }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           password: ${{ secrets.DEPLOY_PASSWORD }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: PRIVATE_REGISTRY_HOST,PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,IMAGE_TAG
+          envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,IMAGE_TAG
           script: |
-            set -e  # 遇到错误立即退出
-
-            # 调试：显示变量值
-            echo "=== Debug Info ==="
-            echo "PRIVATE_REGISTRY_HOST: $PRIVATE_REGISTRY_HOST"
-            echo "IMAGE_TAG: $IMAGE_TAG"
-            echo "=================="
-
-            # 1. 登录私有仓库（确保 root 用户的 docker config）
-            echo "$PRIVATE_REGISTRY_PASSWORD" | docker login "$PRIVATE_REGISTRY_HOST" -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
-
-            # 验证登录状态
-            echo "=== Docker Config ==="
-            cat ~/.docker/config.json | grep -A2 "$PRIVATE_REGISTRY_HOST" || echo "No auth found for $PRIVATE_REGISTRY_HOST"
-            echo "=================="
+            # 1. 登录私有仓库
+            echo "$PRIVATE_REGISTRY_PASSWORD" | docker login docker.topren.top -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
 
             # 2. 进入部署目录
             cd "$DEPLOY_DIR"
 
-            # 确保 docker-compose 能读取登录凭证
-            export DOCKER_CONFIG="$HOME/.docker"
-
-            # 3. 设置镜像名环境变量并写入 .env 文件（确保 docker-compose 能读取）
-            export DOCKER_IMAGE_NAME="${PRIVATE_REGISTRY_HOST}/sub2api:${IMAGE_TAG}"
+            # 3. 设置镜像名环境变量并写入 .env 文件
+            export DOCKER_IMAGE_NAME="docker.topren.top/sub2api:${IMAGE_TAG}"
             echo "Deploying image: $DOCKER_IMAGE_NAME"
 
             # 确保 .env 文件存在
             touch .env
 
-            # 更新 .env 中的镜像名（如果存在 DOCKER_IMAGE_NAME 行则替换，否则追加）
+            # 更新 .env 中的镜像名
             if grep -q "^DOCKER_IMAGE_NAME=" .env 2>/dev/null; then
               sed -i "s|^DOCKER_IMAGE_NAME=.*|DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}|" .env
             else
               echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >> .env
             fi
 
-            # 4. 拉取并重启（先单独拉取私有镜像以便排查问题）
-            echo "Pulling image: $DOCKER_IMAGE_NAME"
-
-            # 检查镜像是否存在于仓库
-            echo "=== Checking if image exists ==="
-            curl -s -u "$PRIVATE_REGISTRY_USERNAME:$PRIVATE_REGISTRY_PASSWORD" \
-              "https://$PRIVATE_REGISTRY_HOST/v2/sub2api/tags/list" || echo "Failed to list tags"
-            echo "=================="
-
-            docker pull "$DOCKER_IMAGE_NAME"
+            # 4. 拉取并重启
+            docker-compose pull
             docker-compose up -d
 
             # 5. 清理旧镜像 (释放空间)
