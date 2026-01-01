@@ -334,7 +334,6 @@ func (s *ApiKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		}
 
 		apiKey.GroupID = req.GroupID
-		apiKey.Group = group
 	}
 
 	if req.Status != nil {
