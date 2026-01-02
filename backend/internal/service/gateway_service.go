@@ -893,24 +893,10 @@ func (s *GatewayService) isModelSupportedByAccount(account *Account, requestedMo
 }
 
 // IsAntigravityModelSupported 检查 Antigravity 平台是否支持指定模型
+// 所有 claude- 和 gemini- 前缀的模型都能通过映射或透传支持
 func IsAntigravityModelSupported(requestedModel string) bool {
-	// 直接支持的模型
-	if antigravitySupportedModels[requestedModel] {
-		return true
-	}
-	// 可映射的模型
-	if _, ok := antigravityModelMapping[requestedModel]; ok {
-		return true
-	}
-	// Gemini 前缀透传
-	if strings.HasPrefix(requestedModel, "gemini-") {
-		return true
-	}
-	// Claude 模型支持（通过默认映射到 claude-sonnet-4-5）
-	if strings.HasPrefix(requestedModel, "claude-") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(requestedModel, "claude-") ||
+		strings.HasPrefix(requestedModel, "gemini-")
 }
 
 // GetAccessToken 获取账号凭证
@@ -1938,4 +1924,59 @@ func (s *GatewayService) countTokensError(c *gin.Context, status int, errType, m
 			"message": message,
 		},
 	})
+}
+
+// GetAvailableModels returns the list of models available for a group
+// It aggregates model_mapping keys from all schedulable accounts in the group
+func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64, platform string) []string {
+	var accounts []Account
+	var err error
+
+	if groupID != nil {
+		accounts, err = s.accountRepo.ListSchedulableByGroupID(ctx, *groupID)
+	} else {
+		accounts, err = s.accountRepo.ListSchedulable(ctx)
+	}
+
+	if err != nil || len(accounts) == 0 {
+		return nil
+	}
+
+	// Filter by platform if specified
+	if platform != "" {
+		filtered := make([]Account, 0)
+		for _, acc := range accounts {
+			if acc.Platform == platform {
+				filtered = append(filtered, acc)
+			}
+		}
+		accounts = filtered
+	}
+
+	// Collect unique models from all accounts
+	modelSet := make(map[string]struct{})
+	hasAnyMapping := false
+
+	for _, acc := range accounts {
+		mapping := acc.GetModelMapping()
+		if len(mapping) > 0 {
+			hasAnyMapping = true
+			for model := range mapping {
+				modelSet[model] = struct{}{}
+			}
+		}
+	}
+
+	// If no account has model_mapping, return nil (use default)
+	if !hasAnyMapping {
+		return nil
+	}
+
+	// Convert to slice
+	models := make([]string, 0, len(modelSet))
+	for model := range modelSet {
+		models = append(models, model)
+	}
+
+	return models
 }
