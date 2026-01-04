@@ -132,6 +132,9 @@ export default {
     noOptionsFound: '无匹配选项',
     saving: '保存中...',
     refresh: '刷新',
+    notAvailable: '不可用',
+    now: '现在',
+    unknown: '未知',
     time: {
       never: '从未',
       justNow: '刚刚',
@@ -194,6 +197,7 @@ export default {
     registrationFailed: '注册失败，请重试。',
     loginSuccess: '登录成功！欢迎回来。',
     accountCreatedSuccess: '账户创建成功！欢迎使用 {siteName}。',
+    reloginRequired: '会话已过期，请重新登录。',
     turnstileExpired: '验证已过期，请重试',
     turnstileFailed: '验证失败，请重试',
     completeVerification: '请完成验证',
@@ -1056,6 +1060,54 @@ export default {
         error: '错误',
         cooldown: '冷却中'
       },
+      status: {
+        paused: '已暂停',
+        limited: '受限',
+        tempUnschedulable: '临时不可调度'
+      },
+      tempUnschedulable: {
+        title: '临时不可调度',
+        statusTitle: '临时不可调度状态',
+        hint: '当错误码与关键词同时匹配时，账号会在指定时间内被临时禁用。',
+        notice: '规则按顺序匹配，需同时满足错误码与关键词。',
+        addRule: '添加规则',
+        ruleOrder: '规则序号',
+        ruleIndex: '规则 #{index}',
+        errorCode: '错误码',
+        errorCodePlaceholder: '例如 429',
+        durationMinutes: '持续时间（分钟）',
+        durationPlaceholder: '例如 30',
+        keywords: '关键词',
+        keywordsPlaceholder: '例如 overloaded, too many requests',
+        keywordsHint: '多个关键词用逗号分隔，匹配时必须命中其中之一。',
+        description: '描述',
+        descriptionPlaceholder: '可选，便于记忆规则用途',
+        rulesInvalid: '请至少填写一条包含错误码、关键词和时长的规则。',
+        viewDetails: '查看临时不可调度详情',
+        accountName: '账号',
+        triggeredAt: '触发时间',
+        until: '解除时间',
+        remaining: '剩余时间',
+        matchedKeyword: '匹配关键词',
+        errorMessage: '错误详情',
+        reset: '重置状态',
+        resetSuccess: '临时不可调度已重置',
+        resetFailed: '重置临时不可调度失败',
+        failedToLoad: '加载临时不可调度状态失败',
+        notActive: '当前账号未处于临时不可调度状态。',
+        expired: '已到期',
+        remainingMinutes: '约 {minutes} 分钟',
+        remainingHours: '约 {hours} 小时',
+        remainingHoursMinutes: '约 {hours} 小时 {minutes} 分钟',
+        presets: {
+          overloadLabel: '529 过载',
+          overloadDesc: '服务过载 - 暂停 60 分钟',
+          rateLimitLabel: '429 限流',
+          rateLimitDesc: '触发限流 - 暂停 10 分钟',
+          unavailableLabel: '503 维护',
+          unavailableDesc: '服务不可用 - 暂停 30 分钟'
+        }
+      },
       usageWindow: {
         statsTitle: '5小时窗口用量统计',
         statsTitleDaily: '每日用量统计',
@@ -1200,10 +1252,10 @@ export default {
       priority: '优先级',
       priorityHint: '优先级越高的账号优先使用',
       higherPriorityFirst: '数值越高优先级越高',
-      mixedScheduling: '混合调度',
+      mixedScheduling: '在 /v1/messages 中使用',
       mixedSchedulingHint: '启用后可参与 Anthropic/Gemini 分组的调度',
       mixedSchedulingTooltip:
-        '开启后，该账户可被 /v1/messages 及 /v1beta 端点调度，否则只被 /antigravity 调度。注意：Anthropic Claude 和 Antigravity Claude 无法在同个上下文中混合使用，开启后请自行做好分组管理。',
+        '！！注意！！ Antigravity Claude 和 Anthropic Claude 无法在同个上下文中使用，如果你同时有 Anthropic 账号和 Antigravity 账号，开启此选项会导致经常 400 报错。开启后，请用分组功能做好 Antigravity 账号和 Anthropic 账号的隔离。一定要弄明白再开启！！',
       creating: '创建中...',
       updating: '更新中...',
       accountCreated: '账号创建成功',
@@ -1228,13 +1280,13 @@ export default {
           '每行一个 sessionKey，例如：\nsk-ant-sid01-xxxxx...\nsk-ant-sid01-yyyyy...',
         sessionKeyPlaceholderSingle: 'sk-ant-sid01-xxxxx...',
         howToGetSessionKey: '如何获取 sessionKey',
-        step1: '在浏览器中登录 <strong>claude.ai</strong>',
-        step2: '按 <kbd>F12</kbd> 打开开发者工具',
-        step3: '切换到 <strong>Application</strong> 标签',
-        step4: '找到 <strong>Cookies</strong> → <strong>https://claude.ai</strong>',
-        step5: '找到 <strong>sessionKey</strong> 所在行',
-        step6: '复制 <strong>Value</strong> 列的值',
-        sessionKeyFormat: 'sessionKey 通常以 <code>sk-ant-sid01-</code> 开头',
+        step1: '在浏览器中登录 claude.ai',
+        step2: '按 F12 打开开发者工具',
+        step3: '切换到 Application 标签',
+        step4: '找到 Cookies → https://claude.ai',
+        step5: '找到 sessionKey 所在行',
+        step6: '复制 Value 列的值',
+        sessionKeyFormat: 'sessionKey 通常以 sk-ant-sid01- 开头',
         startAutoAuth: '开始自动授权',
         authorizing: '授权中...',
         followSteps: '按照以下步骤授权您的 Claude 账号：',
@@ -1245,9 +1297,9 @@ export default {
         step2OpenUrl: '在浏览器中打开 URL 并完成授权',
         openUrlDesc: '在新标签页中打开授权 URL，登录您的 Claude 账号并授权。',
         proxyWarning:
-          '<strong>注意：</strong>如果您配置了代理，请确保浏览器使用相同的代理访问授权页面。',
+          '注意：如果您配置了代理，请确保浏览器使用相同的代理访问授权页面。',
         step3EnterCode: '输入授权码',
-        authCodeDesc: '授权完成后，页面会显示一个 <strong>授权码</strong>。复制并粘贴到下方：',
+        authCodeDesc: '授权完成后，页面会显示一个授权码。复制并粘贴到下方：',
         authCode: '授权码',
         authCodePlaceholder: '粘贴 Claude 页面的授权码...',
         authCodeHint: '粘贴从 Claude 页面复制的授权码',
@@ -1267,10 +1319,10 @@ export default {
           step2OpenUrl: '在浏览器中打开链接并完成授权',
           openUrlDesc: '请在新标签页中打开授权链接，登录您的 OpenAI 账户并授权。',
           importantNotice:
-            '<strong>重要提示：</strong>授权后页面可能会加载较长时间，请耐心等待。当浏览器地址栏变为 <code>http://localhost...</code> 开头时，表示授权已完成。',
+            '重要提示：授权后页面可能会加载较长时间，请耐心等待。当浏览器地址栏变为 http://localhost... 开头时，表示授权已完成。',
           step3EnterCode: '输入授权链接或 Code',
           authCodeDesc:
-            '授权完成后，当页面地址变为 <code>http://localhost:xxx/auth/callback?code=...</code> 时：',
+            '授权完成后，当页面地址变为 http://localhost:xxx/auth/callback?code=... 时：',
           authCode: '授权链接或 Code',
           authCodePlaceholder:
             '方式1：复制完整的链接\n(http://localhost:xxx/auth/callback?code=...)\n方式2：仅复制 code 参数的值',
@@ -1289,7 +1341,7 @@ export default {
 	          step2OpenUrl: '在浏览器中打开链接并完成授权',
 	          openUrlDesc: '请在新标签页中打开授权链接，登录您的 Google 账户并授权。',
 	          step3EnterCode: '输入回调链接或 Code',
-	          authCodeDesc: '授权完成后，复制浏览器跳转后的回调链接（推荐）或仅复制 <code>code</code>，粘贴到下方即可。',
+	          authCodeDesc: '授权完成后，复制浏览器跳转后的回调链接（推荐）或仅复制 code，粘贴到下方即可。',
 	          authCode: '回调链接或 Code',
 	          authCodePlaceholder: '方式1（推荐）：粘贴回调链接\n方式2：仅粘贴 code 参数的值',
 	          authCodeHint: '系统会自动从链接中解析 code/state。',
@@ -1325,10 +1377,10 @@ export default {
           step2OpenUrl: '在浏览器中打开链接并完成授权',
           openUrlDesc: '请在新标签页中打开授权链接，登录您的 Google 账户并授权。',
           importantNotice:
-            '<strong>重要提示：</strong>授权后页面可能会加载较长时间，请耐心等待。当浏览器地址栏变为 <code>http://localhost...</code> 开头时，表示授权已完成。',
+            '重要提示：授权后页面可能会加载较长时间，请耐心等待。当浏览器地址栏变为 http://localhost... 开头时，表示授权已完成。',
           step3EnterCode: '输入授权链接或 Code',
           authCodeDesc:
-            '授权完成后，当页面地址变为 <code>http://localhost:xxx/auth/callback?code=...</code> 时：',
+            '授权完成后，当页面地址变为 http://localhost:xxx/auth/callback?code=... 时：',
           authCode: '授权链接或 Code',
           authCodePlaceholder:
             '方式1：复制完整的链接\n(http://localhost:xxx/auth/callback?code=...)\n方式2：仅复制 code 参数的值',
@@ -1340,10 +1392,33 @@ export default {
 	      },
       // Gemini specific (platform-wide)
       gemini: {
+        helpButton: '使用帮助',
+        helpDialog: {
+          title: 'Gemini 使用指南',
+          apiKeySection: 'API Key 相关链接'
+        },
         modelPassthrough: 'Gemini 直接转发模型',
         modelPassthroughDesc: '所有模型请求将直接转发至 Gemini API，不进行模型限制或映射。',
         baseUrlHint: '留空使用官方 Gemini API',
         apiKeyHint: '您的 Gemini API Key（以 AIza 开头）',
+        tier: {
+          label: '账号等级',
+          hint: '提示：系统会优先尝试自动识别账号等级；若自动识别不可用或失败，则使用你选择的等级作为回退（本地模拟配额）。',
+          aiStudioHint: 'AI Studio 的配额是按模型分别限流（Pro/Flash 独立）。若已绑卡（按量付费），请选 Pay-as-you-go。',
+          googleOne: {
+            free: 'Google One Free',
+            pro: 'Google One Pro',
+            ultra: 'Google One Ultra'
+          },
+          gcp: {
+            standard: 'GCP Standard',
+            enterprise: 'GCP Enterprise'
+          },
+          aiStudio: {
+            free: 'Google AI Free',
+            paid: 'Google AI Pay-as-you-go'
+          }
+        },
         accountType: {
           oauthTitle: 'OAuth 授权（Gemini）',
           oauthDesc: '使用 Google 账号授权，并选择 OAuth 子类型。',
@@ -1403,6 +1478,17 @@ export default {
           },
           simulatedNote: '本地模拟配额，仅供参考',
           rows: {
+            googleOne: {
+              channel: 'Google One OAuth（个人版 / Code Assist for Individuals）',
+              limitsFree: '共享池：1000 RPD / 60 RPM（不分模型）',
+              limitsPro: '共享池：1500 RPD / 120 RPM（不分模型）',
+              limitsUltra: '共享池：2000 RPD / 120 RPM（不分模型）'
+            },
+            gcp: {
+              channel: 'GCP Code Assist OAuth（企业版）',
+              limitsStandard: '共享池：1500 RPD / 120 RPM（不分模型）',
+              limitsEnterprise: '共享池：2000 RPD / 120 RPM（不分模型）'
+            },
             cli: {
               channel: 'Gemini CLI（官方 Google 登录 / Code Assist）',
               free: '免费 Google 账号',
@@ -1420,7 +1506,7 @@ export default {
               free: '未绑卡（免费层）',
               paid: '已绑卡（按量付费）',
               limitsFree: 'RPD 50；RPM 2（Pro）/ 15（Flash）',
-              limitsPaid: 'RPD 不限；RPM 1000+（按模型配额）'
+              limitsPaid: 'RPD 不限；RPM 1000（Pro）/ 2000（Flash）（按模型配额）'
             },
             customOAuth: {
               channel: 'Custom OAuth Client（GCP）',
@@ -1433,6 +1519,7 @@ export default {
         },
         rateLimit: {
           ok: '未限流',
+          unlimited: '无限流',
           limited: '限流 {time}',
           now: '现在'
         }
@@ -1760,8 +1847,9 @@ export default {
         siteKey: '站点密钥',
         secretKey: '私密密钥',
         siteKeyHint: '从 Cloudflare Dashboard 获取',
-        secretKeyHint: '服务端验证密钥（请保密）'
-      },
+        cloudflareDashboard: 'Cloudflare Dashboard',
+        secretKeyHint: '服务端验证密钥（请保密）',
+        secretKeyConfiguredHint: '密钥已配置，留空以保留当前值。'      },
       defaults: {
         title: '用户默认设置',
         description: '新用户的默认值',
@@ -1810,6 +1898,8 @@ export default {
         password: 'SMTP 密码',
         passwordPlaceholder: '********',
         passwordHint: '留空以保留现有密码',
+        passwordConfiguredPlaceholder: '********',
+        passwordConfiguredHint: '密码已配置，留空以保留当前值。',
         fromEmail: '发件人邮箱',
         fromEmailPlaceholder: "noreply{'@'}example.com",
         fromName: '发件人名称',
@@ -1907,6 +1997,7 @@ export default {
     description: '查看您的订阅计划和用量',
     noActiveSubscriptions: '暂无有效订阅',
     noActiveSubscriptionsDesc: '您没有任何有效订阅。请联系管理员获取订阅。',
+    failedToLoad: '加载订阅失败',
     status: {
       active: '有效',
       expired: '已过期',

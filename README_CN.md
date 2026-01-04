@@ -268,6 +268,15 @@ default:
   rate_multiplier: 1.0
 ```
 
+`config.yaml` 还支持以下安全相关配置：
+
+- `cors.allowed_origins` 配置 CORS 白名单
+- `security.url_allowlist` 配置上游/价格数据/CRS 主机白名单
+- `security.csp` 配置 Content-Security-Policy
+- `billing.circuit_breaker` 计费异常时 fail-closed
+- `server.trusted_proxies` 启用可信代理解析 X-Forwarded-For
+- `turnstile.required` 在 release 模式强制启用 Turnstile
+
 ```bash
 # 6. 运行应用
 ./sub2api
@@ -331,6 +340,10 @@ Antigravity 账户支持可选的**混合调度**功能。开启后，通用端�
 
 > **⚠️ 注意**：Anthropic Claude 和 Antigravity Claude **不能在同一上下文中混合使用**，请通过分组功能做好隔离。
 
+
+### 已知问题
+在 Claude Code 中，无法自动退出Plan Mode。（正常使用原生Claude Api时，Plan 完成后，Claude Code会弹出弹出选项让用户同意或拒绝Plan。） 
+解决办法：shift + Tab，手动退出Plan mode，然后输入内容 告诉 Claude Code 同意或拒绝 Plan
 ---
 
 ## 项目结构
