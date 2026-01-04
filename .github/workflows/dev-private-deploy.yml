@@ -106,7 +106,18 @@ jobs:
             docker-compose pull
             docker-compose up -d
 
-            # 5. 清理旧镜像
+            # 5. 清理旧镜像 (保留最近 2 个版本用于回退)
+            # 获取当前项目的所有镜像 ID（按创建时间排序，最新在前）
+            # 跳过前 2 个（当前版本 + 1 个旧版本），删除其余
+            IMAGES_TO_DELETE=$(docker images "docker.topren.top/sub2api" --format "{{.ID}} {{.CreatedAt}}" | sort -k2,3 -r | awk 'NR>2 {print $1}' | uniq)
+            if [ -n "$IMAGES_TO_DELETE" ]; then
+              echo "Removing old images (keeping 2 most recent):"
+              echo "$IMAGES_TO_DELETE"
+              echo "$IMAGES_TO_DELETE" | xargs -r docker rmi -f 2>/dev/null || true
+            else
+              echo "No old images to clean up"
+            fi
+            # 清理悬空镜像
             docker image prune -f
 
             # 6. 显示部署状态
