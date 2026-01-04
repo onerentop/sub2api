@@ -125,16 +125,29 @@ jobs:
             # 5. 重启服务
             docker-compose up -d
 
-            # 6. 清理旧镜像 (保留最近 2 个版本用于回退)
-            # 获取当前项目的所有镜像 ID（按创建时间排序，最新在前）
-            # 跳过前 2 个（当前版本 + 1 个旧版本），删除其余
-            IMAGES_TO_DELETE=$(docker images "docker.topren.top/sub2api" --format "{{.ID}} {{.CreatedAt}}" | sort -k2,3 -r | awk 'NR>2 {print $1}' | uniq)
+            # 6. 清理旧镜像 (保留最近 3 个不同的镜像版本用于回退)
+            # 按镜像 ID 去重后计数，确保保留真正不同的版本
+            echo "📦 当前镜像列表:"
+            docker images "docker.topren.top/sub2api" --format "table {{.Tag}}\t{{.ID}}\t{{.CreatedAt}}"
+
+            # 获取唯一镜像 ID（按创建时间排序），保留前 3 个
+            UNIQUE_IDS=$(docker images "docker.topren.top/sub2api" --format "{{.ID}}" | awk '!seen[$0]++')
+            KEEP_COUNT=3
+            CURRENT=0
+            IMAGES_TO_DELETE=""
+            for ID in $UNIQUE_IDS; do
+              CURRENT=$((CURRENT + 1))
+              if [ $CURRENT -gt $KEEP_COUNT ]; then
+                IMAGES_TO_DELETE="$IMAGES_TO_DELETE $ID"
+              fi
+            done
+
             if [ -n "$IMAGES_TO_DELETE" ]; then
-              echo "Removing old images (keeping 2 most recent):"
+              echo "🗑️ 清理旧镜像 (保留最近 $KEEP_COUNT 个版本):"
               echo "$IMAGES_TO_DELETE"
               echo "$IMAGES_TO_DELETE" | xargs -r docker rmi -f 2>/dev/null || true
             else
-              echo "No old images to clean up"
+              echo "✅ 无需清理旧镜像"
             fi
             # 清理悬空镜像
             docker image prune -f
