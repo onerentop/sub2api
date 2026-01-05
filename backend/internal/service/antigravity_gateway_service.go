@@ -529,7 +529,20 @@ func isSignatureRelatedError(respBody []byte) bool {
 	}
 
 	// Keep this intentionally broad: different upstreams may use "signature" or "thought_signature".
-	return strings.Contains(msg, "thought_signature") || strings.Contains(msg, "signature")
+	if strings.Contains(msg, "thought_signature") || strings.Contains(msg, "signature") {
+		return true
+	}
+
+	// Detect thinking block format errors (e.g., "Expected `thinking` ... but found `tool_use`")
+	// This happens when thinking is enabled but assistant message doesn't start with thinking block.
+	if strings.Contains(msg, "expected `thinking`") || strings.Contains(msg, "expected 'thinking'") {
+		return true
+	}
+	if strings.Contains(msg, "`thinking` is enabled") || strings.Contains(msg, "'thinking' is enabled") {
+		return true
+	}
+
+	return false
 }
 
 func extractAntigravityErrorMessage(body []byte) string {
