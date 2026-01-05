@@ -47,6 +47,7 @@ export default {
     description: 'Configure your Sub2API instance',
     database: {
       title: 'Database Configuration',
+      description: 'Connect to your PostgreSQL database',
       host: 'Host',
       port: 'Port',
       username: 'Username',
@@ -63,6 +64,7 @@ export default {
     },
     redis: {
       title: 'Redis Configuration',
+      description: 'Connect to your Redis server',
       host: 'Host',
       port: 'Port',
       password: 'Password (optional)',
@@ -71,6 +73,7 @@ export default {
     },
     admin: {
       title: 'Admin Account',
+      description: 'Create your administrator account',
       email: 'Email',
       password: 'Password',
       confirmPassword: 'Confirm Password',
@@ -80,9 +83,21 @@ export default {
     },
     ready: {
       title: 'Ready to Install',
+      description: 'Review your configuration and complete setup',
       database: 'Database',
       redis: 'Redis',
       adminEmail: 'Admin Email'
+    },
+    status: {
+      testing: 'Testing...',
+      success: 'Connection Successful',
+      testConnection: 'Test Connection',
+      installing: 'Installing...',
+      completeInstallation: 'Complete Installation',
+      completed: 'Installation completed!',
+      redirecting: 'Redirecting to login page...',
+      restarting: 'Service is restarting, please wait...',
+      timeout: 'Service restart is taking longer than expected. Please refresh the page manually.'
     }
   },
 
@@ -130,11 +145,13 @@ export default {
     copiedToClipboard: 'Copied to clipboard',
     copyFailed: 'Failed to copy',
     contactSupport: 'Contact Support',
-    selectOption: 'Select an option',
-    searchPlaceholder: 'Search...',
-    noOptionsFound: 'No options found',
-    saving: 'Saving...',
-    refresh: 'Refresh',
+        selectOption: 'Select an option',
+        searchPlaceholder: 'Search...', 
+        noOptionsFound: 'No options found',
+        noGroupsAvailable: 'No groups available',
+        unknownError: 'Unknown error occurred',
+        saving: 'Saving...', 
+        selectedCount: '({count} selected)',    refresh: 'Refresh',
     notAvailable: 'N/A',
     now: 'Now',
     unknown: 'Unknown',
@@ -445,7 +462,8 @@ export default {
     days: ' days',
     codeRedeemSuccess: 'Code redeemed successfully!',
     failedToRedeem: 'Failed to redeem code. Please check the code and try again.',
-    subscriptionRefreshFailed: 'Redeemed successfully, but failed to refresh subscription status.'
+    subscriptionRefreshFailed: 'Redeemed successfully, but failed to refresh subscription status.',
+    pleaseEnterCode: 'Please enter a redeem code'
   },
 
   // Profile
@@ -641,6 +659,10 @@ export default {
       failedToDelete: 'Failed to delete user',
       failedToToggle: 'Failed to update user status',
       failedToLoadApiKeys: 'Failed to load user API keys',
+      emailRequired: 'Please enter email',
+      concurrencyMin: 'Concurrency must be at least 1',
+      amountRequired: 'Please enter a valid amount',
+      insufficientBalance: 'Insufficient balance',
       deleteConfirm: "Are you sure you want to delete '{email}'? This action cannot be undone.",
       setAllowedGroups: 'Set Allowed Groups',
       allowedGroupsHint:
@@ -672,7 +694,10 @@ export default {
       failedToDeposit: 'Failed to deposit',
       failedToWithdraw: 'Failed to withdraw',
       useDepositWithdrawButtons: 'Please use deposit/withdraw buttons to adjust balance',
-      insufficientBalance: 'Insufficient balance, balance cannot be negative after withdrawal',
+      roles: {
+        admin: 'Admin',
+        user: 'User'
+      },
       // Settings Dropdowns
       filterSettings: 'Filter Settings',
       columnSettings: 'Column Settings',
@@ -728,6 +753,9 @@ export default {
         failedToLoad: 'Failed to load attributes',
         failedToCreate: 'Failed to create attribute',
         failedToUpdate: 'Failed to update attribute',
+        keyRequired: 'Please enter attribute key',
+        nameRequired: 'Please enter display name',
+        optionsRequired: 'Please add at least one option',
         failedToDelete: 'Failed to delete attribute',
         failedToReorder: 'Failed to update order',
         keyExists: 'Attribute key already exists',
@@ -739,6 +767,7 @@ export default {
     groups: {
       title: 'Group Management',
       description: 'Manage API key groups and rate multipliers',
+      searchGroups: 'Search groups...',
       createGroup: 'Create Group',
       editGroup: 'Edit Group',
       deleteGroup: 'Delete Group',
@@ -794,6 +823,14 @@ export default {
       failedToCreate: 'Failed to create group',
       failedToUpdate: 'Failed to update group',
       failedToDelete: 'Failed to delete group',
+      nameRequired: 'Please enter group name',
+      platforms: {
+        all: 'All Platforms',
+        anthropic: 'Anthropic',
+        openai: 'OpenAI',
+        gemini: 'Gemini',
+        antigravity: 'Antigravity'
+      },
       deleteConfirm:
         "Are you sure you want to delete '{name}'? All associated API keys will no longer belong to any group.",
       deleteConfirmSubscription:
@@ -875,6 +912,9 @@ export default {
       failedToAssign: 'Failed to assign subscription',
       failedToExtend: 'Failed to extend subscription',
       failedToRevoke: 'Failed to revoke subscription',
+      pleaseSelectUser: 'Please select a user',
+      pleaseSelectGroup: 'Please select a group',
+      validityDaysRequired: 'Please enter a valid number of days (at least 1)',
       revokeConfirm:
         "Are you sure you want to revoke the subscription for '{user}'? This action cannot be undone."
     },
@@ -907,6 +947,9 @@ export default {
       editAccount: 'Edit Account',
       deleteAccount: 'Delete Account',
       searchAccounts: 'Search accounts...',
+      notes: 'Notes',
+      notesPlaceholder: 'Enter notes',
+      notesHint: 'Notes are optional',
       allPlatforms: 'All Platforms',
       allTypes: 'All Types',
       allStatus: 'All Status',
@@ -935,9 +978,33 @@ export default {
         antigravityOauth: 'Antigravity OAuth'
       },
       status: {
+        active: 'Active',
+        inactive: 'Inactive',
+        error: 'Error',
+        cooldown: 'Cooldown',
         paused: 'Paused',
         limited: 'Limited',
-        tempUnschedulable: 'Temp Unschedulable'
+        tempUnschedulable: 'Temp Unschedulable',
+        rateLimitedUntil: 'Rate limited until {time}',
+        overloadedUntil: 'Overloaded until {time}',
+        viewTempUnschedDetails: 'View temp unschedulable details'
+      },
+      columns: {
+        name: 'Name',
+        platformType: 'Platform/Type',
+        platform: 'Platform',
+        type: 'Type',
+        concurrencyStatus: 'Concurrency',
+        notes: 'Notes',
+        priority: 'Priority',
+        weight: 'Weight',
+        status: 'Status',
+        schedulable: 'Schedulable',
+        todayStats: 'Today Stats',
+        groups: 'Groups',
+        usageWindows: 'Usage Windows',
+        lastUsed: 'Last Used',
+        actions: 'Actions'
       },
       tempUnschedulable: {
         title: 'Temp Unschedulable',
@@ -981,21 +1048,6 @@ export default {
           unavailableLabel: '503 Unavailable',
           unavailableDesc: 'Unavailable - pause 30 minutes'
         }
-      },
-      columns: {
-        name: 'Name',
-        platformType: 'Platform/Type',
-        platform: 'Platform',
-        type: 'Type',
-        concurrencyStatus: 'Concurrency',
-        status: 'Status',
-        schedulable: 'Schedule',
-        todayStats: "Today's Stats",
-        groups: 'Groups',
-        usageWindows: 'Usage Windows',
-        priority: 'Priority',
-        lastUsed: 'Last Used',
-        actions: 'Actions'
       },
       clearRateLimit: 'Clear Rate Limit',
       testConnection: 'Test Connection',
@@ -1484,6 +1536,12 @@ export default {
       searchProxies: 'Search proxies...',
       allProtocols: 'All Protocols',
       allStatus: 'All Status',
+      protocols: {
+        http: 'HTTP',
+        https: 'HTTPS',
+        socks5: 'SOCKS5',
+        socks5h: 'SOCKS5H (Remote DNS)'
+      },
       columns: {
         name: 'Name',
         protocol: 'Protocol',
@@ -1540,6 +1598,9 @@ export default {
       failedToUpdate: 'Failed to update proxy',
       failedToDelete: 'Failed to delete proxy',
       failedToTest: 'Failed to test proxy',
+      nameRequired: 'Please enter proxy name',
+      hostRequired: 'Please enter host address',
+      portInvalid: 'Port must be between 1-65535',
       deleteConfirm:
         "Are you sure you want to delete '{name}'? Accounts using this proxy will have their proxy removed."
     },
@@ -1597,11 +1658,22 @@ export default {
       failedToDelete: 'Failed to delete code',
       failedToDeleteUnused: 'Failed to delete unused codes',
       failedToCopy: 'Failed to copy codes',
+      types: {
+        balance: 'Balance',
+        concurrency: 'Concurrency',
+        subscription: 'Subscription'
+      },
       selectGroup: 'Select Group',
       selectGroupPlaceholder: 'Choose a subscription group',
       validityDays: 'Validity Days',
       groupRequired: 'Please select a subscription group',
-      days: ' days'
+      days: ' days',
+      status: {
+        unused: 'Unused',
+        used: 'Used',
+        expired: 'Expired',
+        disabled: 'Disabled'
+      }
     },
 
     // Usage Records
@@ -1610,6 +1682,7 @@ export default {
       description: 'View and manage all user usage records',
       userFilter: 'User',
       searchUserPlaceholder: 'Search user by email...',
+      searchApiKeyPlaceholder: 'Search API key by name...',
       selectedUser: 'Selected',
       user: 'User',
       account: 'Account',
