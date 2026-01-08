@@ -241,6 +241,8 @@ func TestAPIContracts(t *testing.T) {
 							"stream": true,
 							"duration_ms": 100,
 							"first_token_ms": 50,
+							"image_count": 0,
+							"image_size": null,
 							"created_at": "2025-01-02T03:04:05Z"
 						}
 					],
@@ -1060,6 +1062,10 @@ func (r *stubUsageLogRepo) GetGlobalStats(ctx context.Context, startTime, endTim
 }
 
 func (r *stubUsageLogRepo) GetAccountUsageStats(ctx context.Context, accountID int64, startTime, endTime time.Time) (*usagestats.AccountUsageStatsResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (r *stubUsageLogRepo) GetStatsWithFilters(ctx context.Context, filters usagestats.UsageLogFilters) (*usagestats.UsageStats, error) {
 	return nil, errors.New("not implemented")
 }
 

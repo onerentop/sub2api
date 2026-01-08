@@ -259,6 +259,10 @@ export interface Group {
   daily_limit_usd: number | null
   weekly_limit_usd: number | null
   monthly_limit_usd: number | null
+  // 图片生成计费配置（仅 antigravity 平台使用）
+  image_price_1k: number | null
+  image_price_2k: number | null
+  image_price_4k: number | null
   account_count?: number
   created_at: string
   updated_at: string
@@ -397,6 +401,8 @@ export interface Account {
   status: 'active' | 'inactive' | 'error'
   error_message: string | null
   last_used_at: string | null
+  expires_at: number | null
+  auto_pause_on_expired: boolean
   created_at: string
   updated_at: string
   proxy?: Proxy
@@ -487,6 +493,8 @@ export interface CreateAccountRequest {
   concurrency?: number
   priority?: number
   group_ids?: number[]
+  expires_at?: number | null
+  auto_pause_on_expired?: boolean
   confirm_mixed_channel_risk?: boolean
 }
 
@@ -502,6 +510,8 @@ export interface UpdateAccountRequest {
   schedulable?: boolean
   status?: 'active' | 'inactive'
   group_ids?: number[]
+  expires_at?: number | null
+  auto_pause_on_expired?: boolean
   confirm_mixed_channel_risk?: boolean
 }
 
@@ -561,6 +571,11 @@ export interface UsageLog {
   stream: boolean
   duration_ms: number
   first_token_ms: number | null
+
+  // 图片生成字段
+  image_count: number
+  image_size: string | null
+
   created_at: string
 
   user?: User

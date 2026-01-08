@@ -175,6 +175,21 @@ func FirstTokenMs(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldFirstTokenMs, v))
 }
 
+// UserAgent applies equality check predicate on the "user_agent" field. It's identical to UserAgentEQ.
+func UserAgent(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldUserAgent, v))
+}
+
+// ImageCount applies equality check predicate on the "image_count" field. It's identical to ImageCountEQ.
+func ImageCount(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldImageCount, v))
+}
+
+// ImageSize applies equality check predicate on the "image_size" field. It's identical to ImageSizeEQ.
+func ImageSize(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldImageSize, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldCreatedAt, v))
@@ -1098,6 +1113,196 @@ func FirstTokenMsIsNil() predicate.UsageLog {
 // FirstTokenMsNotNil applies the NotNil predicate on the "first_token_ms" field.
 func FirstTokenMsNotNil() predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldNotNull(FieldFirstTokenMs))
+}
+
+// UserAgentEQ applies the EQ predicate on the "user_agent" field.
+func UserAgentEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldUserAgent, v))
+}
+
+// UserAgentNEQ applies the NEQ predicate on the "user_agent" field.
+func UserAgentNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldUserAgent, v))
+}
+
+// UserAgentIn applies the In predicate on the "user_agent" field.
+func UserAgentIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldUserAgent, vs...))
+}
+
+// UserAgentNotIn applies the NotIn predicate on the "user_agent" field.
+func UserAgentNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldUserAgent, vs...))
+}
+
+// UserAgentGT applies the GT predicate on the "user_agent" field.
+func UserAgentGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldUserAgent, v))
+}
+
+// UserAgentGTE applies the GTE predicate on the "user_agent" field.
+func UserAgentGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldUserAgent, v))
+}
+
+// UserAgentLT applies the LT predicate on the "user_agent" field.
+func UserAgentLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldUserAgent, v))
+}
+
+// UserAgentLTE applies the LTE predicate on the "user_agent" field.
+func UserAgentLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldUserAgent, v))
+}
+
+// UserAgentContains applies the Contains predicate on the "user_agent" field.
+func UserAgentContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldUserAgent, v))
+}
+
+// UserAgentHasPrefix applies the HasPrefix predicate on the "user_agent" field.
+func UserAgentHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldUserAgent, v))
+}
+
+// UserAgentHasSuffix applies the HasSuffix predicate on the "user_agent" field.
+func UserAgentHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldUserAgent, v))
+}
+
+// UserAgentIsNil applies the IsNil predicate on the "user_agent" field.
+func UserAgentIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldUserAgent))
+}
+
+// UserAgentNotNil applies the NotNil predicate on the "user_agent" field.
+func UserAgentNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldUserAgent))
+}
+
+// UserAgentEqualFold applies the EqualFold predicate on the "user_agent" field.
+func UserAgentEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldUserAgent, v))
+}
+
+// UserAgentContainsFold applies the ContainsFold predicate on the "user_agent" field.
+func UserAgentContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldUserAgent, v))
+}
+
+// ImageCountEQ applies the EQ predicate on the "image_count" field.
+func ImageCountEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldImageCount, v))
+}
+
+// ImageCountNEQ applies the NEQ predicate on the "image_count" field.
+func ImageCountNEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldImageCount, v))
+}
+
+// ImageCountIn applies the In predicate on the "image_count" field.
+func ImageCountIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldImageCount, vs...))
+}
+
+// ImageCountNotIn applies the NotIn predicate on the "image_count" field.
+func ImageCountNotIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldImageCount, vs...))
+}
+
+// ImageCountGT applies the GT predicate on the "image_count" field.
+func ImageCountGT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldImageCount, v))
+}
+
+// ImageCountGTE applies the GTE predicate on the "image_count" field.
+func ImageCountGTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldImageCount, v))
+}
+
+// ImageCountLT applies the LT predicate on the "image_count" field.
+func ImageCountLT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldImageCount, v))
+}
+
+// ImageCountLTE applies the LTE predicate on the "image_count" field.
+func ImageCountLTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldImageCount, v))
+}
+
+// ImageSizeEQ applies the EQ predicate on the "image_size" field.
+func ImageSizeEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldImageSize, v))
+}
+
+// ImageSizeNEQ applies the NEQ predicate on the "image_size" field.
+func ImageSizeNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldImageSize, v))
+}
+
+// ImageSizeIn applies the In predicate on the "image_size" field.
+func ImageSizeIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldImageSize, vs...))
+}
+
+// ImageSizeNotIn applies the NotIn predicate on the "image_size" field.
+func ImageSizeNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldImageSize, vs...))
+}
+
+// ImageSizeGT applies the GT predicate on the "image_size" field.
+func ImageSizeGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldImageSize, v))
+}
+
+// ImageSizeGTE applies the GTE predicate on the "image_size" field.
+func ImageSizeGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldImageSize, v))
+}
+
+// ImageSizeLT applies the LT predicate on the "image_size" field.
+func ImageSizeLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldImageSize, v))
+}
+
+// ImageSizeLTE applies the LTE predicate on the "image_size" field.
+func ImageSizeLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldImageSize, v))
+}
+
+// ImageSizeContains applies the Contains predicate on the "image_size" field.
+func ImageSizeContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldImageSize, v))
+}
+
+// ImageSizeHasPrefix applies the HasPrefix predicate on the "image_size" field.
+func ImageSizeHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldImageSize, v))
+}
+
+// ImageSizeHasSuffix applies the HasSuffix predicate on the "image_size" field.
+func ImageSizeHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldImageSize, v))
+}
+
+// ImageSizeIsNil applies the IsNil predicate on the "image_size" field.
+func ImageSizeIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldImageSize))
+}
+
+// ImageSizeNotNil applies the NotNil predicate on the "image_size" field.
+func ImageSizeNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldImageSize))
+}
+
+// ImageSizeEqualFold applies the EqualFold predicate on the "image_size" field.
+func ImageSizeEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldImageSize, v))
+}
+
+// ImageSizeContainsFold applies the ContainsFold predicate on the "image_size" field.
+func ImageSizeContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldImageSize, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

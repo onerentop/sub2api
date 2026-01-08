@@ -47,6 +47,11 @@ type Group struct {
 	WeeklyLimitUSD   *float64 `json:"weekly_limit_usd"`
 	MonthlyLimitUSD  *float64 `json:"monthly_limit_usd"`
 
+	// 图片生成计费配置（仅 antigravity 平台使用）
+	ImagePrice1K *float64 `json:"image_price_1k"`
+	ImagePrice2K *float64 `json:"image_price_2k"`
+	ImagePrice4K *float64 `json:"image_price_4k"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
@@ -55,21 +60,23 @@ type Group struct {
 }
 
 type Account struct {
-	ID           int64          `json:"id"`
-	Name         string         `json:"name"`
-	Notes        *string        `json:"notes"`
-	Platform     string         `json:"platform"`
-	Type         string         `json:"type"`
-	Credentials  map[string]any `json:"credentials"`
-	Extra        map[string]any `json:"extra"`
-	ProxyID      *int64         `json:"proxy_id"`
-	Concurrency  int            `json:"concurrency"`
-	Priority     int            `json:"priority"`
-	Status       string         `json:"status"`
-	ErrorMessage string         `json:"error_message"`
-	LastUsedAt   *time.Time     `json:"last_used_at"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	ID                 int64          `json:"id"`
+	Name               string         `json:"name"`
+	Notes              *string        `json:"notes"`
+	Platform           string         `json:"platform"`
+	Type               string         `json:"type"`
+	Credentials        map[string]any `json:"credentials"`
+	Extra              map[string]any `json:"extra"`
+	ProxyID            *int64         `json:"proxy_id"`
+	Concurrency        int            `json:"concurrency"`
+	Priority           int            `json:"priority"`
+	Status             string         `json:"status"`
+	ErrorMessage       string         `json:"error_message"`
+	LastUsedAt         *time.Time     `json:"last_used_at"`
+	ExpiresAt          *int64         `json:"expires_at"`
+	AutoPauseOnExpired bool           `json:"auto_pause_on_expired"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
 
 	Schedulable bool `json:"schedulable"`
 
@@ -168,6 +175,10 @@ type UsageLog struct {
 	Stream       bool `json:"stream"`
 	DurationMs   *int `json:"duration_ms"`
 	FirstTokenMs *int `json:"first_token_ms"`
+
+	// 图片生成字段
+	ImageCount int     `json:"image_count"`
+	ImageSize  *string `json:"image_size"`
 
 	CreatedAt time.Time `json:"created_at"`
 

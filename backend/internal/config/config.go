@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -17,7 +18,7 @@ const (
 	RunModeSimple   = "simple"
 )
 
-const DefaultCSPPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+const DefaultCSPPolicy = "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 
 // 连接池隔离策略常量
 // 用于控制上游 HTTP 连接池的隔离粒度，影响连接复用和资源消耗
@@ -51,6 +52,15 @@ type Config struct {
 	RunMode      string             `mapstructure:"run_mode" yaml:"run_mode"`
 	Timezone     string             `mapstructure:"timezone"` // e.g. "Asia/Shanghai", "UTC"
 	Gemini       GeminiConfig       `mapstructure:"gemini"`
+	Update       UpdateConfig       `mapstructure:"update"`
+}
+
+// UpdateConfig 在线更新相关配置
+type UpdateConfig struct {
+	// ProxyURL 用于访问 GitHub 的代理地址
+	// 支持 http/https/socks5/socks5h 协议
+	// 例如: "http://127.0.0.1:7890", "socks5://127.0.0.1:1080"
+	ProxyURL string `mapstructure:"proxy_url"`
 }
 
 type GeminiConfig struct {
@@ -147,7 +157,7 @@ type CSPConfig struct {
 }
 
 type ProxyProbeConfig struct {
-	InsecureSkipVerify bool `mapstructure:"insecure_skip_verify"`
+	InsecureSkipVerify bool `mapstructure:"insecure_skip_verify"` // 已禁用：禁止跳过 TLS 证书验证
 }
 
 type BillingConfig struct {
@@ -338,8 +348,19 @@ func NormalizeRunMode(value string) string {
 func Load() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
+
+	// Add config paths in priority order
+	// 1. DATA_DIR environment variable (highest priority)
+	if dataDir := os.Getenv("DATA_DIR"); dataDir != "" {
+		viper.AddConfigPath(dataDir)
+	}
+	// 2. Docker data directory
+	viper.AddConfigPath("/app/data")
+	// 3. Current directory
 	viper.AddConfigPath(".")
+	// 4. Config subdirectory
 	viper.AddConfigPath("./config")
+	// 5. System config directory
 	viper.AddConfigPath("/etc/sub2api")
 
 	// 环境变量支持
@@ -372,13 +393,13 @@ func Load() (*Config, error) {
 	cfg.Security.ResponseHeaders.ForceRemove = normalizeStringSlice(cfg.Security.ResponseHeaders.ForceRemove)
 	cfg.Security.CSP.Policy = strings.TrimSpace(cfg.Security.CSP.Policy)
 
-	if cfg.Server.Mode != "release" && cfg.JWT.Secret == "" {
+	if cfg.JWT.Secret == "" {
 		secret, err := generateJWTSecret(64)
 		if err != nil {
 			return nil, fmt.Errorf("generate jwt secret error: %w", err)
 		}
 		cfg.JWT.Secret = secret
-		log.Println("Warning: JWT secret auto-generated for non-release mode. Do not use in production.")
+		log.Println("Warning: JWT secret auto-generated. Consider setting a fixed secret for production.")
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -392,7 +413,7 @@ func Load() (*Config, error) {
 		log.Println("Warning: security.response_headers.enabled=false; configurable header filtering disabled (default allowlist only).")
 	}
 
-	if cfg.Server.Mode != "release" && cfg.JWT.Secret != "" && isWeakJWTSecret(cfg.JWT.Secret) {
+	if cfg.JWT.Secret != "" && isWeakJWTSecret(cfg.JWT.Secret) {
 		log.Println("Warning: JWT secret appears weak; use a 32+ character random secret in production.")
 	}
 	if len(cfg.Security.ResponseHeaders.AdditionalAllowed) > 0 || len(cfg.Security.ResponseHeaders.ForceRemove) > 0 {
@@ -436,8 +457,8 @@ func setDefaults() {
 		"raw.githubusercontent.com",
 	})
 	viper.SetDefault("security.url_allowlist.crs_hosts", []string{})
-	viper.SetDefault("security.url_allowlist.allow_private_hosts", false)
-	viper.SetDefault("security.url_allowlist.allow_insecure_http", false)
+	viper.SetDefault("security.url_allowlist.allow_private_hosts", true)
+	viper.SetDefault("security.url_allowlist.allow_insecure_http", true)
 	viper.SetDefault("security.response_headers.enabled", false)
 	viper.SetDefault("security.response_headers.additional_allowed", []string{})
 	viper.SetDefault("security.response_headers.force_remove", []string{})
@@ -546,20 +567,13 @@ func setDefaults() {
 	viper.SetDefault("gemini.oauth.client_secret", "")
 	viper.SetDefault("gemini.oauth.scopes", "")
 	viper.SetDefault("gemini.quota.policy", "")
+
+	// Update - 在线更新配置
+	// 代理地址为空表示直连 GitHub（适用于海外服务器）
+	viper.SetDefault("update.proxy_url", "")
 }
 
 func (c *Config) Validate() error {
-	if c.Server.Mode == "release" {
-		if c.JWT.Secret == "" {
-			return fmt.Errorf("jwt.secret is required in release mode")
-		}
-		if len(c.JWT.Secret) < 32 {
-			return fmt.Errorf("jwt.secret must be at least 32 characters")
-		}
-		if isWeakJWTSecret(c.JWT.Secret) {
-			return fmt.Errorf("jwt.secret is too weak")
-		}
-	}
 	if c.JWT.ExpireHour <= 0 {
 		return fmt.Errorf("jwt.expire_hour must be positive")
 	}
