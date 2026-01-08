@@ -38,6 +38,11 @@ type UsageLog struct {
 	Stream       bool
 	DurationMs   *int
 	FirstTokenMs *int
+	UserAgent    *string
+
+	// 图片生成字段
+	ImageCount int
+	ImageSize  *string
 
 	CreatedAt time.Time
 
