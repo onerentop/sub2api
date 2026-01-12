@@ -165,6 +165,11 @@ export default {
     }
   },
 
+  // Announcement Bar (public display)
+  announcement: {
+    close: 'Close'
+  },
+
   // Navigation
   nav: {
     dashboard: 'Dashboard',
@@ -179,6 +184,7 @@ export default {
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',
     promoCodes: 'Promo Codes',
+    announcements: 'Announcements',
     settings: 'Settings',
     myAccount: 'My Account',
     lightMode: 'Light Mode',
@@ -1805,6 +1811,45 @@ export default {
       failedToUpdate: 'Failed to update promo code',
       failedToDelete: 'Failed to delete promo code',
       failedToLoadUsages: 'Failed to load usage records'
+    },
+
+    // Announcements
+    announcements: {
+      title: 'Announcement Management',
+      description: 'Create and manage website announcements',
+      create: 'Create Announcement',
+      edit: 'Edit Announcement',
+      delete: 'Delete Announcement',
+      allStatus: 'All Status',
+      allTypes: 'All Types',
+      announcementTitle: 'Title',
+      titlePlaceholder: 'Enter announcement title (optional)',
+      content: 'Content',
+      contentPlaceholder: 'Enter announcement content, HTML format supported',
+      htmlSupported: 'Supports HTML format, e.g. <a href="...">link</a>, <b>bold</b>, etc.',
+      type: 'Type',
+      types: {
+        info: 'Info',
+        success: 'Success',
+        warning: 'Warning',
+        error: 'Error'
+      },
+      status: 'Status',
+      enabled: 'Enabled',
+      disabled: 'Disabled',
+      schedule: 'Schedule',
+      startTime: 'Start Time',
+      endTime: 'End Time',
+      sortOrder: 'Sort Order',
+      contentRequired: 'Content is required',
+      createSuccess: 'Announcement created successfully',
+      createFailed: 'Failed to create announcement',
+      updateSuccess: 'Announcement updated successfully',
+      updateFailed: 'Failed to update announcement',
+      deleteSuccess: 'Announcement deleted successfully',
+      deleteFailed: 'Failed to delete announcement',
+      deleteConfirmTitle: 'Delete Announcement',
+      deleteConfirmMessage: 'Are you sure you want to delete this announcement? This action cannot be undone.'
     },
 
     // Usage Records

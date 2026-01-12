@@ -163,6 +163,11 @@ export default {
     }
   },
 
+  // Announcement Bar (public display)
+  announcement: {
+    close: '关闭'
+  },
+
   // Navigation
   nav: {
     dashboard: '仪表盘',
@@ -177,6 +182,7 @@ export default {
     proxies: 'IP管理',
     redeemCodes: '兑换码',
     promoCodes: '优惠码',
+    announcements: '公告管理',
     settings: '系统设置',
     myAccount: '我的账户',
     lightMode: '浅色模式',
@@ -1950,6 +1956,45 @@ export default {
       failedToUpdate: '更新优惠码失败',
       failedToDelete: '删除优惠码失败',
       failedToLoadUsages: '加载使用记录失败'
+    },
+
+    // Announcements
+    announcements: {
+      title: '公告管理',
+      description: '创建和管理网站公告',
+      create: '创建公告',
+      edit: '编辑公告',
+      delete: '删除公告',
+      allStatus: '全部状态',
+      allTypes: '全部类型',
+      announcementTitle: '标题',
+      titlePlaceholder: '输入公告标题（可选）',
+      content: '内容',
+      contentPlaceholder: '输入公告内容，支持 HTML 格式',
+      htmlSupported: '支持 HTML 格式，如 <a href="...">链接</a>、<b>粗体</b> 等',
+      type: '类型',
+      types: {
+        info: '信息',
+        success: '成功',
+        warning: '警告',
+        error: '错误'
+      },
+      status: '状态',
+      enabled: '启用',
+      disabled: '禁用',
+      schedule: '定时',
+      startTime: '生效时间',
+      endTime: '过期时间',
+      sortOrder: '排序',
+      contentRequired: '内容不能为空',
+      createSuccess: '公告创建成功',
+      createFailed: '创建公告失败',
+      updateSuccess: '公告更新成功',
+      updateFailed: '更新公告失败',
+      deleteSuccess: '公告删除成功',
+      deleteFailed: '删除公告失败',
+      deleteConfirmTitle: '删除公告',
+      deleteConfirmMessage: '确定要删除此公告吗？此操作无法撤销。'
     },
 
     // Usage Records

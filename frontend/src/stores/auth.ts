@@ -236,6 +236,10 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     localStorage.removeItem(AUTH_TOKEN_KEY)
     localStorage.removeItem(AUTH_USER_KEY)
+
+    // Clear announcement closed state so announcements show again on next login
+    sessionStorage.removeItem('announcement_bar_closed')
+    sessionStorage.removeItem('announcement_closed_ids')
   }
 
   // ==================== Return Store API ====================
