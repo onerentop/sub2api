@@ -17,6 +17,7 @@ import usageAPI from './usage'
 import geminiAPI from './gemini'
 import antigravityAPI from './antigravity'
 import userAttributesAPI from './userAttributes'
+import opsAPI from './ops'
 import announcementsAPI from './announcements'
 
 /**
@@ -37,6 +38,7 @@ export const adminAPI = {
   gemini: geminiAPI,
   antigravity: antigravityAPI,
   userAttributes: userAttributesAPI,
+  ops: opsAPI,
   announcements: announcementsAPI
 }
 
@@ -55,6 +57,7 @@ export {
   geminiAPI,
   antigravityAPI,
   userAttributesAPI,
+  opsAPI,
   announcementsAPI
 }
 
