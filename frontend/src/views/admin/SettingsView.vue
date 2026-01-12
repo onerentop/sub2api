@@ -183,7 +183,19 @@
                   {{ t('admin.settings.registration.emailVerificationHint') }}
                 </p>
               </div>
-              <Toggle v-model="form.email_verify_enabled" />
+              <Toggle v-model="form.email_verify_enabled" />            </div>
+
+            <!-- Email Domain Whitelist -->
+            <div
+              class="border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <TagInput
+                v-model="form.email_domain_whitelist"
+                :suggestions="commonEmailDomains"
+                :label="t('admin.settings.registration.emailDomainWhitelist')"
+                :placeholder="t('admin.settings.registration.emailDomainWhitelistPlaceholder')"
+                :hint="t('admin.settings.registration.emailDomainWhitelistHint')"
+              />
             </div>
           </div>
         </div>
@@ -819,6 +831,7 @@ import type { SystemSettings, UpdateSettingsRequest } from '@/api/admin/settings
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Toggle from '@/components/common/Toggle.vue'
+import TagInput from '@/components/common/TagInput.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
 
@@ -849,6 +862,7 @@ type SettingsForm = SystemSettings & {
 const form = reactive<SettingsForm>({
   registration_enabled: true,
   email_verify_enabled: false,
+  email_domain_whitelist: [] as string[],
   default_balance: 0,
   default_concurrency: 1,
   site_name: 'Sub2API',
@@ -881,6 +895,22 @@ const form = reactive<SettingsForm>({
   enable_identity_patch: true,
   identity_patch_prompt: ''
 })
+
+
+// Common email domain suggestions
+const commonEmailDomains = [
+  'gmail.com',
+  'outlook.com',
+  'hotmail.com',
+  'yahoo.com',
+  'protonmail.com',
+  'qq.com',
+  '163.com',
+  '126.com',
+  'sina.com',
+  'foxmail.com',
+  'aliyun.com'
+]
 
 const linuxdoRedirectUrlSuggestion = computed(() => {
   if (typeof window === 'undefined') return ''
@@ -958,6 +988,7 @@ async function saveSettings() {
     const payload: UpdateSettingsRequest = {
       registration_enabled: form.registration_enabled,
       email_verify_enabled: form.email_verify_enabled,
+      email_domain_whitelist: form.email_domain_whitelist,
       default_balance: form.default_balance,
       default_concurrency: form.default_concurrency,
       site_name: form.site_name,

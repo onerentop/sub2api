@@ -2,8 +2,9 @@ package dto
 
 // SystemSettings represents the admin settings API response payload.
 type SystemSettings struct {
-	RegistrationEnabled bool `json:"registration_enabled"`
-	EmailVerifyEnabled  bool `json:"email_verify_enabled"`
+	RegistrationEnabled  bool     `json:"registration_enabled"`
+	EmailVerifyEnabled   bool     `json:"email_verify_enabled"`
+	EmailDomainWhitelist []string `json:"email_domain_whitelist"`
 
 	SMTPHost               string `json:"smtp_host"`
 	SMTPPort               int    `json:"smtp_port"`
@@ -46,9 +47,10 @@ type SystemSettings struct {
 }
 
 type PublicSettings struct {
-	RegistrationEnabled bool   `json:"registration_enabled"`
-	EmailVerifyEnabled  bool   `json:"email_verify_enabled"`
-	TurnstileEnabled    bool   `json:"turnstile_enabled"`
+	RegistrationEnabled         bool   `json:"registration_enabled"`
+	EmailVerifyEnabled          bool   `json:"email_verify_enabled"`
+	EmailDomainWhitelistEnabled bool   `json:"email_domain_whitelist_enabled"`
+	TurnstileEnabled            bool   `json:"turnstile_enabled"`
 	TurnstileSiteKey    string `json:"turnstile_site_key"`
 	SiteName            string `json:"site_name"`
 	SiteLogo            string `json:"site_logo"`

@@ -1992,7 +1992,10 @@ export default {
         enableRegistration: '开放注册',
         enableRegistrationHint: '允许新用户注册',
         emailVerification: '邮箱验证',
-        emailVerificationHint: '新用户注册时需要验证邮箱'
+        emailVerificationHint: '新用户注册时需要验证邮箱',
+        emailDomainWhitelist: '邮箱域名白名单',
+        emailDomainWhitelistPlaceholder: '输入域名后按回车添加...',
+        emailDomainWhitelistHint: '限制允许注册的邮箱域名。留空则不限制。支持从预设中选择或手动输入。'
       },
       turnstile: {
         title: 'Cloudflare Turnstile',

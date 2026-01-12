@@ -93,6 +93,13 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		return "", nil, ErrEmailReserved
 	}
 
+	// 验证邮箱域名白名单
+	if s.settingService != nil {
+		if err := s.settingService.ValidateEmailDomain(ctx, email); err != nil {
+			return "", nil, err
+		}
+	}
+
 	// 检查是否需要邮件验证
 	if s.settingService != nil && s.settingService.IsEmailVerifyEnabled(ctx) {
 		// 如果邮件验证已开启但邮件服务未配置，拒绝注册
@@ -379,6 +386,13 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			// OAuth 首次登录视为注册。
 			if s.settingService != nil && !s.settingService.IsRegistrationEnabled(ctx) {
 				return "", nil, ErrRegDisabled
+			}
+
+			// 验证邮箱域名白名单（OAuth 首次登录也需验证）
+			if s.settingService != nil {
+				if err := s.settingService.ValidateEmailDomain(ctx, email); err != nil {
+					return "", nil, err
+				}
 			}
 
 			randomPassword, err := randomHexString(32)

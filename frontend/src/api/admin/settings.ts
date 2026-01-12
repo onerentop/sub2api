@@ -12,6 +12,7 @@ export interface SystemSettings {
   // Registration settings
   registration_enabled: boolean
   email_verify_enabled: boolean
+  email_domain_whitelist: string[]
   // Default settings
   default_balance: number
   default_concurrency: number
@@ -48,6 +49,7 @@ export interface SystemSettings {
 export interface UpdateSettingsRequest {
   registration_enabled?: boolean
   email_verify_enabled?: boolean
+  email_domain_whitelist?: string[]
   default_balance?: number
   default_concurrency?: number
   site_name?: string

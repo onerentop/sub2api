@@ -42,6 +42,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 	response.Success(c, dto.SystemSettings{
 		RegistrationEnabled:                  settings.RegistrationEnabled,
 		EmailVerifyEnabled:                   settings.EmailVerifyEnabled,
+		EmailDomainWhitelist:                 settings.EmailDomainWhitelist,
 		SMTPHost:                             settings.SMTPHost,
 		SMTPPort:                             settings.SMTPPort,
 		SMTPUsername:                         settings.SMTPUsername,
@@ -80,6 +81,7 @@ type UpdateSettingsRequest struct {
 	// 注册设置
 	RegistrationEnabled bool `json:"registration_enabled"`
 	EmailVerifyEnabled  bool `json:"email_verify_enabled"`
+	EmailDomainWhitelist []string `json:"email_domain_whitelist"`
 
 	// 邮件服务设置
 	SMTPHost     string `json:"smtp_host"`
@@ -211,6 +213,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	settings := &service.SystemSettings{
 		RegistrationEnabled:        req.RegistrationEnabled,
 		EmailVerifyEnabled:         req.EmailVerifyEnabled,
+		EmailDomainWhitelist:       req.EmailDomainWhitelist,
 		SMTPHost:                   req.SMTPHost,
 		SMTPPort:                   req.SMTPPort,
 		SMTPUsername:               req.SMTPUsername,
@@ -260,6 +263,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	response.Success(c, dto.SystemSettings{
 		RegistrationEnabled:                  updatedSettings.RegistrationEnabled,
 		EmailVerifyEnabled:                   updatedSettings.EmailVerifyEnabled,
+		EmailDomainWhitelist:                 updatedSettings.EmailDomainWhitelist,
 		SMTPHost:                             updatedSettings.SMTPHost,
 		SMTPPort:                             updatedSettings.SMTPPort,
 		SMTPUsername:                         updatedSettings.SMTPUsername,

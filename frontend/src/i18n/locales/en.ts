@@ -1847,7 +1847,10 @@ export default {
         enableRegistration: 'Enable Registration',
         enableRegistrationHint: 'Allow new users to register',
         emailVerification: 'Email Verification',
-        emailVerificationHint: 'Require email verification for new registrations'
+        emailVerificationHint: 'Require email verification for new registrations',
+        emailDomainWhitelist: 'Email Domain Whitelist',
+        emailDomainWhitelistPlaceholder: 'Type a domain and press Enter to add...',
+        emailDomainWhitelistHint: 'Restrict registration to specific email domains. Leave empty to allow all domains. Select from presets or enter custom domains.'
       },
       turnstile: {
         title: 'Cloudflare Turnstile',

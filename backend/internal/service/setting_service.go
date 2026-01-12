@@ -15,7 +15,8 @@ import (
 
 var (
 	ErrRegistrationDisabled = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")
-	ErrSettingNotFound      = infraerrors.NotFound("SETTING_NOT_FOUND", "setting not found")
+	ErrSettingNotFound       = infraerrors.NotFound("SETTING_NOT_FOUND", "setting not found")
+	ErrEmailDomainNotAllowed = infraerrors.BadRequest("EMAIL_DOMAIN_NOT_ALLOWED", "email domain not allowed for registration")
 )
 
 type SettingRepository interface {
@@ -59,6 +60,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 	keys := []string{
 		SettingKeyRegistrationEnabled,
 		SettingKeyEmailVerifyEnabled,
+		SettingKeyEmailDomainWhitelist,
 		SettingKeyTurnstileEnabled,
 		SettingKeyTurnstileSiteKey,
 		SettingKeySiteName,
@@ -83,11 +85,15 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		linuxDoEnabled = s.cfg != nil && s.cfg.LinuxDo.Enabled
 	}
 
+	// 检查白名单是否启用（非空即启用）
+	whitelistEnabled := strings.TrimSpace(settings[SettingKeyEmailDomainWhitelist]) != ""
+
 	return &PublicSettings{
-		RegistrationEnabled: settings[SettingKeyRegistrationEnabled] == "true",
-		EmailVerifyEnabled:  settings[SettingKeyEmailVerifyEnabled] == "true",
-		TurnstileEnabled:    settings[SettingKeyTurnstileEnabled] == "true",
-		TurnstileSiteKey:    settings[SettingKeyTurnstileSiteKey],
+		RegistrationEnabled:         settings[SettingKeyRegistrationEnabled] == "true",
+		EmailVerifyEnabled:          settings[SettingKeyEmailVerifyEnabled] == "true",
+		EmailDomainWhitelistEnabled: whitelistEnabled,
+		TurnstileEnabled:            settings[SettingKeyTurnstileEnabled] == "true",
+		TurnstileSiteKey:            settings[SettingKeyTurnstileSiteKey],
 		SiteName:            s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
 		SiteLogo:            settings[SettingKeySiteLogo],
 		SiteSubtitle:        s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
@@ -157,6 +163,8 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	// 注册设置
 	updates[SettingKeyRegistrationEnabled] = strconv.FormatBool(settings.RegistrationEnabled)
 	updates[SettingKeyEmailVerifyEnabled] = strconv.FormatBool(settings.EmailVerifyEnabled)
+	// 邮箱域名白名单（逗号分隔存储）
+	updates[SettingKeyEmailDomainWhitelist] = strings.Join(settings.EmailDomainWhitelist, ",")
 
 	// 邮件服务设置（只有非空才更新密码）
 	updates[SettingKeySMTPHost] = settings.SMTPHost
@@ -234,6 +242,54 @@ func (s *SettingService) IsEmailVerifyEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// GetEmailDomainWhitelist 获取邮箱域名白名单
+func (s *SettingService) GetEmailDomainWhitelist(ctx context.Context) []string {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyEmailDomainWhitelist)
+	if err != nil || value == "" {
+		return nil
+	}
+	domains := strings.Split(value, ",")
+	result := make([]string, 0, len(domains))
+	for _, d := range domains {
+		d = strings.TrimSpace(strings.ToLower(d))
+		if d != "" {
+			result = append(result, d)
+		}
+	}
+	return result
+}
+
+// ValidateEmailDomain 验证邮箱域名是否在白名单中
+func (s *SettingService) ValidateEmailDomain(ctx context.Context, email string) error {
+	whitelist := s.GetEmailDomainWhitelist(ctx)
+	// 空白名单 = 允许所有邮箱
+	if len(whitelist) == 0 {
+		return nil
+	}
+
+	// 提取邮箱域名
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return s.emailDomainNotAllowedError(whitelist)
+	}
+	domain := strings.TrimSpace(strings.ToLower(parts[1]))
+
+	// 检查是否在白名单中
+	for _, allowed := range whitelist {
+		if domain == allowed {
+			return nil
+		}
+	}
+	return s.emailDomainNotAllowedError(whitelist)
+}
+
+// emailDomainNotAllowedError 生成邮箱域名不允许的错误（包含允许的域名列表）
+func (s *SettingService) emailDomainNotAllowedError(whitelist []string) error {
+	allowedDomains := strings.Join(whitelist, ", ")
+	return infraerrors.BadRequest("EMAIL_DOMAIN_NOT_ALLOWED",
+		"该邮箱域名不允许注册。允许的邮箱后缀: "+allowedDomains)
+}
+
 // GetSiteName 获取网站名称
 func (s *SettingService) GetSiteName(ctx context.Context) string {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeySiteName)
@@ -305,9 +361,21 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 // parseSettings 解析设置到结构体
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
+	// 解析邮箱域名白名单
+	var emailDomainWhitelist []string
+	if raw := strings.TrimSpace(settings[SettingKeyEmailDomainWhitelist]); raw != "" {
+		for _, d := range strings.Split(raw, ",") {
+			d = strings.TrimSpace(strings.ToLower(d))
+			if d != "" {
+				emailDomainWhitelist = append(emailDomainWhitelist, d)
+			}
+		}
+	}
+
 	result := &SystemSettings{
 		RegistrationEnabled:          settings[SettingKeyRegistrationEnabled] == "true",
 		EmailVerifyEnabled:           settings[SettingKeyEmailVerifyEnabled] == "true",
+		EmailDomainWhitelist:         emailDomainWhitelist,
 		SMTPHost:                     settings[SettingKeySMTPHost],
 		SMTPUsername:                 settings[SettingKeySMTPUsername],
 		SMTPFrom:                     settings[SettingKeySMTPFrom],
