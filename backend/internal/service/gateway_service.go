@@ -678,9 +678,10 @@ func (s *GatewayService) schedulingConfig() config.GatewaySchedulingConfig {
 const antigravityQuotaSnapshotExtraKey = "antigravity_quota_snapshot"
 
 const (
+	// 优先级从高到低：Healthy → SoftRisk(已知快满) → Unknown(无/过期快照，风险更高)
 	antigravityQuotaBucketHealthy  = 0
-	antigravityQuotaBucketUnknown  = 1
-	antigravityQuotaBucketSoftRisk = 2
+	antigravityQuotaBucketSoftRisk = 1
+	antigravityQuotaBucketUnknown  = 2
 )
 
 type antigravityQuotaKey struct {
@@ -856,7 +857,7 @@ func (s *GatewayService) compareAntigravityQuotaForScheduling(a, b *Account, req
 	ka := s.antigravityQuotaKeyForAccount(a, requestedModel, now)
 	kb := s.antigravityQuotaKeyForAccount(b, requestedModel, now)
 
-	// bucket：healthy < unknown < soft-risk
+	// bucket：healthy < soft-risk < unknown
 	if ka.bucket != kb.bucket {
 		if ka.bucket < kb.bucket {
 			return -1

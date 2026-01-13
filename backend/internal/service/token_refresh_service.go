@@ -284,6 +284,11 @@ func (s *TokenRefreshService) fetchAndStoreAntigravityQuotaSnapshot(ctx context.
 			}
 		}
 	}
+	// 防御：如果上游返回的 models 全部缺失 quotaInfo（或解析异常），不要覆盖掉旧快照；
+	// 否则会把“有数据的旧快照”变成“无数据的新快照”，调度将退化为 Unknown。
+	if len(models) == 0 {
+		return errors.New("empty antigravity quota snapshot models")
+	}
 	snapshot := map[string]any{
 		"updated_at": now.Format(time.RFC3339),
 		"models":     models,
