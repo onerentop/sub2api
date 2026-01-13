@@ -86,6 +86,35 @@ func ProvideConcurrencyService(cache ConcurrencyCache, accountRepo AccountReposi
 	return svc
 }
 
+// ProvideSchedulerSnapshotService creates and starts SchedulerSnapshotService.
+func ProvideSchedulerSnapshotService(
+	cache SchedulerCache,
+	outboxRepo SchedulerOutboxRepository,
+	accountRepo AccountRepository,
+	groupRepo GroupRepository,
+	cfg *config.Config,
+) *SchedulerSnapshotService {
+	svc := NewSchedulerSnapshotService(cache, outboxRepo, accountRepo, groupRepo, cfg)
+	svc.Start()
+	return svc
+}
+
+// ProvideRateLimitService creates RateLimitService with optional dependencies.
+func ProvideRateLimitService(
+	accountRepo AccountRepository,
+	usageRepo UsageLogRepository,
+	cfg *config.Config,
+	geminiQuotaService *GeminiQuotaService,
+	tempUnschedCache TempUnschedCache,
+	timeoutCounterCache TimeoutCounterCache,
+	settingService *SettingService,
+) *RateLimitService {
+	svc := NewRateLimitService(accountRepo, usageRepo, cfg, geminiQuotaService, tempUnschedCache)
+	svc.SetTimeoutCounterCache(timeoutCounterCache)
+	svc.SetSettingService(settingService)
+	return svc
+}
+
 // ProvideOpsMetricsCollector creates and starts OpsMetricsCollector.
 func ProvideOpsMetricsCollector(
 	opsRepo OpsRepository,
@@ -186,7 +215,7 @@ var ProviderSet = wire.NewSet(
 	NewGeminiMessagesCompatService,
 	NewAntigravityTokenProvider,
 	NewAntigravityGatewayService,
-	NewRateLimitService,
+	ProvideRateLimitService,
 	NewAccountUsageService,
 	NewAccountTestService,
 	NewSettingService,
@@ -201,6 +230,7 @@ var ProviderSet = wire.NewSet(
 	NewTurnstileService,
 	NewSubscriptionService,
 	ProvideConcurrencyService,
+	ProvideSchedulerSnapshotService,
 	NewIdentityService,
 	NewCRSSyncService,
 	ProvideUpdateService,
