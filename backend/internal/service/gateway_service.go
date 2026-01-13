@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -390,6 +391,7 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 // SelectAccountWithLoadAwareness selects account with load-awareness and wait plan.
 func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*AccountSelectionResult, error) {
 	cfg := s.schedulingConfig()
+	now := time.Now()
 	var stickyAccountID int64
 	if sessionHash != "" && s.cache != nil {
 		if accountID, err := s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), sessionHash); err == nil {
@@ -477,6 +479,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			if ok && s.isAccountInGroup(account, groupID) &&
 				s.isAccountAllowedForPlatform(account, platform, useMixed) &&
 				account.IsSchedulableForModel(requestedModel) &&
+				!s.isHardBlockedByAntigravityQuota(account, requestedModel, now) &&
 				(requestedModel == "" || s.isModelSupportedByAccount(account, requestedModel)) {
 				result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
 				if err == nil && result.Acquired {
@@ -517,6 +520,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		if !acc.IsSchedulableForModel(requestedModel) {
 			continue
 		}
+		if s.isHardBlockedByAntigravityQuota(acc, requestedModel, now) {
+			continue
+		}
 		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
 			continue
 		}
@@ -537,7 +543,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 
 	loadMap, err := s.concurrencyService.GetAccountsLoadBatch(ctx, accountLoads)
 	if err != nil {
-		if result, ok := s.tryAcquireByLegacyOrder(ctx, candidates, groupID, sessionHash, preferOAuth); ok {
+		if result, ok := s.tryAcquireByLegacyOrder(ctx, candidates, groupID, sessionHash, requestedModel, preferOAuth); ok {
 			return result, nil
 		}
 	} else {
@@ -560,10 +566,25 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		}
 
 		if len(available) > 0 {
+			quotaKeys := make(map[int64]antigravityQuotaKey, len(available))
+			for _, item := range available {
+				quotaKeys[item.account.ID] = s.antigravityQuotaKeyForAccount(item.account, requestedModel, now)
+			}
+
 			sort.SliceStable(available, func(i, j int) bool {
 				a, b := available[i], available[j]
 				if a.account.Priority != b.account.Priority {
 					return a.account.Priority < b.account.Priority
+				}
+				ka, kb := quotaKeys[a.account.ID], quotaKeys[b.account.ID]
+				if ka.bucket != kb.bucket {
+					return ka.bucket < kb.bucket
+				}
+				if ka.hasUtil && kb.hasUtil && ka.utilization != kb.utilization {
+					return ka.utilization < kb.utilization
+				}
+				if ka.bucket == antigravityQuotaBucketSoftRisk && ka.hasReset && kb.hasReset && !ka.resetAt.Equal(kb.resetAt) {
+					return ka.resetAt.Before(kb.resetAt)
 				}
 				if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
 					return a.loadInfo.LoadRate < b.loadInfo.LoadRate
@@ -600,7 +621,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	}
 
 	// ============ Layer 3: 兜底排队 ============
-	sortAccountsByPriorityAndLastUsed(candidates, preferOAuth)
+	s.sortAccountsByPriorityAndLastUsedWithAntigravityQuota(candidates, requestedModel, preferOAuth)
 	for _, acc := range candidates {
 		return &AccountSelectionResult{
 			Account: acc,
@@ -615,9 +636,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	return nil, errors.New("no available accounts")
 }
 
-func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates []*Account, groupID *int64, sessionHash string, preferOAuth bool) (*AccountSelectionResult, bool) {
+func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates []*Account, groupID *int64, sessionHash string, requestedModel string, preferOAuth bool) (*AccountSelectionResult, bool) {
 	ordered := append([]*Account(nil), candidates...)
-	sortAccountsByPriorityAndLastUsed(ordered, preferOAuth)
+	s.sortAccountsByPriorityAndLastUsedWithAntigravityQuota(ordered, requestedModel, preferOAuth)
 
 	for _, acc := range ordered {
 		result, err := s.tryAcquireAccountSlot(ctx, acc.ID, acc.Concurrency)
@@ -648,6 +669,279 @@ func (s *GatewayService) schedulingConfig() config.GatewaySchedulingConfig {
 		LoadBatchEnabled:         true,
 		SlotCleanupInterval:      30 * time.Second,
 	}
+}
+
+// =========================
+// Antigravity 配额快照调度（方案D）
+// =========================
+
+const antigravityQuotaSnapshotExtraKey = "antigravity_quota_snapshot"
+
+const (
+	antigravityQuotaBucketHealthy  = 0
+	antigravityQuotaBucketUnknown  = 1
+	antigravityQuotaBucketSoftRisk = 2
+)
+
+type antigravityQuotaKey struct {
+	bucket     int
+	utilization int
+	hasUtil    bool
+	resetAt    time.Time
+	hasReset   bool
+	hardBlocked bool
+}
+
+func (s *GatewayService) antigravityQuotaSchedulingConfig() config.AntigravityQuotaSchedulingConfig {
+	// 默认值与用户给定参数保持一致：
+	// - 软降权阈值：90
+	// - 刷新周期：300s（由后台服务执行）
+	// - 抓取并发：3（由后台服务执行）
+	// - stale_after：900s（15分钟）
+	defaultCfg := config.AntigravityQuotaSchedulingConfig{
+		Enabled:                 true,
+		RefreshIntervalSeconds:  300,
+		FetchConcurrency:        3,
+		SoftUtilizationThreshold: 90,
+		StaleAfterSeconds:       900,
+	}
+
+	if s == nil || s.cfg == nil {
+		return defaultCfg
+	}
+
+	cfg := s.cfg.Gateway.Scheduling.AntigravityQuota
+
+	// 兼容测试/未初始化场景：当配置为零值时使用默认值，避免“全账号都被判定为快满/过期”的误伤
+	if cfg.RefreshIntervalSeconds <= 0 {
+		cfg.RefreshIntervalSeconds = defaultCfg.RefreshIntervalSeconds
+	}
+	if cfg.FetchConcurrency <= 0 {
+		cfg.FetchConcurrency = defaultCfg.FetchConcurrency
+	}
+	if cfg.SoftUtilizationThreshold <= 0 {
+		cfg.SoftUtilizationThreshold = defaultCfg.SoftUtilizationThreshold
+	}
+	if cfg.StaleAfterSeconds <= 0 {
+		cfg.StaleAfterSeconds = defaultCfg.StaleAfterSeconds
+	}
+
+	return cfg
+}
+
+func (s *GatewayService) antigravityQuotaKeyForAccount(account *Account, requestedModel string, now time.Time) antigravityQuotaKey {
+	// 非 Antigravity 账号：不参与配额快照逻辑，保持与旧调度一致
+	if account == nil {
+		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+	}
+
+	cfg := s.antigravityQuotaSchedulingConfig()
+	if !cfg.Enabled {
+		return antigravityQuotaKey{bucket: antigravityQuotaBucketHealthy}
+	}
+
+	if account.Platform != PlatformAntigravity || strings.TrimSpace(requestedModel) == "" {
+		return antigravityQuotaKey{bucket: antigravityQuotaBucketHealthy}
+	}
+
+	// 1) 解析快照
+	rawSnap, ok := account.Extra[antigravityQuotaSnapshotExtraKey].(map[string]any)
+	if !ok || rawSnap == nil {
+		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+	}
+
+	updatedAtStr, _ := rawSnap["updated_at"].(string)
+	updatedAtStr = strings.TrimSpace(updatedAtStr)
+	if updatedAtStr == "" {
+		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+	}
+	updatedAt, err := time.Parse(time.RFC3339, updatedAtStr)
+	if err != nil {
+		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+	}
+
+	staleAfter := time.Duration(cfg.StaleAfterSeconds) * time.Second
+	if staleAfter <= 0 {
+		staleAfter = 15 * time.Minute
+	}
+	if now.Sub(updatedAt) > staleAfter {
+		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+	}
+
+	modelsRaw, ok := rawSnap["models"].(map[string]any)
+	if !ok || modelsRaw == nil {
+		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+	}
+
+	// 2) Antigravity 实际使用的模型可能与请求模型不同（如 claude-opus-4-5-20251101 → claude-opus-4-5-thinking）
+	mappedModel := (&AntigravityGatewayService{}).getMappedModel(account, requestedModel)
+	modelRaw, ok := modelsRaw[mappedModel].(map[string]any)
+	if !ok || modelRaw == nil {
+		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+	}
+
+	key := antigravityQuotaKey{bucket: antigravityQuotaBucketHealthy}
+
+	// utilization
+	if util, ok := intFromAny(modelRaw["utilization"]); ok {
+		key.utilization = util
+		key.hasUtil = true
+	}
+
+	// reset_time
+	if resetStr, ok := modelRaw["reset_time"].(string); ok {
+		resetStr = strings.TrimSpace(resetStr)
+		if resetStr != "" {
+			if resetAt, err := time.Parse(time.RFC3339, resetStr); err == nil {
+				key.resetAt = resetAt
+				key.hasReset = true
+			}
+		}
+	}
+
+	// 3) 硬过滤：已满账号在 reset_time 之前必然 429（QUOTA_EXHAUSTED）
+	// 注意：只对“新鲜快照”生效，避免陈旧数据导致长期误判。
+	if key.hasUtil && key.utilization >= 100 {
+		if !key.hasReset || now.Before(key.resetAt) {
+			key.hardBlocked = true
+		}
+	}
+
+	// 4) 软降权：快满账号（utilization >= 阈值）优先级后移
+	threshold := cfg.SoftUtilizationThreshold
+	if threshold <= 0 {
+		threshold = 90
+	}
+	if key.hasUtil && key.utilization >= threshold {
+		key.bucket = antigravityQuotaBucketSoftRisk
+	}
+
+	return key
+}
+
+func intFromAny(v any) (int, bool) {
+	switch t := v.(type) {
+	case int:
+		return t, true
+	case int32:
+		return int(t), true
+	case int64:
+		return int(t), true
+	case float32:
+		return int(t), true
+	case float64:
+		return int(t), true
+	case json.Number:
+		i64, err := t.Int64()
+		if err != nil {
+			return 0, false
+		}
+		return int(i64), true
+	case string:
+		s := strings.TrimSpace(t)
+		if s == "" {
+			return 0, false
+		}
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return 0, false
+		}
+		return i, true
+	default:
+		return 0, false
+	}
+}
+
+func (s *GatewayService) compareAntigravityQuotaForScheduling(a, b *Account, requestedModel string, now time.Time) int {
+	ka := s.antigravityQuotaKeyForAccount(a, requestedModel, now)
+	kb := s.antigravityQuotaKeyForAccount(b, requestedModel, now)
+
+	// bucket：healthy < unknown < soft-risk
+	if ka.bucket != kb.bucket {
+		if ka.bucket < kb.bucket {
+			return -1
+		}
+		return 1
+	}
+
+	// utilization：仅在双方都有值时比较（避免跨平台/跨来源不一致导致的偏置）
+	if ka.hasUtil && kb.hasUtil && ka.utilization != kb.utilization {
+		if ka.utilization < kb.utilization {
+			return -1
+		}
+		return 1
+	}
+
+	// reset_time：仅对 soft-risk 且双方都有 reset_time 时比较
+	if ka.bucket == antigravityQuotaBucketSoftRisk && ka.hasReset && kb.hasReset && !ka.resetAt.Equal(kb.resetAt) {
+		if ka.resetAt.Before(kb.resetAt) {
+			return -1
+		}
+		return 1
+	}
+
+	return 0
+}
+
+func (s *GatewayService) isHardBlockedByAntigravityQuota(account *Account, requestedModel string, now time.Time) bool {
+	return s.antigravityQuotaKeyForAccount(account, requestedModel, now).hardBlocked
+}
+
+func (s *GatewayService) sortAccountsByPriorityAndLastUsedWithAntigravityQuota(accounts []*Account, requestedModel string, preferOAuth bool) {
+	if len(accounts) <= 1 {
+		return
+	}
+
+	now := time.Now()
+	quotaKeys := make(map[int64]antigravityQuotaKey, len(accounts))
+	for _, acc := range accounts {
+		if acc == nil {
+			continue
+		}
+		quotaKeys[acc.ID] = s.antigravityQuotaKeyForAccount(acc, requestedModel, now)
+	}
+
+	sort.SliceStable(accounts, func(i, j int) bool {
+		a, b := accounts[i], accounts[j]
+		switch {
+		case a == nil && b != nil:
+			return false
+		case a != nil && b == nil:
+			return true
+		case a == nil && b == nil:
+			return false
+		}
+
+		if a.Priority != b.Priority {
+			return a.Priority < b.Priority
+		}
+
+		ka, kb := quotaKeys[a.ID], quotaKeys[b.ID]
+		if ka.bucket != kb.bucket {
+			return ka.bucket < kb.bucket
+		}
+		if ka.hasUtil && kb.hasUtil && ka.utilization != kb.utilization {
+			return ka.utilization < kb.utilization
+		}
+		if ka.bucket == antigravityQuotaBucketSoftRisk && ka.hasReset && kb.hasReset && !ka.resetAt.Equal(kb.resetAt) {
+			return ka.resetAt.Before(kb.resetAt)
+		}
+
+		// 复用旧的“优先级 + 最久未用”排序行为，保持调度稳定性
+		switch {
+		case a.LastUsedAt == nil && b.LastUsedAt != nil:
+			return true
+		case a.LastUsedAt != nil && b.LastUsedAt == nil:
+			return false
+		case a.LastUsedAt == nil && b.LastUsedAt == nil:
+			if preferOAuth && a.Type != b.Type {
+				return a.Type == AccountTypeOAuth
+			}
+			return false
+		default:
+			return a.LastUsedAt.Before(*b.LastUsedAt)
+		}
+	})
 }
 
 func (s *GatewayService) withGroupContext(ctx context.Context, group *Group) context.Context {
@@ -859,6 +1153,7 @@ func sortAccountsByPriorityAndLastUsed(accounts []*Account, preferOAuth bool) {
 // selectAccountForModelWithPlatform 选择单平台账户（完全隔离）
 func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, platform string) (*Account, error) {
 	preferOAuth := platform == PlatformGemini
+	now := time.Now()
 	// 1. 查询粘性会话
 	if sessionHash != "" && s.cache != nil {
 		accountID, err := s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
@@ -866,7 +1161,10 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 			if _, excluded := excludedIDs[accountID]; !excluded {
 				account, err := s.getSchedulableAccount(ctx, accountID)
 				// 检查账号分组归属和平台匹配（确保粘性会话不会跨分组或跨平台）
-				if err == nil && s.isAccountInGroup(account, groupID) && account.Platform == platform && account.IsSchedulableForModel(requestedModel) && (requestedModel == "" || s.isModelSupportedByAccount(account, requestedModel)) {
+				if err == nil && s.isAccountInGroup(account, groupID) && account.Platform == platform &&
+					account.IsSchedulableForModel(requestedModel) &&
+					!s.isHardBlockedByAntigravityQuota(account, requestedModel, now) &&
+					(requestedModel == "" || s.isModelSupportedByAccount(account, requestedModel)) {
 					if err := s.cache.RefreshSessionTTL(ctx, derefGroupID(groupID), sessionHash, stickySessionTTL); err != nil {
 						log.Printf("refresh session ttl failed: session=%s err=%v", sessionHash, err)
 					}
@@ -896,6 +1194,9 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		if !acc.IsSchedulableForModel(requestedModel) {
 			continue
 		}
+		if s.isHardBlockedByAntigravityQuota(acc, requestedModel, now) {
+			continue
+		}
 		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
 			continue
 		}
@@ -906,6 +1207,12 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		if acc.Priority < selected.Priority {
 			selected = acc
 		} else if acc.Priority == selected.Priority {
+			if cmp := s.compareAntigravityQuotaForScheduling(acc, selected, requestedModel, now); cmp < 0 {
+				selected = acc
+				continue
+			} else if cmp > 0 {
+				continue
+			}
 			switch {
 			case acc.LastUsedAt == nil && selected.LastUsedAt != nil:
 				selected = acc
@@ -944,6 +1251,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 // 查询原生平台账户 + 启用 mixed_scheduling 的 antigravity 账户
 func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, nativePlatform string) (*Account, error) {
 	preferOAuth := nativePlatform == PlatformGemini
+	now := time.Now()
 
 	// 1. 查询粘性会话
 	if sessionHash != "" && s.cache != nil {
@@ -952,7 +1260,10 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 			if _, excluded := excludedIDs[accountID]; !excluded {
 				account, err := s.getSchedulableAccount(ctx, accountID)
 				// 检查账号分组归属和有效性：原生平台直接匹配，antigravity 需要启用混合调度
-				if err == nil && s.isAccountInGroup(account, groupID) && account.IsSchedulableForModel(requestedModel) && (requestedModel == "" || s.isModelSupportedByAccount(account, requestedModel)) {
+				if err == nil && s.isAccountInGroup(account, groupID) &&
+					account.IsSchedulableForModel(requestedModel) &&
+					!s.isHardBlockedByAntigravityQuota(account, requestedModel, now) &&
+					(requestedModel == "" || s.isModelSupportedByAccount(account, requestedModel)) {
 					if account.Platform == nativePlatform || (account.Platform == PlatformAntigravity && account.IsMixedSchedulingEnabled()) {
 						if err := s.cache.RefreshSessionTTL(ctx, derefGroupID(groupID), sessionHash, stickySessionTTL); err != nil {
 							log.Printf("refresh session ttl failed: session=%s err=%v", sessionHash, err)
@@ -984,6 +1295,9 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 		if !acc.IsSchedulableForModel(requestedModel) {
 			continue
 		}
+		if s.isHardBlockedByAntigravityQuota(acc, requestedModel, now) {
+			continue
+		}
 		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
 			continue
 		}
@@ -994,6 +1308,12 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 		if acc.Priority < selected.Priority {
 			selected = acc
 		} else if acc.Priority == selected.Priority {
+			if cmp := s.compareAntigravityQuotaForScheduling(acc, selected, requestedModel, now); cmp < 0 {
+				selected = acc
+				continue
+			} else if cmp > 0 {
+				continue
+			}
 			switch {
 			case acc.LastUsedAt == nil && selected.LastUsedAt != nil:
 				selected = acc

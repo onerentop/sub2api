@@ -54,6 +54,21 @@ func TestLoadDefaultSchedulingConfig(t *testing.T) {
 	if cfg.Gateway.Scheduling.SlotCleanupInterval != 30*time.Second {
 		t.Fatalf("SlotCleanupInterval = %v, want 30s", cfg.Gateway.Scheduling.SlotCleanupInterval)
 	}
+	if !cfg.Gateway.Scheduling.AntigravityQuota.Enabled {
+		t.Fatalf("AntigravityQuota.Enabled = false, want true")
+	}
+	if cfg.Gateway.Scheduling.AntigravityQuota.RefreshIntervalSeconds != 300 {
+		t.Fatalf("AntigravityQuota.RefreshIntervalSeconds = %d, want 300", cfg.Gateway.Scheduling.AntigravityQuota.RefreshIntervalSeconds)
+	}
+	if cfg.Gateway.Scheduling.AntigravityQuota.FetchConcurrency != 3 {
+		t.Fatalf("AntigravityQuota.FetchConcurrency = %d, want 3", cfg.Gateway.Scheduling.AntigravityQuota.FetchConcurrency)
+	}
+	if cfg.Gateway.Scheduling.AntigravityQuota.SoftUtilizationThreshold != 90 {
+		t.Fatalf("AntigravityQuota.SoftUtilizationThreshold = %d, want 90", cfg.Gateway.Scheduling.AntigravityQuota.SoftUtilizationThreshold)
+	}
+	if cfg.Gateway.Scheduling.AntigravityQuota.StaleAfterSeconds != 900 {
+		t.Fatalf("AntigravityQuota.StaleAfterSeconds = %d, want 900", cfg.Gateway.Scheduling.AntigravityQuota.StaleAfterSeconds)
+	}
 }
 
 func TestLoadSchedulingConfigFromEnv(t *testing.T) {

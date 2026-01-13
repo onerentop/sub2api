@@ -19,6 +19,20 @@ func testConfig() *config.Config {
 	return &config.Config{RunMode: config.RunModeStandard}
 }
 
+func antigravityQuotaSnapshotExtra(updatedAt time.Time, model string, utilization int, resetTime time.Time) map[string]any {
+	return map[string]any{
+		"antigravity_quota_snapshot": map[string]any{
+			"updated_at": updatedAt.UTC().Format(time.RFC3339),
+			"models": map[string]any{
+				model: map[string]any{
+					"utilization": utilization,
+					"reset_time":   resetTime.UTC().Format(time.RFC3339),
+				},
+			},
+		},
+	}
+}
+
 // mockAccountRepoForPlatform 单平台测试用的 mock
 type mockAccountRepoForPlatform struct {
 	accounts         []Account
@@ -843,6 +857,55 @@ func TestGatewayService_selectAccountWithMixedScheduling(t *testing.T) {
 		require.Equal(t, PlatformAntigravity, acc.Platform)
 	})
 
+	t.Run("混合调度-硬过滤已满的antigravity账户", func(t *testing.T) {
+		now := time.Now()
+		future := now.Add(30 * time.Minute)
+		repo := &mockAccountRepoForPlatform{
+			accounts: []Account{
+				{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true},
+				{
+					ID:         2,
+					Platform:   PlatformAntigravity,
+					Priority:   1,
+					Status:     StatusActive,
+					Schedulable: true,
+					Extra: map[string]any{
+						"mixed_scheduling": true,
+						"antigravity_quota_snapshot": map[string]any{
+							"updated_at": now.UTC().Format(time.RFC3339),
+							"models": map[string]any{
+								"claude-sonnet-4-5": map[string]any{
+									"utilization": 100,
+									"reset_time":   future.UTC().Format(time.RFC3339),
+								},
+							},
+						},
+					},
+				},
+			},
+			accountsByID: map[int64]*Account{},
+		}
+		for i := range repo.accounts {
+			repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+		}
+
+		cache := &mockGatewayCacheForPlatform{}
+		svc := &GatewayService{
+			accountRepo: repo,
+			cache:       cache,
+			cfg: func() *config.Config {
+				cfg := testConfig()
+				cfg.Gateway.Scheduling.AntigravityQuota.Enabled = true
+				return cfg
+			}(),
+		}
+
+		acc, err := svc.selectAccountWithMixedScheduling(ctx, nil, "", "claude-3-5-sonnet-20241022", nil, PlatformAnthropic)
+		require.NoError(t, err)
+		require.NotNil(t, acc)
+		require.Equal(t, int64(1), acc.ID, "antigravity账号已满时应回退到原生平台账号")
+	})
+
 	t.Run("混合调度-无可用账户", func(t *testing.T) {
 		repo := &mockAccountRepoForPlatform{
 			accounts: []Account{
@@ -866,6 +929,145 @@ func TestGatewayService_selectAccountWithMixedScheduling(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, acc)
 		require.Contains(t, err.Error(), "no available accounts")
+	})
+}
+
+func TestGatewayService_selectAccountForModelWithPlatform_AntigravityQuotaAwareScheduling(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now()
+	future := now.Add(30 * time.Minute)
+
+	t.Run("硬过滤-已满账号直接跳过", func(t *testing.T) {
+		repo := &mockAccountRepoForPlatform{
+			accounts: []Account{
+				{
+					ID:         1,
+					Platform:   PlatformAntigravity,
+					Priority:   1,
+					Status:     StatusActive,
+					Schedulable: true,
+					Extra:      antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 100, future),
+				},
+				{
+					ID:         2,
+					Platform:   PlatformAntigravity,
+					Priority:   1,
+					Status:     StatusActive,
+					Schedulable: true,
+					Extra:      antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 10, future),
+				},
+			},
+			accountsByID: map[int64]*Account{},
+		}
+		for i := range repo.accounts {
+			repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+		}
+
+		svc := &GatewayService{
+			accountRepo: repo,
+			cache:       &mockGatewayCacheForPlatform{},
+			cfg: func() *config.Config {
+				cfg := testConfig()
+				cfg.Gateway.Scheduling.AntigravityQuota.Enabled = true
+				return cfg
+			}(),
+		}
+
+		// 注意：claude-opus-4-5-20251101 会映射到 claude-opus-4-5-thinking
+		acc, err := svc.selectAccountForModelWithPlatform(ctx, nil, "", "claude-opus-4-5-20251101", nil, PlatformAntigravity)
+		require.NoError(t, err)
+		require.NotNil(t, acc)
+		require.Equal(t, int64(2), acc.ID)
+	})
+
+	t.Run("软降权-快满账号优先级后移", func(t *testing.T) {
+		used := now.Add(-2 * time.Hour)
+		repo := &mockAccountRepoForPlatform{
+			accounts: []Account{
+				{
+					ID:         1,
+					Platform:   PlatformAntigravity,
+					Priority:   1,
+					Status:     StatusActive,
+					Schedulable: true,
+					LastUsedAt:  nil, // 旧逻辑会优先选 never used
+					Extra:       antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 95, future),
+				},
+				{
+					ID:         2,
+					Platform:   PlatformAntigravity,
+					Priority:   1,
+					Status:     StatusActive,
+					Schedulable: true,
+					LastUsedAt:  &used,
+					Extra:       antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 10, future),
+				},
+			},
+			accountsByID: map[int64]*Account{},
+		}
+		for i := range repo.accounts {
+			repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+		}
+
+		svc := &GatewayService{
+			accountRepo: repo,
+			cache:       &mockGatewayCacheForPlatform{},
+			cfg: func() *config.Config {
+				cfg := testConfig()
+				cfg.Gateway.Scheduling.AntigravityQuota.Enabled = true
+				return cfg
+			}(),
+		}
+
+		acc, err := svc.selectAccountForModelWithPlatform(ctx, nil, "", "claude-opus-4-5-20251101", nil, PlatformAntigravity)
+		require.NoError(t, err)
+		require.NotNil(t, acc)
+		require.Equal(t, int64(2), acc.ID)
+	})
+
+	t.Run("reset_time参与排序-快满时优先选择更快重置的账号", func(t *testing.T) {
+		soon := now.Add(10 * time.Minute)
+		later := now.Add(2 * time.Hour)
+
+		repo := &mockAccountRepoForPlatform{
+			accounts: []Account{
+				{
+					ID:         1,
+					Platform:   PlatformAntigravity,
+					Priority:   1,
+					Status:     StatusActive,
+					Schedulable: true,
+					Extra:      antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 95, later),
+				},
+				{
+					ID:         2,
+					Platform:   PlatformAntigravity,
+					Priority:   1,
+					Status:     StatusActive,
+					Schedulable: true,
+					Extra:      antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 95, soon),
+				},
+			},
+			accountsByID: map[int64]*Account{},
+		}
+		for i := range repo.accounts {
+			repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+		}
+
+		svc := &GatewayService{
+			accountRepo: repo,
+			cache:       &mockGatewayCacheForPlatform{},
+			cfg: func() *config.Config {
+				cfg := testConfig()
+				cfg.Gateway.Scheduling.AntigravityQuota.Enabled = true
+				return cfg
+			}(),
+		}
+
+		acc, err := svc.selectAccountForModelWithPlatform(ctx, nil, "", "claude-opus-4-5-20251101", nil, PlatformAntigravity)
+		require.NoError(t, err)
+		require.NotNil(t, acc)
+		require.Equal(t, int64(2), acc.ID, "同为快满时应优先选择 reset_time 更早的账号")
 	})
 }
 
@@ -1186,6 +1388,66 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.Equal(t, int64(2), result.Account.ID, "粘性账号不在候选集时应回退到可用账号")
 		require.Equal(t, 0, repo.getByIDCalls, "粘性账号缺失不应回退到GetByID")
 		require.Equal(t, 1, concurrencyCache.loadBatchCalls, "应继续进行负载批量查询")
+	})
+
+	t.Run("负载感知-硬过滤已满的antigravity账号", func(t *testing.T) {
+		now := time.Now()
+		future := now.Add(30 * time.Minute)
+
+		repo := &mockAccountRepoForPlatform{
+			accounts: []Account{
+				{
+					ID:         1,
+					Platform:   PlatformAntigravity,
+					Priority:   1,
+					Status:     StatusActive,
+					Schedulable: true,
+					Concurrency: 5,
+					Extra: map[string]any{
+						"mixed_scheduling": true,
+						"antigravity_quota_snapshot": map[string]any{
+							"updated_at": now.UTC().Format(time.RFC3339),
+							"models": map[string]any{
+								"claude-sonnet-4-5": map[string]any{
+									"utilization": 100,
+									"reset_time":   future.UTC().Format(time.RFC3339),
+								},
+							},
+						},
+					},
+				},
+				{
+					ID:         2,
+					Platform:   PlatformAnthropic,
+					Priority:   1,
+					Status:     StatusActive,
+					Schedulable: true,
+					Concurrency: 5,
+				},
+			},
+			accountsByID: map[int64]*Account{},
+		}
+		for i := range repo.accounts {
+			repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+		}
+
+		cfg := testConfig()
+		cfg.Gateway.Scheduling.LoadBatchEnabled = true
+		cfg.Gateway.Scheduling.AntigravityQuota.Enabled = true
+
+		concurrencyCache := &mockConcurrencyCache{}
+		svc := &GatewayService{
+			accountRepo:        repo,
+			cache:              &mockGatewayCacheForPlatform{},
+			cfg:                cfg,
+			concurrencyService: NewConcurrencyService(concurrencyCache),
+		}
+
+		result, err := svc.SelectAccountWithLoadAwareness(ctx, nil, "", "claude-3-5-sonnet-20241022", nil)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.NotNil(t, result.Account)
+		require.Equal(t, int64(2), result.Account.ID, "已满的antigravity账号应被跳过")
 	})
 
 	t.Run("无可用账号-返回错误", func(t *testing.T) {

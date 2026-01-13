@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -17,6 +18,7 @@ type TokenRefreshService struct {
 	accountRepo AccountRepository
 	refreshers  []TokenRefresher
 	cfg         *config.TokenRefreshConfig
+	rootCfg     *config.Config
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
@@ -34,6 +36,7 @@ func NewTokenRefreshService(
 	s := &TokenRefreshService{
 		accountRepo: accountRepo,
 		cfg:         &cfg.TokenRefresh,
+		rootCfg:     cfg,
 		stopCh:      make(chan struct{}),
 	}
 
@@ -50,16 +53,44 @@ func NewTokenRefreshService(
 
 // Start 启动后台刷新服务
 func (s *TokenRefreshService) Start() {
-	if !s.cfg.Enabled {
-		log.Println("[TokenRefresh] Service disabled by configuration")
+	if s == nil {
 		return
 	}
 
-	s.wg.Add(1)
-	go s.refreshLoop()
+	startedAny := false
 
-	log.Printf("[TokenRefresh] Service started (check every %d minutes, refresh %v hours before expiry)",
-		s.cfg.CheckIntervalMinutes, s.cfg.RefreshBeforeExpiryHours)
+	// 1) Token refresh loop（与历史行为保持一致）
+	if s.cfg != nil && s.cfg.Enabled {
+		s.wg.Add(1)
+		go s.refreshLoop()
+		startedAny = true
+
+		log.Printf("[TokenRefresh] Service started (check every %d minutes, refresh %v hours before expiry)",
+			s.cfg.CheckIntervalMinutes, s.cfg.RefreshBeforeExpiryHours)
+	} else {
+		log.Println("[TokenRefresh] Service disabled by configuration")
+	}
+
+	// 2) Antigravity quota snapshot loop（方案D：配额快照 → 调度避让）
+	agQuotaCfg := s.antigravityQuotaSchedulingConfig()
+	if agQuotaCfg.Enabled {
+		s.wg.Add(1)
+		go s.antigravityQuotaSnapshotLoop()
+		startedAny = true
+
+		log.Printf("[AntigravityQuotaSnapshot] Service started (interval=%ds concurrency=%d soft_threshold=%d stale_after=%ds)",
+			agQuotaCfg.RefreshIntervalSeconds,
+			agQuotaCfg.FetchConcurrency,
+			agQuotaCfg.SoftUtilizationThreshold,
+			agQuotaCfg.StaleAfterSeconds,
+		)
+	} else {
+		log.Println("[AntigravityQuotaSnapshot] Service disabled by configuration")
+	}
+
+	if !startedAny {
+		log.Println("[Background] No background services started (token_refresh disabled and antigravity quota snapshot disabled)")
+	}
 }
 
 // Stop 停止刷新服务
@@ -67,6 +98,13 @@ func (s *TokenRefreshService) Stop() {
 	close(s.stopCh)
 	s.wg.Wait()
 	log.Println("[TokenRefresh] Service stopped")
+}
+
+func (s *TokenRefreshService) antigravityQuotaSchedulingConfig() config.AntigravityQuotaSchedulingConfig {
+	if s == nil || s.rootCfg == nil {
+		return config.AntigravityQuotaSchedulingConfig{Enabled: false}
+	}
+	return s.rootCfg.Gateway.Scheduling.AntigravityQuota
 }
 
 // refreshLoop 刷新循环
@@ -93,6 +131,172 @@ func (s *TokenRefreshService) refreshLoop() {
 			return
 		}
 	}
+}
+
+func (s *TokenRefreshService) antigravityQuotaSnapshotLoop() {
+	defer s.wg.Done()
+
+	cfg := s.antigravityQuotaSchedulingConfig()
+	if !cfg.Enabled {
+		return
+	}
+
+	interval := time.Duration(cfg.RefreshIntervalSeconds) * time.Second
+	if interval < time.Minute {
+		// 安全兜底：避免配置过小导致过度抓取
+		interval = 5 * time.Minute
+	}
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	// 启动时立即抓取一次，尽快让调度拥有“已满/快满”的视野
+	s.processAntigravityQuotaSnapshots()
+
+	for {
+		select {
+		case <-ticker.C:
+			s.processAntigravityQuotaSnapshots()
+		case <-s.stopCh:
+			return
+		}
+	}
+}
+
+func (s *TokenRefreshService) processAntigravityQuotaSnapshots() {
+	cfg := s.antigravityQuotaSchedulingConfig()
+	if !cfg.Enabled || s.accountRepo == nil {
+		return
+	}
+
+	start := time.Now()
+	ctx := context.Background()
+
+	// 仅抓取可调度账号：减少无意义请求
+	accounts, err := s.accountRepo.ListSchedulableByPlatform(ctx, PlatformAntigravity)
+	if err != nil {
+		log.Printf("[AntigravityQuotaSnapshot] Failed to list accounts: %v", err)
+		return
+	}
+	if len(accounts) == 0 {
+		return
+	}
+
+	fetcher := &AntigravityQuotaFetcher{}
+
+	concurrency := cfg.FetchConcurrency
+	if concurrency <= 0 {
+		concurrency = 3
+	}
+
+	type counters struct {
+		total    int
+		skipped  int
+		fetched  int
+		updated  int
+		failed   int
+		emptyRaw int
+	}
+
+	var mu sync.Mutex
+	stats := counters{total: len(accounts)}
+
+	jobs := make(chan *Account)
+	var wg sync.WaitGroup
+
+	worker := func() {
+		defer wg.Done()
+		for acc := range jobs {
+			// 每个账号单独超时，避免个别网络问题拖慢整轮
+			reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			err := s.fetchAndStoreAntigravityQuotaSnapshot(reqCtx, fetcher, acc)
+			cancel()
+
+			mu.Lock()
+			if err != nil {
+				stats.failed++
+			} else {
+				stats.updated++
+			}
+			mu.Unlock()
+		}
+	}
+
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go worker()
+	}
+
+	for i := range accounts {
+		acc := &accounts[i]
+		if acc == nil {
+			continue
+		}
+		if !fetcher.CanFetch(acc) {
+			mu.Lock()
+			stats.skipped++
+			mu.Unlock()
+			continue
+		}
+		mu.Lock()
+		stats.fetched++
+		mu.Unlock()
+		jobs <- acc
+	}
+	close(jobs)
+	wg.Wait()
+
+	log.Printf("[AntigravityQuotaSnapshot] Cycle complete: total=%d, fetched=%d, skipped=%d, updated=%d, failed=%d, took=%s",
+		stats.total, stats.fetched, stats.skipped, stats.updated, stats.failed, time.Since(start))
+}
+
+func (s *TokenRefreshService) fetchAndStoreAntigravityQuotaSnapshot(ctx context.Context, fetcher *AntigravityQuotaFetcher, account *Account) error {
+	if s == nil || s.accountRepo == nil || fetcher == nil || account == nil {
+		return errors.New("invalid quota snapshot dependencies")
+	}
+	if account.ID <= 0 {
+		return errors.New("invalid account id")
+	}
+
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+
+	result, err := fetcher.FetchQuota(ctx, account, proxyURL)
+	if err != nil {
+		// 不写回 DB，保留上一份可用快照
+		return fmt.Errorf("fetch quota failed: %w", err)
+	}
+
+	// 写入 accounts.extra：结构化快照，供调度读取（避免每次调度都打上游）
+	// 注意：数值会在 JSON 反序列化后变为 float64，因此读取端需要容错解析。
+	now := time.Now().UTC()
+	models := make(map[string]any)
+	if result != nil && result.UsageInfo != nil {
+		for modelName, q := range result.UsageInfo.AntigravityQuota {
+			if strings.TrimSpace(modelName) == "" || q == nil {
+				continue
+			}
+			models[modelName] = map[string]any{
+				"utilization": q.Utilization,
+				"reset_time":   q.ResetTime,
+			}
+		}
+	}
+	snapshot := map[string]any{
+		"updated_at": now.Format(time.RFC3339),
+		"models":     models,
+	}
+	updates := map[string]any{
+		"antigravity_quota_snapshot": snapshot,
+	}
+
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, updates); err != nil {
+		return fmt.Errorf("update extra failed: %w", err)
+	}
+
+	return nil
 }
 
 // processRefresh 执行一次刷新检查

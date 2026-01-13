@@ -293,6 +293,24 @@ type GatewaySchedulingConfig struct {
 	// 全量重建周期配置
 	// 全量重建周期（秒），0 表示禁用
 	FullRebuildIntervalSeconds int `mapstructure:"full_rebuild_interval_seconds"`
+
+	// Antigravity 配额快照调度（方案D：按配额/重置时间更聪明地选账号）
+	AntigravityQuota AntigravityQuotaSchedulingConfig `mapstructure:"antigravity_quota"`
+}
+
+// AntigravityQuotaSchedulingConfig controls quota-aware scheduling for Antigravity accounts.
+// 通过后台定时抓取额度快照并写入 accounts.extra，让调度阶段能避开已满账号、并对快要满的账号做软降权。
+type AntigravityQuotaSchedulingConfig struct {
+	// 是否启用 Antigravity 配额快照机制
+	Enabled bool `mapstructure:"enabled"`
+	// 刷新周期（秒）
+	RefreshIntervalSeconds int `mapstructure:"refresh_interval_seconds"`
+	// 抓取并发（每轮刷新同时抓取的账号数）
+	FetchConcurrency int `mapstructure:"fetch_concurrency"`
+	// 软降权阈值（使用率百分比 >= 此值的账号会被排到更后面）
+	SoftUtilizationThreshold int `mapstructure:"soft_utilization_threshold"`
+	// 视为快照过期的阈值（秒）；过期快照不会参与硬过滤/软降权，避免误判导致长期“误杀”
+	StaleAfterSeconds int `mapstructure:"stale_after_seconds"`
 }
 
 func (s *ServerConfig) Address() string {
@@ -781,6 +799,15 @@ func setDefaults() {
 	viper.SetDefault("gateway.scheduling.outbox_lag_rebuild_failures", 3)
 	viper.SetDefault("gateway.scheduling.outbox_backlog_rebuild_rows", 10000)
 	viper.SetDefault("gateway.scheduling.full_rebuild_interval_seconds", 300)
+
+	// Antigravity quota-aware scheduling (方案D)
+	// 默认开启：后台定时抓取额度快照写入 accounts.extra，并在调度阶段按配额/重置时间做更聪明的选择
+	viper.SetDefault("gateway.scheduling.antigravity_quota.enabled", true)
+	viper.SetDefault("gateway.scheduling.antigravity_quota.refresh_interval_seconds", 300)
+	viper.SetDefault("gateway.scheduling.antigravity_quota.fetch_concurrency", 3)
+	viper.SetDefault("gateway.scheduling.antigravity_quota.soft_utilization_threshold", 90)
+	// 3 * 300s = 15min：允许短暂抓取失败但避免长期使用陈旧数据
+	viper.SetDefault("gateway.scheduling.antigravity_quota.stale_after_seconds", 900)
 	viper.SetDefault("concurrency.ping_interval", 10)
 
 	// TokenRefresh
@@ -1081,6 +1108,36 @@ func (c *Config) Validate() error {
 		c.Gateway.Scheduling.OutboxLagRebuildSeconds > 0 &&
 		c.Gateway.Scheduling.OutboxLagRebuildSeconds < c.Gateway.Scheduling.OutboxLagWarnSeconds {
 		return fmt.Errorf("gateway.scheduling.outbox_lag_rebuild_seconds must be >= outbox_lag_warn_seconds")
+	}
+
+	// Antigravity quota-aware scheduling (方案D)
+	agQuota := c.Gateway.Scheduling.AntigravityQuota
+	if agQuota.RefreshIntervalSeconds < 0 {
+		return fmt.Errorf("gateway.scheduling.antigravity_quota.refresh_interval_seconds must be non-negative")
+	}
+	if agQuota.FetchConcurrency < 0 {
+		return fmt.Errorf("gateway.scheduling.antigravity_quota.fetch_concurrency must be non-negative")
+	}
+	if agQuota.SoftUtilizationThreshold < 0 || agQuota.SoftUtilizationThreshold > 100 {
+		return fmt.Errorf("gateway.scheduling.antigravity_quota.soft_utilization_threshold must be between 0-100")
+	}
+	if agQuota.StaleAfterSeconds < 0 {
+		return fmt.Errorf("gateway.scheduling.antigravity_quota.stale_after_seconds must be non-negative")
+	}
+	if agQuota.Enabled {
+		if agQuota.RefreshIntervalSeconds <= 0 {
+			return fmt.Errorf("gateway.scheduling.antigravity_quota.refresh_interval_seconds must be positive when enabled")
+		}
+		if agQuota.FetchConcurrency <= 0 {
+			return fmt.Errorf("gateway.scheduling.antigravity_quota.fetch_concurrency must be positive when enabled")
+		}
+		if agQuota.StaleAfterSeconds <= 0 {
+			return fmt.Errorf("gateway.scheduling.antigravity_quota.stale_after_seconds must be positive when enabled")
+		}
+		// 过小的 stale_after 会导致频繁回退到“无快照”路径，失去避让能力
+		if agQuota.StaleAfterSeconds < agQuota.RefreshIntervalSeconds {
+			return fmt.Errorf("gateway.scheduling.antigravity_quota.stale_after_seconds must be >= refresh_interval_seconds")
+		}
 	}
 	if c.Ops.MetricsCollectorCache.TTL < 0 {
 		return fmt.Errorf("ops.metrics_collector_cache.ttl must be non-negative")
