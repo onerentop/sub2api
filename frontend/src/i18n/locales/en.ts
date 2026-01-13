@@ -320,6 +320,11 @@ export default {
       resettingSoon: 'Resetting soon',
       userOverride: 'User Override',
       groupDefault: 'Group Default',
+      globalLimit: 'Global Limit',
+      expandGroups: 'Show Groups',
+      collapse: 'Collapse',
+      groupsCount: '{count} groups',
+      noLimit: 'No limit',
       days: 'd',
       hours: 'h',
       minutes: 'm'

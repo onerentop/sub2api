@@ -318,6 +318,11 @@ export default {
       resettingSoon: '即将重置',
       userOverride: '用户覆盖',
       groupDefault: '分组默认',
+      globalLimit: '全局限额',
+      expandGroups: '展开分组',
+      collapse: '收起',
+      groupsCount: '{count} 个分组',
+      noLimit: '无限额',
       days: '天',
       hours: '小时',
       minutes: '分钟'

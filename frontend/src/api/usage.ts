@@ -52,6 +52,30 @@ export interface BalanceQuotaInfo {
   weekly: BalanceQuotaDetail
   source: 'user' | 'group' | '' // 限额来源：用户覆盖、分组默认或无限额
 }
+// V2: 分组限额详情
+export interface GroupQuotaDetail {
+  group_id: number
+  group_name: string
+  daily: BalanceQuotaDetail
+  weekly: BalanceQuotaDetail
+}
+
+// V2: 余额限额信息（支持分组）
+export interface BalanceQuotaInfoV2 {
+  // 全局限额（跨所有分组）
+  global: {
+    daily: BalanceQuotaDetail
+    weekly: BalanceQuotaDetail
+  }
+  // 各分组详情
+  groups: GroupQuotaDetail[]
+  total_groups: number
+  // 向后兼容字段
+  daily: BalanceQuotaDetail
+  weekly: BalanceQuotaDetail
+  source: 'user' | 'group' | 'global' | ''
+}
+
 
 export interface TrendParams {
   start_date?: string
@@ -282,6 +306,15 @@ export async function getDashboardQuota(groupId?: number): Promise<BalanceQuotaI
   return data
 }
 
+/**
+ * Get balance quota information V2 (with group breakdown)
+ * @returns Balance quota info with global and per-group limits
+ */
+export async function getDashboardQuotaV2(): Promise<BalanceQuotaInfoV2> {
+  const { data } = await apiClient.get<BalanceQuotaInfoV2>('/usage/dashboard/quota/v2')
+  return data
+}
+
 export const usageAPI = {
   list,
   query,
@@ -294,7 +327,8 @@ export const usageAPI = {
   getDashboardTrend,
   getDashboardModels,
   getDashboardApiKeysUsage,
-  getDashboardQuota
+  getDashboardQuota,
+  getDashboardQuotaV2
 }
 
 export default usageAPI

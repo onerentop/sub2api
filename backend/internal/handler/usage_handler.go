@@ -481,3 +481,37 @@ func (h *UsageHandler) DashboardQuota(c *gin.Context) {
 
 	response.Success(c, quotaInfo)
 }
+
+// DashboardQuotaV2 handles getting user balance quota information with group breakdown
+// GET /api/v1/usage/dashboard/quota/v2
+// 返回用户的全局限额和各分组独立限额信息
+func (h *UsageHandler) DashboardQuotaV2(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	// 获取用户信息
+	user, err := h.userService.GetByID(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	// 获取用户可用的所有分组
+	groups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID)
+	if err != nil {
+		// 如果获取分组失败，使用空列表
+		groups = []service.Group{}
+	}
+
+	// 获取 V2 限额信息（包含全局和各分组详情）
+	quotaInfo, err := h.billingCacheService.GetBalanceQuotaInfoV2(c.Request.Context(), user, groups)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, quotaInfo)
+}
