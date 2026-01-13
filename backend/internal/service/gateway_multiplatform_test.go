@@ -26,7 +26,7 @@ func antigravityQuotaSnapshotExtra(updatedAt time.Time, model string, utilizatio
 			"models": map[string]any{
 				model: map[string]any{
 					"utilization": utilization,
-					"reset_time":   resetTime.UTC().Format(time.RFC3339),
+					"reset_time":  resetTime.UTC().Format(time.RFC3339),
 				},
 			},
 		},
@@ -864,10 +864,10 @@ func TestGatewayService_selectAccountWithMixedScheduling(t *testing.T) {
 			accounts: []Account{
 				{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true},
 				{
-					ID:         2,
-					Platform:   PlatformAntigravity,
-					Priority:   1,
-					Status:     StatusActive,
+					ID:          2,
+					Platform:    PlatformAntigravity,
+					Priority:    1,
+					Status:      StatusActive,
 					Schedulable: true,
 					Extra: map[string]any{
 						"mixed_scheduling": true,
@@ -876,7 +876,7 @@ func TestGatewayService_selectAccountWithMixedScheduling(t *testing.T) {
 							"models": map[string]any{
 								"claude-sonnet-4-5": map[string]any{
 									"utilization": 100,
-									"reset_time":   future.UTC().Format(time.RFC3339),
+									"reset_time":  future.UTC().Format(time.RFC3339),
 								},
 							},
 						},
@@ -941,20 +941,20 @@ func TestGatewayService_selectAccountForModelWithPlatform_AntigravityQuotaAwareS
 		repo := &mockAccountRepoForPlatform{
 			accounts: []Account{
 				{
-					ID:         1,
-					Platform:   PlatformAntigravity,
-					Priority:   1,
-					Status:     StatusActive,
+					ID:          1,
+					Platform:    PlatformAntigravity,
+					Priority:    1,
+					Status:      StatusActive,
 					Schedulable: true,
-					Extra:      antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 100, future),
+					Extra:       antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 100, future),
 				},
 				{
-					ID:         2,
-					Platform:   PlatformAntigravity,
-					Priority:   1,
-					Status:     StatusActive,
+					ID:          2,
+					Platform:    PlatformAntigravity,
+					Priority:    1,
+					Status:      StatusActive,
 					Schedulable: true,
-					Extra:      antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 10, future),
+					Extra:       antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 10, future),
 				},
 			},
 			accountsByID: map[int64]*Account{},
@@ -985,19 +985,19 @@ func TestGatewayService_selectAccountForModelWithPlatform_AntigravityQuotaAwareS
 		repo := &mockAccountRepoForPlatform{
 			accounts: []Account{
 				{
-					ID:         1,
-					Platform:   PlatformAntigravity,
-					Priority:   1,
-					Status:     StatusActive,
+					ID:          1,
+					Platform:    PlatformAntigravity,
+					Priority:    1,
+					Status:      StatusActive,
 					Schedulable: true,
 					LastUsedAt:  nil, // 旧逻辑会优先选 never used
 					Extra:       antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 95, future),
 				},
 				{
-					ID:         2,
-					Platform:   PlatformAntigravity,
-					Priority:   1,
-					Status:     StatusActive,
+					ID:          2,
+					Platform:    PlatformAntigravity,
+					Priority:    1,
+					Status:      StatusActive,
 					Schedulable: true,
 					LastUsedAt:  &used,
 					Extra:       antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 10, future),
@@ -1032,20 +1032,20 @@ func TestGatewayService_selectAccountForModelWithPlatform_AntigravityQuotaAwareS
 		repo := &mockAccountRepoForPlatform{
 			accounts: []Account{
 				{
-					ID:         1,
-					Platform:   PlatformAntigravity,
-					Priority:   1,
-					Status:     StatusActive,
+					ID:          1,
+					Platform:    PlatformAntigravity,
+					Priority:    1,
+					Status:      StatusActive,
 					Schedulable: true,
-					Extra:      antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 95, later),
+					Extra:       antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 95, later),
 				},
 				{
-					ID:         2,
-					Platform:   PlatformAntigravity,
-					Priority:   1,
-					Status:     StatusActive,
+					ID:          2,
+					Platform:    PlatformAntigravity,
+					Priority:    1,
+					Status:      StatusActive,
 					Schedulable: true,
-					Extra:      antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 95, soon),
+					Extra:       antigravityQuotaSnapshotExtra(now, "claude-opus-4-5-thinking", 95, soon),
 				},
 			},
 			accountsByID: map[int64]*Account{},
@@ -1397,10 +1397,10 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		repo := &mockAccountRepoForPlatform{
 			accounts: []Account{
 				{
-					ID:         1,
-					Platform:   PlatformAntigravity,
-					Priority:   1,
-					Status:     StatusActive,
+					ID:          1,
+					Platform:    PlatformAntigravity,
+					Priority:    1,
+					Status:      StatusActive,
 					Schedulable: true,
 					Concurrency: 5,
 					Extra: map[string]any{
@@ -1410,17 +1410,17 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 							"models": map[string]any{
 								"claude-sonnet-4-5": map[string]any{
 									"utilization": 100,
-									"reset_time":   future.UTC().Format(time.RFC3339),
+									"reset_time":  future.UTC().Format(time.RFC3339),
 								},
 							},
 						},
 					},
 				},
 				{
-					ID:         2,
-					Platform:   PlatformAnthropic,
-					Priority:   1,
-					Status:     StatusActive,
+					ID:          2,
+					Platform:    PlatformAnthropic,
+					Priority:    1,
+					Status:      StatusActive,
 					Schedulable: true,
 					Concurrency: 5,
 				},

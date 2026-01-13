@@ -90,12 +90,12 @@ type BalanceUsageQuerier interface {
 // BillingCacheService 计费缓存服务
 // 负责余额和订阅数据的缓存管理，提供高性能的计费资格检查
 type BillingCacheService struct {
-	cache             BillingCache
-	userRepo          UserRepository
-	subRepo           UserSubscriptionRepository
-	balanceUsageRepo  BalanceUsageQuerier
-	cfg               *config.Config
-	circuitBreaker    *billingCircuitBreaker
+	cache            BillingCache
+	userRepo         UserRepository
+	subRepo          UserSubscriptionRepository
+	balanceUsageRepo BalanceUsageQuerier
+	cfg              *config.Config
+	circuitBreaker   *billingCircuitBreaker
 
 	cacheWriteChan     chan cacheWriteTask
 	cacheWriteWg       sync.WaitGroup
@@ -829,8 +829,8 @@ type BalanceQuotaInfo struct {
 
 // BalanceQuotaDetail 限额详情
 type BalanceQuotaDetail struct {
-	Used      float64    `json:"used"`
-	Limit     *float64   `json:"limit,omitempty"`
-	Remaining *float64   `json:"remaining,omitempty"`
-	ResetAt   time.Time  `json:"reset_at"`
+	Used      float64   `json:"used"`
+	Limit     *float64  `json:"limit,omitempty"`
+	Remaining *float64  `json:"remaining,omitempty"`
+	ResetAt   time.Time `json:"reset_at"`
 }

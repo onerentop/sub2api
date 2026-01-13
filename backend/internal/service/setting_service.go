@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	ErrRegistrationDisabled = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")
+	ErrRegistrationDisabled  = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")
 	ErrSettingNotFound       = infraerrors.NotFound("SETTING_NOT_FOUND", "setting not found")
 	ErrEmailDomainNotAllowed = infraerrors.BadRequest("EMAIL_DOMAIN_NOT_ALLOWED", "email domain not allowed for registration")
 )
@@ -95,14 +95,14 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		EmailDomainWhitelistEnabled: whitelistEnabled,
 		TurnstileEnabled:            settings[SettingKeyTurnstileEnabled] == "true",
 		TurnstileSiteKey:            settings[SettingKeyTurnstileSiteKey],
-		SiteName:            s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
-		SiteLogo:            settings[SettingKeySiteLogo],
-		SiteSubtitle:        s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
-		APIBaseURL:          settings[SettingKeyAPIBaseURL],
-		ContactInfo:         settings[SettingKeyContactInfo],
-		DocURL:              settings[SettingKeyDocURL],
-		HomeContent:         settings[SettingKeyHomeContent],
-		LinuxDoOAuthEnabled: linuxDoEnabled,
+		SiteName:                    s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
+		SiteLogo:                    settings[SettingKeySiteLogo],
+		SiteSubtitle:                s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
+		APIBaseURL:                  settings[SettingKeyAPIBaseURL],
+		ContactInfo:                 settings[SettingKeyContactInfo],
+		DocURL:                      settings[SettingKeyDocURL],
+		HomeContent:                 settings[SettingKeyHomeContent],
+		LinuxDoOAuthEnabled:         linuxDoEnabled,
 	}, nil
 }
 

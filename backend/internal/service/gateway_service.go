@@ -685,11 +685,11 @@ const (
 )
 
 type antigravityQuotaKey struct {
-	bucket     int
+	bucket      int
 	utilization int
-	hasUtil    bool
-	resetAt    time.Time
-	hasReset   bool
+	hasUtil     bool
+	resetAt     time.Time
+	hasReset    bool
 	hardBlocked bool
 }
 
@@ -700,11 +700,11 @@ func (s *GatewayService) antigravityQuotaSchedulingConfig() config.AntigravityQu
 	// - 抓取并发：3（由后台服务执行）
 	// - stale_after：900s（15分钟）
 	defaultCfg := config.AntigravityQuotaSchedulingConfig{
-		Enabled:                 true,
-		RefreshIntervalSeconds:  300,
-		FetchConcurrency:        3,
+		Enabled:                  true,
+		RefreshIntervalSeconds:   300,
+		FetchConcurrency:         3,
 		SoftUtilizationThreshold: 90,
-		StaleAfterSeconds:       900,
+		StaleAfterSeconds:        900,
 	}
 
 	if s == nil || s.cfg == nil {

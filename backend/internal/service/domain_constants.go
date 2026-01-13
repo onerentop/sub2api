@@ -69,7 +69,7 @@ const LinuxDoConnectSyntheticEmailDomain = "@linuxdo-connect.invalid"
 // Setting keys
 const (
 	// 注册设置
-	SettingKeyRegistrationEnabled = "registration_enabled" // 是否开放注册
+	SettingKeyRegistrationEnabled  = "registration_enabled"   // 是否开放注册
 	SettingKeyEmailVerifyEnabled   = "email_verify_enabled"   // 是否开启邮件验证
 	SettingKeyEmailDomainWhitelist = "email_domain_whitelist" // 允许注册的邮箱后缀，逗号分隔
 
