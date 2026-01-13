@@ -190,12 +190,11 @@ func (s *TokenRefreshService) processAntigravityQuotaSnapshots() {
 	}
 
 	type counters struct {
-		total    int
-		skipped  int
-		fetched  int
-		updated  int
-		failed   int
-		emptyRaw int
+		total   int
+		skipped int
+		fetched int
+		updated int
+		failed  int
 	}
 
 	var mu sync.Mutex
@@ -280,7 +279,7 @@ func (s *TokenRefreshService) fetchAndStoreAntigravityQuotaSnapshot(ctx context.
 			}
 			models[modelName] = map[string]any{
 				"utilization": q.Utilization,
-				"reset_time":   q.ResetTime,
+				"reset_time":  q.ResetTime,
 			}
 		}
 	}

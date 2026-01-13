@@ -26,12 +26,12 @@ func NewAnnouncementHandler(announcementService *service.AnnouncementService) *A
 
 // CreateAnnouncementRequest represents create announcement request
 type CreateAnnouncementRequest struct {
-	Title     string  `json:"title"`                              // 可选
-	Content   string  `json:"content" binding:"required"`         // 必填
-	Type      string  `json:"type" binding:"omitempty,oneof=info success warning error"`
-	Enabled   *bool   `json:"enabled"`                            // 默认 true
-	StartTime *int64  `json:"start_time"`                         // 生效时间戳（秒）
-	EndTime   *int64  `json:"end_time"`                           // 过期时间戳（秒）
+	Title     string `json:"title"`                      // 可选
+	Content   string `json:"content" binding:"required"` // 必填
+	Type      string `json:"type" binding:"omitempty,oneof=info success warning error"`
+	Enabled   *bool  `json:"enabled"`    // 默认 true
+	StartTime *int64 `json:"start_time"` // 生效时间戳（秒）
+	EndTime   *int64 `json:"end_time"`   // 过期时间戳（秒）
 }
 
 // UpdateAnnouncementRequest represents update announcement request
@@ -67,10 +67,11 @@ func (h *AnnouncementHandler) List(c *gin.Context) {
 	// Parse enabled filter
 	var enabled *bool
 	if enabledStr := c.Query("enabled"); enabledStr != "" {
-		if enabledStr == "true" {
+		switch enabledStr {
+		case "true":
 			b := true
 			enabled = &b
-		} else if enabledStr == "false" {
+		case "false":
 			b := false
 			enabled = &b
 		}
