@@ -76,6 +76,7 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		// Realtime ops signals
 		ops.GET("/concurrency", h.Admin.Ops.GetConcurrencyStats)
 		ops.GET("/account-availability", h.Admin.Ops.GetAccountAvailability)
+		ops.GET("/realtime-traffic", h.Admin.Ops.GetRealtimeTrafficSummary)
 
 		// Alerts (rules + events)
 		ops.GET("/alert-rules", h.Admin.Ops.ListAlertRules)
@@ -98,6 +99,13 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		// Advanced settings (DB-backed)
 		ops.GET("/advanced-settings", h.Admin.Ops.GetAdvancedSettings)
 		ops.PUT("/advanced-settings", h.Admin.Ops.UpdateAdvancedSettings)
+
+		// Settings group (DB-backed)
+		settings := ops.Group("/settings")
+		{
+			settings.GET("/metric-thresholds", h.Admin.Ops.GetMetricThresholds)
+			settings.PUT("/metric-thresholds", h.Admin.Ops.UpdateMetricThresholds)
+		}
 
 		// WebSocket realtime (QPS/TPS)
 		ws := ops.Group("/ws")
@@ -286,6 +294,9 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.GET("/admin-api-key", h.Admin.Setting.GetAdminAPIKey)
 		adminSettings.POST("/admin-api-key/regenerate", h.Admin.Setting.RegenerateAdminAPIKey)
 		adminSettings.DELETE("/admin-api-key", h.Admin.Setting.DeleteAdminAPIKey)
+		// 流超时处理配置
+		adminSettings.GET("/stream-timeout", h.Admin.Setting.GetStreamTimeoutSettings)
+		adminSettings.PUT("/stream-timeout", h.Admin.Setting.UpdateStreamTimeoutSettings)
 	}
 }
 
