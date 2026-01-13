@@ -37,14 +37,14 @@ type CreateUserRequest struct {
 // UpdateUserRequest represents admin update user request
 // 使用指针类型来区分"未提供"和"设置为0"
 type UpdateUserRequest struct {
-	Email         string   `json:"email" binding:"omitempty,email"`
-	Password      string   `json:"password" binding:"omitempty,min=6"`
-	Username      *string  `json:"username"`
-	Notes         *string  `json:"notes"`
-	Balance       *float64 `json:"balance"`
-	Concurrency   *int     `json:"concurrency"`
-	Status        string   `json:"status" binding:"omitempty,oneof=active disabled"`
-	AllowedGroups *[]int64 `json:"allowed_groups"`
+	Email              string   `json:"email" binding:"omitempty,email"`
+	Password           string   `json:"password" binding:"omitempty,min=6"`
+	Username           *string  `json:"username"`
+	Notes              *string  `json:"notes"`
+	Balance            *float64 `json:"balance"`
+	Concurrency        *int     `json:"concurrency"`
+	Status             string   `json:"status" binding:"omitempty,oneof=active disabled"`
+	AllowedGroups      *[]int64 `json:"allowed_groups"`
 	BalanceDailyQuota  *float64 `json:"balance_daily_quota"`  // 余额计费每日限额覆盖
 	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota"` // 余额计费每周限额覆盖
 }
@@ -177,14 +177,14 @@ func (h *UserHandler) Update(c *gin.Context) {
 
 	// 使用指针类型直接传递，nil 表示未提供该字段
 	user, err := h.adminService.UpdateUser(c.Request.Context(), userID, &service.UpdateUserInput{
-		Email:         req.Email,
-		Password:      req.Password,
-		Username:      req.Username,
-		Notes:         req.Notes,
-		Balance:       req.Balance,
-		Concurrency:   req.Concurrency,
-		Status:        req.Status,
-		AllowedGroups: req.AllowedGroups,
+		Email:              req.Email,
+		Password:           req.Password,
+		Username:           req.Username,
+		Notes:              req.Notes,
+		Balance:            req.Balance,
+		Concurrency:        req.Concurrency,
+		Status:             req.Status,
+		AllowedGroups:      req.AllowedGroups,
 		BalanceDailyQuota:  req.BalanceDailyQuota,
 		BalanceWeeklyQuota: req.BalanceWeeklyQuota,
 	})

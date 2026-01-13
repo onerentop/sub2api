@@ -425,13 +425,13 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		ImagePrice1K:        g.ImagePrice1k,
 		ImagePrice2K:        g.ImagePrice2k,
 		ImagePrice4K:        g.ImagePrice4k,
-		DefaultValidityDays:    g.DefaultValidityDays,
-		ClaudeCodeOnly:         g.ClaudeCodeOnly,
-		FallbackGroupID:        g.FallbackGroupID,
-		BalanceDailyQuota:      g.BalanceDailyQuota,
-		BalanceWeeklyQuota:     g.BalanceWeeklyQuota,
-		CreatedAt:              g.CreatedAt,
-		UpdatedAt:              g.UpdatedAt,
+		DefaultValidityDays: g.DefaultValidityDays,
+		ClaudeCodeOnly:      g.ClaudeCodeOnly,
+		FallbackGroupID:     g.FallbackGroupID,
+		BalanceDailyQuota:   g.BalanceDailyQuota,
+		BalanceWeeklyQuota:  g.BalanceWeeklyQuota,
+		CreatedAt:           g.CreatedAt,
+		UpdatedAt:           g.UpdatedAt,
 	}
 }
 
