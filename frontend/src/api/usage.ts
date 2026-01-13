@@ -39,6 +39,20 @@ export interface UserDashboardStats {
   tpm: number // 近5分钟平均每分钟Token数
 }
 
+// 余额限额信息
+export interface BalanceQuotaDetail {
+  used: number
+  limit: number | null
+  remaining: number | null
+  reset_at: string
+}
+
+export interface BalanceQuotaInfo {
+  daily: BalanceQuotaDetail
+  weekly: BalanceQuotaDetail
+  source: 'user' | 'group' | '' // 限额来源：用户覆盖、分组默认或无限额
+}
+
 export interface TrendParams {
   start_date?: string
   end_date?: string
@@ -257,6 +271,17 @@ export async function getDashboardApiKeysUsage(
   return data
 }
 
+/**
+ * Get balance quota information for the current user
+ * @param groupId - Optional group ID to query quota for specific group
+ * @returns Balance quota info with daily/weekly limits and usage
+ */
+export async function getDashboardQuota(groupId?: number): Promise<BalanceQuotaInfo> {
+  const params = groupId ? { group_id: groupId } : {}
+  const { data } = await apiClient.get<BalanceQuotaInfo>('/usage/dashboard/quota', { params })
+  return data
+}
+
 export const usageAPI = {
   list,
   query,
@@ -268,7 +293,8 @@ export const usageAPI = {
   getDashboardStats,
   getDashboardTrend,
   getDashboardModels,
-  getDashboardApiKeysUsage
+  getDashboardApiKeysUsage,
+  getDashboardQuota
 }
 
 export default usageAPI

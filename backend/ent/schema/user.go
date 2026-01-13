@@ -61,6 +61,18 @@ func (User) Fields() []ent.Field {
 		field.String("notes").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Default(""),
+
+		// 余额计费模式限额覆盖 (added by migration 035)
+		field.Float("balance_daily_quota").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Comment("用户每日限额覆盖（余额计费模式）"),
+		field.Float("balance_weekly_quota").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Comment("用户每周限额覆盖（余额计费模式）"),
 	}
 }
 

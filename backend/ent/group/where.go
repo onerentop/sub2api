@@ -150,6 +150,16 @@ func FallbackGroupID(v int64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldFallbackGroupID, v))
 }
 
+// BalanceDailyQuota applies equality check predicate on the "balance_daily_quota" field. It's identical to BalanceDailyQuotaEQ.
+func BalanceDailyQuota(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBalanceDailyQuota, v))
+}
+
+// BalanceWeeklyQuota applies equality check predicate on the "balance_weekly_quota" field. It's identical to BalanceWeeklyQuotaEQ.
+func BalanceWeeklyQuota(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBalanceWeeklyQuota, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldCreatedAt, v))
@@ -1063,6 +1073,106 @@ func FallbackGroupIDIsNil() predicate.Group {
 // FallbackGroupIDNotNil applies the NotNil predicate on the "fallback_group_id" field.
 func FallbackGroupIDNotNil() predicate.Group {
 	return predicate.Group(sql.FieldNotNull(FieldFallbackGroupID))
+}
+
+// BalanceDailyQuotaEQ applies the EQ predicate on the "balance_daily_quota" field.
+func BalanceDailyQuotaEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBalanceDailyQuota, v))
+}
+
+// BalanceDailyQuotaNEQ applies the NEQ predicate on the "balance_daily_quota" field.
+func BalanceDailyQuotaNEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldBalanceDailyQuota, v))
+}
+
+// BalanceDailyQuotaIn applies the In predicate on the "balance_daily_quota" field.
+func BalanceDailyQuotaIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldBalanceDailyQuota, vs...))
+}
+
+// BalanceDailyQuotaNotIn applies the NotIn predicate on the "balance_daily_quota" field.
+func BalanceDailyQuotaNotIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldBalanceDailyQuota, vs...))
+}
+
+// BalanceDailyQuotaGT applies the GT predicate on the "balance_daily_quota" field.
+func BalanceDailyQuotaGT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldBalanceDailyQuota, v))
+}
+
+// BalanceDailyQuotaGTE applies the GTE predicate on the "balance_daily_quota" field.
+func BalanceDailyQuotaGTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldBalanceDailyQuota, v))
+}
+
+// BalanceDailyQuotaLT applies the LT predicate on the "balance_daily_quota" field.
+func BalanceDailyQuotaLT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldBalanceDailyQuota, v))
+}
+
+// BalanceDailyQuotaLTE applies the LTE predicate on the "balance_daily_quota" field.
+func BalanceDailyQuotaLTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldBalanceDailyQuota, v))
+}
+
+// BalanceDailyQuotaIsNil applies the IsNil predicate on the "balance_daily_quota" field.
+func BalanceDailyQuotaIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldBalanceDailyQuota))
+}
+
+// BalanceDailyQuotaNotNil applies the NotNil predicate on the "balance_daily_quota" field.
+func BalanceDailyQuotaNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldBalanceDailyQuota))
+}
+
+// BalanceWeeklyQuotaEQ applies the EQ predicate on the "balance_weekly_quota" field.
+func BalanceWeeklyQuotaEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBalanceWeeklyQuota, v))
+}
+
+// BalanceWeeklyQuotaNEQ applies the NEQ predicate on the "balance_weekly_quota" field.
+func BalanceWeeklyQuotaNEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldBalanceWeeklyQuota, v))
+}
+
+// BalanceWeeklyQuotaIn applies the In predicate on the "balance_weekly_quota" field.
+func BalanceWeeklyQuotaIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldBalanceWeeklyQuota, vs...))
+}
+
+// BalanceWeeklyQuotaNotIn applies the NotIn predicate on the "balance_weekly_quota" field.
+func BalanceWeeklyQuotaNotIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldBalanceWeeklyQuota, vs...))
+}
+
+// BalanceWeeklyQuotaGT applies the GT predicate on the "balance_weekly_quota" field.
+func BalanceWeeklyQuotaGT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldBalanceWeeklyQuota, v))
+}
+
+// BalanceWeeklyQuotaGTE applies the GTE predicate on the "balance_weekly_quota" field.
+func BalanceWeeklyQuotaGTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldBalanceWeeklyQuota, v))
+}
+
+// BalanceWeeklyQuotaLT applies the LT predicate on the "balance_weekly_quota" field.
+func BalanceWeeklyQuotaLT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldBalanceWeeklyQuota, v))
+}
+
+// BalanceWeeklyQuotaLTE applies the LTE predicate on the "balance_weekly_quota" field.
+func BalanceWeeklyQuotaLTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldBalanceWeeklyQuota, v))
+}
+
+// BalanceWeeklyQuotaIsNil applies the IsNil predicate on the "balance_weekly_quota" field.
+func BalanceWeeklyQuotaIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldBalanceWeeklyQuota))
+}
+
+// BalanceWeeklyQuotaNotNil applies the NotNil predicate on the "balance_weekly_quota" field.
+func BalanceWeeklyQuotaNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldBalanceWeeklyQuota))
 }
 
 // HasAPIKeys applies the HasEdge predicate on the "api_keys" edge.

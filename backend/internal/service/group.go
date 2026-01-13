@@ -27,6 +27,10 @@ type Group struct {
 	ClaudeCodeOnly  bool
 	FallbackGroupID *int64
 
+	// 余额计费模式限额
+	BalanceDailyQuota  *float64
+	BalanceWeeklyQuota *float64
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
@@ -56,6 +60,16 @@ func (g *Group) HasWeeklyLimit() bool {
 
 func (g *Group) HasMonthlyLimit() bool {
 	return g.MonthlyLimitUSD != nil && *g.MonthlyLimitUSD > 0
+}
+
+// HasBalanceDailyQuota 检查是否配置了余额计费每日限额
+func (g *Group) HasBalanceDailyQuota() bool {
+	return g.BalanceDailyQuota != nil && *g.BalanceDailyQuota > 0
+}
+
+// HasBalanceWeeklyQuota 检查是否配置了余额计费每周限额
+func (g *Group) HasBalanceWeeklyQuota() bool {
+	return g.BalanceWeeklyQuota != nil && *g.BalanceWeeklyQuota > 0
 }
 
 // GetImagePrice 根据 image_size 返回对应的图片生成价格

@@ -34,6 +34,9 @@ export interface User {
   concurrency: number // Allowed concurrent requests
   status: 'active' | 'disabled' // Account status
   allowed_groups: number[] | null // Allowed group IDs (null = all non-exclusive groups)
+  // 余额计费模式限额覆盖（覆盖分组默认值）
+  balance_daily_quota: number | null
+  balance_weekly_quota: number | null
   subscriptions?: UserSubscription[] // User's active subscriptions
   created_at: string
   updated_at: string
@@ -269,6 +272,9 @@ export interface Group {
   // Claude Code 客户端限制
   claude_code_only: boolean
   fallback_group_id: number | null
+  // 余额计费模式限额（standard 类型分组使用）
+  balance_daily_quota: number | null
+  balance_weekly_quota: number | null
   account_count?: number
   created_at: string
   updated_at: string

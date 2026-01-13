@@ -51,6 +51,7 @@ func RegisterUserRoutes(
 			usage.GET("/dashboard/trend", h.Usage.DashboardTrend)
 			usage.GET("/dashboard/models", h.Usage.DashboardModels)
 			usage.POST("/dashboard/api-keys-usage", h.Usage.DashboardAPIKeysUsage)
+			usage.GET("/dashboard/quota", h.Usage.DashboardQuota)
 		}
 
 		// 卡密兑换

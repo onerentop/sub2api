@@ -308,7 +308,21 @@ export default {
     viewUsage: 'View Usage',
     checkDetailedLogs: 'Check detailed usage logs',
     redeemCode: 'Redeem Code',
-    addBalanceWithCode: 'Add balance with a code'
+    addBalanceWithCode: 'Add balance with a code',
+    // Balance Quota
+    quota: {
+      title: 'Spending Limits',
+      daily: 'Daily Limit',
+      weekly: 'Weekly Limit',
+      remaining: 'Remaining',
+      resetsAt: 'Resets in',
+      resettingSoon: 'Resetting soon',
+      userOverride: 'User Override',
+      groupDefault: 'Group Default',
+      days: 'd',
+      hours: 'h',
+      minutes: 'm'
+    }
   },
 
   // Groups (shared)
@@ -755,6 +769,13 @@ export default {
       columnSettings: 'Column Settings',
       filterValue: 'Enter value',
       // User Attributes
+      balanceQuota: {
+        title: 'Balance Quota Override',
+        description: 'Set individual spending limits for this user, overriding group defaults. Leave empty to use group defaults.',
+        dailyQuota: 'Daily Limit (USD)',
+        weeklyQuota: 'Weekly Limit (USD)',
+        useGroupDefault: 'Use group default'
+      },
       attributes: {
         title: 'User Attributes',
         description: 'Configure custom user attribute fields',
@@ -914,6 +935,12 @@ export default {
         fallbackGroup: 'Fallback Group',
         fallbackHint: 'Non-Claude Code requests will use this group. Leave empty to reject directly.',
         noFallback: 'No Fallback (Reject)'
+      },
+      balanceQuota: {
+        description: 'Set daily/weekly spending limits for balance billing users to control consumption rate',
+        dailyQuota: 'Daily Limit (USD)',
+        weeklyQuota: 'Weekly Limit (USD)',
+        noLimit: 'No limit'
       }
     },
 

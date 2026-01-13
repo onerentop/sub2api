@@ -48,7 +48,9 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetNillableImagePrice4k(groupIn.ImagePrice4K).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
-		SetNillableFallbackGroupID(groupIn.FallbackGroupID)
+		SetNillableFallbackGroupID(groupIn.FallbackGroupID).
+		SetNillableBalanceDailyQuota(groupIn.BalanceDailyQuota).
+		SetNillableBalanceWeeklyQuota(groupIn.BalanceWeeklyQuota)
 
 	created, err := builder.Save(ctx)
 	if err == nil {
@@ -104,6 +106,18 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		builder = builder.SetFallbackGroupID(*groupIn.FallbackGroupID)
 	} else {
 		builder = builder.ClearFallbackGroupID()
+	}
+
+	// 处理余额限额字段：nil 时清除，否则设置
+	if groupIn.BalanceDailyQuota != nil {
+		builder = builder.SetBalanceDailyQuota(*groupIn.BalanceDailyQuota)
+	} else {
+		builder = builder.ClearBalanceDailyQuota()
+	}
+	if groupIn.BalanceWeeklyQuota != nil {
+		builder = builder.SetBalanceWeeklyQuota(*groupIn.BalanceWeeklyQuota)
+	} else {
+		builder = builder.ClearBalanceWeeklyQuota()
 	}
 
 	updated, err := builder.Save(ctx)

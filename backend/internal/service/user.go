@@ -21,6 +21,10 @@ type User struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 
+	// 余额计费模式限额覆盖
+	BalanceDailyQuota  *float64
+	BalanceWeeklyQuota *float64
+
 	APIKeys       []APIKey
 	Subscriptions []UserSubscription
 }

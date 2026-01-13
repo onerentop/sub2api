@@ -37,6 +37,39 @@
         <label class="input-label">{{ t('admin.users.columns.concurrency') }}</label>
         <input v-model.number="form.concurrency" type="number" class="input" />
       </div>
+      <!-- 余额计费限额覆盖 -->
+      <div class="border-t pt-4">
+        <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+          {{ t('admin.users.balanceQuota.title') }}
+        </label>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+          {{ t('admin.users.balanceQuota.description') }}
+        </p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="input-label">{{ t('admin.users.balanceQuota.dailyQuota') }}</label>
+            <input
+              v-model.number="form.balance_daily_quota"
+              type="number"
+              step="0.01"
+              min="0"
+              class="input"
+              :placeholder="t('admin.users.balanceQuota.useGroupDefault')"
+            />
+          </div>
+          <div>
+            <label class="input-label">{{ t('admin.users.balanceQuota.weeklyQuota') }}</label>
+            <input
+              v-model.number="form.balance_weekly_quota"
+              type="number"
+              step="0.01"
+              min="0"
+              class="input"
+              :placeholder="t('admin.users.balanceQuota.useGroupDefault')"
+            />
+          </div>
+        </div>
+      </div>
       <UserAttributeForm v-model="form.customAttributes" :user-id="user?.id" />
     </form>
     <template #footer>
@@ -66,11 +99,11 @@ const emit = defineEmits(['close', 'success'])
 const { t } = useI18n(); const appStore = useAppStore(); const { copyToClipboard } = useClipboard()
 
 const submitting = ref(false); const passwordCopied = ref(false)
-const form = reactive({ email: '', password: '', username: '', notes: '', concurrency: 1, customAttributes: {} as UserAttributeValuesMap })
+const form = reactive({ email: '', password: '', username: '', notes: '', concurrency: 1, balance_daily_quota: null as number | null, balance_weekly_quota: null as number | null, customAttributes: {} as UserAttributeValuesMap })
 
 watch(() => props.user, (u) => {
   if (u) {
-    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', concurrency: u.concurrency, customAttributes: {} })
+    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', concurrency: u.concurrency, balance_daily_quota: u.balance_daily_quota, balance_weekly_quota: u.balance_weekly_quota, customAttributes: {} })
     passwordCopied.value = false
   }
 }, { immediate: true })
@@ -97,7 +130,7 @@ const handleUpdateUser = async () => {
   }
   submitting.value = true
   try {
-    const data: any = { email: form.email, username: form.username, notes: form.notes, concurrency: form.concurrency }
+    const data: any = { email: form.email, username: form.username, notes: form.notes, concurrency: form.concurrency, balance_daily_quota: form.balance_daily_quota, balance_weekly_quota: form.balance_weekly_quota }
     if (form.password.trim()) data.password = form.password.trim()
     await adminAPI.users.update(props.user.id, data)
     if (Object.keys(form.customAttributes).length > 0) await adminAPI.userAttributes.updateUserAttributeValues(props.user.id, form.customAttributes)

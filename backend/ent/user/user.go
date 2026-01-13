@@ -37,6 +37,10 @@ const (
 	FieldUsername = "username"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
+	// FieldBalanceDailyQuota holds the string denoting the balance_daily_quota field in the database.
+	FieldBalanceDailyQuota = "balance_daily_quota"
+	// FieldBalanceWeeklyQuota holds the string denoting the balance_weekly_quota field in the database.
+	FieldBalanceWeeklyQuota = "balance_weekly_quota"
 	// EdgeAPIKeys holds the string denoting the api_keys edge name in mutations.
 	EdgeAPIKeys = "api_keys"
 	// EdgeRedeemCodes holds the string denoting the redeem_codes edge name in mutations.
@@ -134,6 +138,8 @@ var Columns = []string{
 	FieldStatus,
 	FieldUsername,
 	FieldNotes,
+	FieldBalanceDailyQuota,
+	FieldBalanceWeeklyQuota,
 }
 
 var (
@@ -251,6 +257,16 @@ func ByUsername(opts ...sql.OrderTermOption) OrderOption {
 // ByNotes orders the results by the notes field.
 func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
+}
+
+// ByBalanceDailyQuota orders the results by the balance_daily_quota field.
+func ByBalanceDailyQuota(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBalanceDailyQuota, opts...).ToFunc()
+}
+
+// ByBalanceWeeklyQuota orders the results by the balance_weekly_quota field.
+func ByBalanceWeeklyQuota(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBalanceWeeklyQuota, opts...).ToFunc()
 }
 
 // ByAPIKeysCount orders the results by api_keys count.

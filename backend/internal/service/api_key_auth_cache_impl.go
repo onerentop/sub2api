@@ -203,6 +203,8 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 			Role:        apiKey.User.Role,
 			Balance:     apiKey.User.Balance,
 			Concurrency: apiKey.User.Concurrency,
+			BalanceDailyQuota:  apiKey.User.BalanceDailyQuota,
+			BalanceWeeklyQuota: apiKey.User.BalanceWeeklyQuota,
 		},
 	}
 	if apiKey.Group != nil {
@@ -220,6 +222,8 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 			ImagePrice2K:     apiKey.Group.ImagePrice2K,
 			ImagePrice4K:     apiKey.Group.ImagePrice4K,
 			ClaudeCodeOnly:   apiKey.Group.ClaudeCodeOnly,
+			BalanceDailyQuota:  apiKey.Group.BalanceDailyQuota,
+			BalanceWeeklyQuota: apiKey.Group.BalanceWeeklyQuota,
 			FallbackGroupID:  apiKey.Group.FallbackGroupID,
 		}
 	}
@@ -244,6 +248,8 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			Role:        snapshot.User.Role,
 			Balance:     snapshot.User.Balance,
 			Concurrency: snapshot.User.Concurrency,
+			BalanceDailyQuota:  snapshot.User.BalanceDailyQuota,
+			BalanceWeeklyQuota: snapshot.User.BalanceWeeklyQuota,
 		},
 	}
 	if snapshot.Group != nil {
@@ -263,6 +269,8 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			ImagePrice4K:     snapshot.Group.ImagePrice4K,
 			ClaudeCodeOnly:   snapshot.Group.ClaudeCodeOnly,
 			FallbackGroupID:  snapshot.Group.FallbackGroupID,
+			BalanceDailyQuota:  snapshot.Group.BalanceDailyQuota,
+			BalanceWeeklyQuota: snapshot.Group.BalanceWeeklyQuota,
 		}
 	}
 	return apiKey

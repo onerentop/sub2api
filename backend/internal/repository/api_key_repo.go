@@ -118,6 +118,8 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				user.FieldRole,
 				user.FieldBalance,
 				user.FieldConcurrency,
+				user.FieldBalanceDailyQuota,
+				user.FieldBalanceWeeklyQuota,
 			)
 		}).
 		WithGroup(func(q *dbent.GroupQuery) {
@@ -136,6 +138,8 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				group.FieldImagePrice4k,
 				group.FieldClaudeCodeOnly,
 				group.FieldFallbackGroupID,
+				group.FieldBalanceDailyQuota,
+				group.FieldBalanceWeeklyQuota,
 			)
 		}).
 		Only(ctx)
@@ -385,17 +389,19 @@ func userEntityToService(u *dbent.User) *service.User {
 		return nil
 	}
 	return &service.User{
-		ID:           u.ID,
-		Email:        u.Email,
-		Username:     u.Username,
-		Notes:        u.Notes,
-		PasswordHash: u.PasswordHash,
-		Role:         u.Role,
-		Balance:      u.Balance,
-		Concurrency:  u.Concurrency,
-		Status:       u.Status,
-		CreatedAt:    u.CreatedAt,
-		UpdatedAt:    u.UpdatedAt,
+		ID:                 u.ID,
+		Email:              u.Email,
+		Username:           u.Username,
+		Notes:              u.Notes,
+		PasswordHash:       u.PasswordHash,
+		Role:               u.Role,
+		Balance:            u.Balance,
+		Concurrency:        u.Concurrency,
+		Status:             u.Status,
+		BalanceDailyQuota:  u.BalanceDailyQuota,
+		BalanceWeeklyQuota: u.BalanceWeeklyQuota,
+		CreatedAt:          u.CreatedAt,
+		UpdatedAt:          u.UpdatedAt,
 	}
 }
 
@@ -419,11 +425,13 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		ImagePrice1K:        g.ImagePrice1k,
 		ImagePrice2K:        g.ImagePrice2k,
 		ImagePrice4K:        g.ImagePrice4k,
-		DefaultValidityDays: g.DefaultValidityDays,
-		ClaudeCodeOnly:      g.ClaudeCodeOnly,
-		FallbackGroupID:     g.FallbackGroupID,
-		CreatedAt:           g.CreatedAt,
-		UpdatedAt:           g.UpdatedAt,
+		DefaultValidityDays:    g.DefaultValidityDays,
+		ClaudeCodeOnly:         g.ClaudeCodeOnly,
+		FallbackGroupID:        g.FallbackGroupID,
+		BalanceDailyQuota:      g.BalanceDailyQuota,
+		BalanceWeeklyQuota:     g.BalanceWeeklyQuota,
+		CreatedAt:              g.CreatedAt,
+		UpdatedAt:              g.UpdatedAt,
 	}
 }
 

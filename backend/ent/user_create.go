@@ -167,6 +167,34 @@ func (_c *UserCreate) SetNillableNotes(v *string) *UserCreate {
 	return _c
 }
 
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (_c *UserCreate) SetBalanceDailyQuota(v float64) *UserCreate {
+	_c.mutation.SetBalanceDailyQuota(v)
+	return _c
+}
+
+// SetNillableBalanceDailyQuota sets the "balance_daily_quota" field if the given value is not nil.
+func (_c *UserCreate) SetNillableBalanceDailyQuota(v *float64) *UserCreate {
+	if v != nil {
+		_c.SetBalanceDailyQuota(*v)
+	}
+	return _c
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (_c *UserCreate) SetBalanceWeeklyQuota(v float64) *UserCreate {
+	_c.mutation.SetBalanceWeeklyQuota(v)
+	return _c
+}
+
+// SetNillableBalanceWeeklyQuota sets the "balance_weekly_quota" field if the given value is not nil.
+func (_c *UserCreate) SetNillableBalanceWeeklyQuota(v *float64) *UserCreate {
+	if v != nil {
+		_c.SetBalanceWeeklyQuota(*v)
+	}
+	return _c
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by IDs.
 func (_c *UserCreate) AddAPIKeyIDs(ids ...int64) *UserCreate {
 	_c.mutation.AddAPIKeyIDs(ids...)
@@ -493,6 +521,14 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		_spec.SetField(user.FieldNotes, field.TypeString, value)
 		_node.Notes = value
 	}
+	if value, ok := _c.mutation.BalanceDailyQuota(); ok {
+		_spec.SetField(user.FieldBalanceDailyQuota, field.TypeFloat64, value)
+		_node.BalanceDailyQuota = &value
+	}
+	if value, ok := _c.mutation.BalanceWeeklyQuota(); ok {
+		_spec.SetField(user.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
+		_node.BalanceWeeklyQuota = &value
+	}
 	if nodes := _c.mutation.APIKeysIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -815,6 +851,54 @@ func (u *UserUpsert) UpdateNotes() *UserUpsert {
 	return u
 }
 
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (u *UserUpsert) SetBalanceDailyQuota(v float64) *UserUpsert {
+	u.Set(user.FieldBalanceDailyQuota, v)
+	return u
+}
+
+// UpdateBalanceDailyQuota sets the "balance_daily_quota" field to the value that was provided on create.
+func (u *UserUpsert) UpdateBalanceDailyQuota() *UserUpsert {
+	u.SetExcluded(user.FieldBalanceDailyQuota)
+	return u
+}
+
+// AddBalanceDailyQuota adds v to the "balance_daily_quota" field.
+func (u *UserUpsert) AddBalanceDailyQuota(v float64) *UserUpsert {
+	u.Add(user.FieldBalanceDailyQuota, v)
+	return u
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (u *UserUpsert) ClearBalanceDailyQuota() *UserUpsert {
+	u.SetNull(user.FieldBalanceDailyQuota)
+	return u
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (u *UserUpsert) SetBalanceWeeklyQuota(v float64) *UserUpsert {
+	u.Set(user.FieldBalanceWeeklyQuota, v)
+	return u
+}
+
+// UpdateBalanceWeeklyQuota sets the "balance_weekly_quota" field to the value that was provided on create.
+func (u *UserUpsert) UpdateBalanceWeeklyQuota() *UserUpsert {
+	u.SetExcluded(user.FieldBalanceWeeklyQuota)
+	return u
+}
+
+// AddBalanceWeeklyQuota adds v to the "balance_weekly_quota" field.
+func (u *UserUpsert) AddBalanceWeeklyQuota(v float64) *UserUpsert {
+	u.Add(user.FieldBalanceWeeklyQuota, v)
+	return u
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (u *UserUpsert) ClearBalanceWeeklyQuota() *UserUpsert {
+	u.SetNull(user.FieldBalanceWeeklyQuota)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -1018,6 +1102,62 @@ func (u *UserUpsertOne) SetNotes(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateNotes() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateNotes()
+	})
+}
+
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (u *UserUpsertOne) SetBalanceDailyQuota(v float64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetBalanceDailyQuota(v)
+	})
+}
+
+// AddBalanceDailyQuota adds v to the "balance_daily_quota" field.
+func (u *UserUpsertOne) AddBalanceDailyQuota(v float64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.AddBalanceDailyQuota(v)
+	})
+}
+
+// UpdateBalanceDailyQuota sets the "balance_daily_quota" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateBalanceDailyQuota() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateBalanceDailyQuota()
+	})
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (u *UserUpsertOne) ClearBalanceDailyQuota() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearBalanceDailyQuota()
+	})
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (u *UserUpsertOne) SetBalanceWeeklyQuota(v float64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetBalanceWeeklyQuota(v)
+	})
+}
+
+// AddBalanceWeeklyQuota adds v to the "balance_weekly_quota" field.
+func (u *UserUpsertOne) AddBalanceWeeklyQuota(v float64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.AddBalanceWeeklyQuota(v)
+	})
+}
+
+// UpdateBalanceWeeklyQuota sets the "balance_weekly_quota" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateBalanceWeeklyQuota() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateBalanceWeeklyQuota()
+	})
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (u *UserUpsertOne) ClearBalanceWeeklyQuota() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearBalanceWeeklyQuota()
 	})
 }
 
@@ -1390,6 +1530,62 @@ func (u *UserUpsertBulk) SetNotes(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateNotes() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateNotes()
+	})
+}
+
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (u *UserUpsertBulk) SetBalanceDailyQuota(v float64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetBalanceDailyQuota(v)
+	})
+}
+
+// AddBalanceDailyQuota adds v to the "balance_daily_quota" field.
+func (u *UserUpsertBulk) AddBalanceDailyQuota(v float64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.AddBalanceDailyQuota(v)
+	})
+}
+
+// UpdateBalanceDailyQuota sets the "balance_daily_quota" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateBalanceDailyQuota() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateBalanceDailyQuota()
+	})
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (u *UserUpsertBulk) ClearBalanceDailyQuota() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearBalanceDailyQuota()
+	})
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (u *UserUpsertBulk) SetBalanceWeeklyQuota(v float64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetBalanceWeeklyQuota(v)
+	})
+}
+
+// AddBalanceWeeklyQuota adds v to the "balance_weekly_quota" field.
+func (u *UserUpsertBulk) AddBalanceWeeklyQuota(v float64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.AddBalanceWeeklyQuota(v)
+	})
+}
+
+// UpdateBalanceWeeklyQuota sets the "balance_weekly_quota" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateBalanceWeeklyQuota() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateBalanceWeeklyQuota()
+	})
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (u *UserUpsertBulk) ClearBalanceWeeklyQuota() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearBalanceWeeklyQuota()
 	})
 }
 

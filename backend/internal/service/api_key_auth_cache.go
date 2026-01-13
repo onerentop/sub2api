@@ -14,11 +14,13 @@ type APIKeyAuthSnapshot struct {
 
 // APIKeyAuthUserSnapshot 用户快照
 type APIKeyAuthUserSnapshot struct {
-	ID          int64   `json:"id"`
-	Status      string  `json:"status"`
-	Role        string  `json:"role"`
-	Balance     float64 `json:"balance"`
-	Concurrency int     `json:"concurrency"`
+	ID                 int64    `json:"id"`
+	Status             string   `json:"status"`
+	Role               string   `json:"role"`
+	Balance            float64  `json:"balance"`
+	Concurrency        int      `json:"concurrency"`
+	BalanceDailyQuota  *float64 `json:"balance_daily_quota,omitempty"`
+	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
 }
 
 // APIKeyAuthGroupSnapshot 分组快照
@@ -37,6 +39,9 @@ type APIKeyAuthGroupSnapshot struct {
 	ImagePrice4K     *float64 `json:"image_price_4k,omitempty"`
 	ClaudeCodeOnly   bool     `json:"claude_code_only"`
 	FallbackGroupID  *int64   `json:"fallback_group_id,omitempty"`
+	// 余额计费模式限额
+	BalanceDailyQuota  *float64 `json:"balance_daily_quota,omitempty"`
+	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
 }
 
 // APIKeyAuthCacheEntry 缓存条目，支持负缓存

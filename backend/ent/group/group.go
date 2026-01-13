@@ -53,6 +53,10 @@ const (
 	FieldClaudeCodeOnly = "claude_code_only"
 	// FieldFallbackGroupID holds the string denoting the fallback_group_id field in the database.
 	FieldFallbackGroupID = "fallback_group_id"
+	// FieldBalanceDailyQuota holds the string denoting the balance_daily_quota field in the database.
+	FieldBalanceDailyQuota = "balance_daily_quota"
+	// FieldBalanceWeeklyQuota holds the string denoting the balance_weekly_quota field in the database.
+	FieldBalanceWeeklyQuota = "balance_weekly_quota"
 	// EdgeAPIKeys holds the string denoting the api_keys edge name in mutations.
 	EdgeAPIKeys = "api_keys"
 	// EdgeRedeemCodes holds the string denoting the redeem_codes edge name in mutations.
@@ -147,6 +151,8 @@ var Columns = []string{
 	FieldImagePrice4k,
 	FieldClaudeCodeOnly,
 	FieldFallbackGroupID,
+	FieldBalanceDailyQuota,
+	FieldBalanceWeeklyQuota,
 }
 
 var (
@@ -307,6 +313,16 @@ func ByClaudeCodeOnly(opts ...sql.OrderTermOption) OrderOption {
 // ByFallbackGroupID orders the results by the fallback_group_id field.
 func ByFallbackGroupID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFallbackGroupID, opts...).ToFunc()
+}
+
+// ByBalanceDailyQuota orders the results by the balance_daily_quota field.
+func ByBalanceDailyQuota(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBalanceDailyQuota, opts...).ToFunc()
+}
+
+// ByBalanceWeeklyQuota orders the results by the balance_weekly_quota field.
+func ByBalanceWeeklyQuota(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBalanceWeeklyQuota, opts...).ToFunc()
 }
 
 // ByAPIKeysCount orders the results by api_keys count.

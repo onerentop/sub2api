@@ -76,6 +76,9 @@ type CreateUserInput struct {
 	Balance       float64
 	Concurrency   int
 	AllowedGroups []int64
+	// 余额计费模式限额覆盖
+	BalanceDailyQuota  *float64 // 每日限额（覆盖分组设置）
+	BalanceWeeklyQuota *float64 // 每周限额（覆盖分组设置）
 }
 
 type UpdateUserInput struct {
@@ -87,6 +90,9 @@ type UpdateUserInput struct {
 	Concurrency   *int     // 使用指针区分"未提供"和"设置为0"
 	Status        string
 	AllowedGroups *[]int64 // 使用指针区分"未提供"和"设置为空数组"
+	// 余额计费模式限额覆盖
+	BalanceDailyQuota  *float64 // 每日限额（覆盖分组设置，nil=不修改，负数=清除）
+	BalanceWeeklyQuota *float64 // 每周限额（覆盖分组设置，nil=不修改，负数=清除）
 }
 
 type CreateGroupInput struct {
@@ -105,6 +111,9 @@ type CreateGroupInput struct {
 	ImagePrice4K    *float64
 	ClaudeCodeOnly  bool   // 仅允许 Claude Code 客户端
 	FallbackGroupID *int64 // 降级分组 ID
+	// 余额计费模式限额
+	BalanceDailyQuota  *float64 // 余额每日限额（金额）
+	BalanceWeeklyQuota *float64 // 余额每周限额（金额）
 }
 
 type UpdateGroupInput struct {
@@ -124,6 +133,9 @@ type UpdateGroupInput struct {
 	ImagePrice4K    *float64
 	ClaudeCodeOnly  *bool  // 仅允许 Claude Code 客户端
 	FallbackGroupID *int64 // 降级分组 ID
+	// 余额计费模式限额
+	BalanceDailyQuota  *float64 // 余额每日限额（金额）
+	BalanceWeeklyQuota *float64 // 余额每周限额（金额）
 }
 
 type CreateAccountInput struct {
@@ -298,14 +310,16 @@ func (s *adminServiceImpl) GetUser(ctx context.Context, id int64) (*User, error)
 
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
 	user := &User{
-		Email:         input.Email,
-		Username:      input.Username,
-		Notes:         input.Notes,
-		Role:          RoleUser, // Always create as regular user, never admin
-		Balance:       input.Balance,
-		Concurrency:   input.Concurrency,
-		Status:        StatusActive,
-		AllowedGroups: input.AllowedGroups,
+		Email:              input.Email,
+		Username:           input.Username,
+		Notes:              input.Notes,
+		Role:               RoleUser, // Always create as regular user, never admin
+		Balance:            input.Balance,
+		Concurrency:        input.Concurrency,
+		Status:             StatusActive,
+		AllowedGroups:      input.AllowedGroups,
+		BalanceDailyQuota:  normalizeLimit(input.BalanceDailyQuota),
+		BalanceWeeklyQuota: normalizeLimit(input.BalanceWeeklyQuota),
 	}
 	if err := user.SetPassword(input.Password); err != nil {
 		return nil, err
@@ -357,6 +371,22 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 
 	if input.AllowedGroups != nil {
 		user.AllowedGroups = *input.AllowedGroups
+	}
+
+	// 处理余额限额覆盖（nil=不修改，负数=清除，0或正数=设置）
+	if input.BalanceDailyQuota != nil {
+		if *input.BalanceDailyQuota < 0 {
+			user.BalanceDailyQuota = nil
+		} else {
+			user.BalanceDailyQuota = input.BalanceDailyQuota
+		}
+	}
+	if input.BalanceWeeklyQuota != nil {
+		if *input.BalanceWeeklyQuota < 0 {
+			user.BalanceWeeklyQuota = nil
+		} else {
+			user.BalanceWeeklyQuota = input.BalanceWeeklyQuota
+		}
 	}
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
@@ -539,6 +569,10 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	imagePrice2K := normalizePrice(input.ImagePrice2K)
 	imagePrice4K := normalizePrice(input.ImagePrice4K)
 
+	// 余额限额：0 和 nil 都表示"无限制"
+	balanceDailyQuota := normalizeLimit(input.BalanceDailyQuota)
+	balanceWeeklyQuota := normalizeLimit(input.BalanceWeeklyQuota)
+
 	// 校验降级分组
 	if input.FallbackGroupID != nil {
 		if err := s.validateFallbackGroup(ctx, 0, *input.FallbackGroupID); err != nil {
@@ -547,21 +581,23 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	}
 
 	group := &Group{
-		Name:             input.Name,
-		Description:      input.Description,
-		Platform:         platform,
-		RateMultiplier:   input.RateMultiplier,
-		IsExclusive:      input.IsExclusive,
-		Status:           StatusActive,
-		SubscriptionType: subscriptionType,
-		DailyLimitUSD:    dailyLimit,
-		WeeklyLimitUSD:   weeklyLimit,
-		MonthlyLimitUSD:  monthlyLimit,
-		ImagePrice1K:     imagePrice1K,
-		ImagePrice2K:     imagePrice2K,
-		ImagePrice4K:     imagePrice4K,
-		ClaudeCodeOnly:   input.ClaudeCodeOnly,
-		FallbackGroupID:  input.FallbackGroupID,
+		Name:               input.Name,
+		Description:        input.Description,
+		Platform:           platform,
+		RateMultiplier:     input.RateMultiplier,
+		IsExclusive:        input.IsExclusive,
+		Status:             StatusActive,
+		SubscriptionType:   subscriptionType,
+		DailyLimitUSD:      dailyLimit,
+		WeeklyLimitUSD:     weeklyLimit,
+		MonthlyLimitUSD:    monthlyLimit,
+		ImagePrice1K:       imagePrice1K,
+		ImagePrice2K:       imagePrice2K,
+		ImagePrice4K:       imagePrice4K,
+		ClaudeCodeOnly:     input.ClaudeCodeOnly,
+		FallbackGroupID:    input.FallbackGroupID,
+		BalanceDailyQuota:  balanceDailyQuota,
+		BalanceWeeklyQuota: balanceWeeklyQuota,
 	}
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, err
@@ -688,6 +724,14 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 			// 传入 0 或负数表示清除降级分组
 			group.FallbackGroupID = nil
 		}
+	}
+
+	// 余额限额字段：0 和 nil 都表示"无限制"，正数表示具体限额
+	if input.BalanceDailyQuota != nil {
+		group.BalanceDailyQuota = normalizeLimit(input.BalanceDailyQuota)
+	}
+	if input.BalanceWeeklyQuota != nil {
+		group.BalanceWeeklyQuota = normalizeLimit(input.BalanceWeeklyQuota)
 	}
 
 	if err := s.groupRepo.Update(ctx, group); err != nil {

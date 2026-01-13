@@ -4706,6 +4706,10 @@ type GroupMutation struct {
 	claude_code_only         *bool
 	fallback_group_id        *int64
 	addfallback_group_id     *int64
+	balance_daily_quota      *float64
+	addbalance_daily_quota   *float64
+	balance_weekly_quota     *float64
+	addbalance_weekly_quota  *float64
 	clearedFields            map[string]struct{}
 	api_keys                 map[int64]struct{}
 	removedapi_keys          map[int64]struct{}
@@ -5816,6 +5820,146 @@ func (m *GroupMutation) ResetFallbackGroupID() {
 	delete(m.clearedFields, group.FieldFallbackGroupID)
 }
 
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (m *GroupMutation) SetBalanceDailyQuota(f float64) {
+	m.balance_daily_quota = &f
+	m.addbalance_daily_quota = nil
+}
+
+// BalanceDailyQuota returns the value of the "balance_daily_quota" field in the mutation.
+func (m *GroupMutation) BalanceDailyQuota() (r float64, exists bool) {
+	v := m.balance_daily_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceDailyQuota returns the old "balance_daily_quota" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldBalanceDailyQuota(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceDailyQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceDailyQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceDailyQuota: %w", err)
+	}
+	return oldValue.BalanceDailyQuota, nil
+}
+
+// AddBalanceDailyQuota adds f to the "balance_daily_quota" field.
+func (m *GroupMutation) AddBalanceDailyQuota(f float64) {
+	if m.addbalance_daily_quota != nil {
+		*m.addbalance_daily_quota += f
+	} else {
+		m.addbalance_daily_quota = &f
+	}
+}
+
+// AddedBalanceDailyQuota returns the value that was added to the "balance_daily_quota" field in this mutation.
+func (m *GroupMutation) AddedBalanceDailyQuota() (r float64, exists bool) {
+	v := m.addbalance_daily_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (m *GroupMutation) ClearBalanceDailyQuota() {
+	m.balance_daily_quota = nil
+	m.addbalance_daily_quota = nil
+	m.clearedFields[group.FieldBalanceDailyQuota] = struct{}{}
+}
+
+// BalanceDailyQuotaCleared returns if the "balance_daily_quota" field was cleared in this mutation.
+func (m *GroupMutation) BalanceDailyQuotaCleared() bool {
+	_, ok := m.clearedFields[group.FieldBalanceDailyQuota]
+	return ok
+}
+
+// ResetBalanceDailyQuota resets all changes to the "balance_daily_quota" field.
+func (m *GroupMutation) ResetBalanceDailyQuota() {
+	m.balance_daily_quota = nil
+	m.addbalance_daily_quota = nil
+	delete(m.clearedFields, group.FieldBalanceDailyQuota)
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (m *GroupMutation) SetBalanceWeeklyQuota(f float64) {
+	m.balance_weekly_quota = &f
+	m.addbalance_weekly_quota = nil
+}
+
+// BalanceWeeklyQuota returns the value of the "balance_weekly_quota" field in the mutation.
+func (m *GroupMutation) BalanceWeeklyQuota() (r float64, exists bool) {
+	v := m.balance_weekly_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceWeeklyQuota returns the old "balance_weekly_quota" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldBalanceWeeklyQuota(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceWeeklyQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceWeeklyQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceWeeklyQuota: %w", err)
+	}
+	return oldValue.BalanceWeeklyQuota, nil
+}
+
+// AddBalanceWeeklyQuota adds f to the "balance_weekly_quota" field.
+func (m *GroupMutation) AddBalanceWeeklyQuota(f float64) {
+	if m.addbalance_weekly_quota != nil {
+		*m.addbalance_weekly_quota += f
+	} else {
+		m.addbalance_weekly_quota = &f
+	}
+}
+
+// AddedBalanceWeeklyQuota returns the value that was added to the "balance_weekly_quota" field in this mutation.
+func (m *GroupMutation) AddedBalanceWeeklyQuota() (r float64, exists bool) {
+	v := m.addbalance_weekly_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (m *GroupMutation) ClearBalanceWeeklyQuota() {
+	m.balance_weekly_quota = nil
+	m.addbalance_weekly_quota = nil
+	m.clearedFields[group.FieldBalanceWeeklyQuota] = struct{}{}
+}
+
+// BalanceWeeklyQuotaCleared returns if the "balance_weekly_quota" field was cleared in this mutation.
+func (m *GroupMutation) BalanceWeeklyQuotaCleared() bool {
+	_, ok := m.clearedFields[group.FieldBalanceWeeklyQuota]
+	return ok
+}
+
+// ResetBalanceWeeklyQuota resets all changes to the "balance_weekly_quota" field.
+func (m *GroupMutation) ResetBalanceWeeklyQuota() {
+	m.balance_weekly_quota = nil
+	m.addbalance_weekly_quota = nil
+	delete(m.clearedFields, group.FieldBalanceWeeklyQuota)
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by ids.
 func (m *GroupMutation) AddAPIKeyIDs(ids ...int64) {
 	if m.api_keys == nil {
@@ -6174,7 +6318,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 21)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -6232,6 +6376,12 @@ func (m *GroupMutation) Fields() []string {
 	if m.fallback_group_id != nil {
 		fields = append(fields, group.FieldFallbackGroupID)
 	}
+	if m.balance_daily_quota != nil {
+		fields = append(fields, group.FieldBalanceDailyQuota)
+	}
+	if m.balance_weekly_quota != nil {
+		fields = append(fields, group.FieldBalanceWeeklyQuota)
+	}
 	return fields
 }
 
@@ -6278,6 +6428,10 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.ClaudeCodeOnly()
 	case group.FieldFallbackGroupID:
 		return m.FallbackGroupID()
+	case group.FieldBalanceDailyQuota:
+		return m.BalanceDailyQuota()
+	case group.FieldBalanceWeeklyQuota:
+		return m.BalanceWeeklyQuota()
 	}
 	return nil, false
 }
@@ -6325,6 +6479,10 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldClaudeCodeOnly(ctx)
 	case group.FieldFallbackGroupID:
 		return m.OldFallbackGroupID(ctx)
+	case group.FieldBalanceDailyQuota:
+		return m.OldBalanceDailyQuota(ctx)
+	case group.FieldBalanceWeeklyQuota:
+		return m.OldBalanceWeeklyQuota(ctx)
 	}
 	return nil, fmt.Errorf("unknown Group field %s", name)
 }
@@ -6467,6 +6625,20 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetFallbackGroupID(v)
 		return nil
+	case group.FieldBalanceDailyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceDailyQuota(v)
+		return nil
+	case group.FieldBalanceWeeklyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceWeeklyQuota(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
 }
@@ -6502,6 +6674,12 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.addfallback_group_id != nil {
 		fields = append(fields, group.FieldFallbackGroupID)
 	}
+	if m.addbalance_daily_quota != nil {
+		fields = append(fields, group.FieldBalanceDailyQuota)
+	}
+	if m.addbalance_weekly_quota != nil {
+		fields = append(fields, group.FieldBalanceWeeklyQuota)
+	}
 	return fields
 }
 
@@ -6528,6 +6706,10 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedImagePrice4k()
 	case group.FieldFallbackGroupID:
 		return m.AddedFallbackGroupID()
+	case group.FieldBalanceDailyQuota:
+		return m.AddedBalanceDailyQuota()
+	case group.FieldBalanceWeeklyQuota:
+		return m.AddedBalanceWeeklyQuota()
 	}
 	return nil, false
 }
@@ -6600,6 +6782,20 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddFallbackGroupID(v)
 		return nil
+	case group.FieldBalanceDailyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceDailyQuota(v)
+		return nil
+	case group.FieldBalanceWeeklyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceWeeklyQuota(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Group numeric field %s", name)
 }
@@ -6634,6 +6830,12 @@ func (m *GroupMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(group.FieldFallbackGroupID) {
 		fields = append(fields, group.FieldFallbackGroupID)
+	}
+	if m.FieldCleared(group.FieldBalanceDailyQuota) {
+		fields = append(fields, group.FieldBalanceDailyQuota)
+	}
+	if m.FieldCleared(group.FieldBalanceWeeklyQuota) {
+		fields = append(fields, group.FieldBalanceWeeklyQuota)
 	}
 	return fields
 }
@@ -6675,6 +6877,12 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldFallbackGroupID:
 		m.ClearFallbackGroupID()
+		return nil
+	case group.FieldBalanceDailyQuota:
+		m.ClearBalanceDailyQuota()
+		return nil
+	case group.FieldBalanceWeeklyQuota:
+		m.ClearBalanceWeeklyQuota()
 		return nil
 	}
 	return fmt.Errorf("unknown Group nullable field %s", name)
@@ -6740,6 +6948,12 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldFallbackGroupID:
 		m.ResetFallbackGroupID()
+		return nil
+	case group.FieldBalanceDailyQuota:
+		m.ResetBalanceDailyQuota()
+		return nil
+	case group.FieldBalanceWeeklyQuota:
+		m.ResetBalanceWeeklyQuota()
 		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
@@ -13882,6 +14096,10 @@ type UserMutation struct {
 	status                        *string
 	username                      *string
 	notes                         *string
+	balance_daily_quota           *float64
+	addbalance_daily_quota        *float64
+	balance_weekly_quota          *float64
+	addbalance_weekly_quota       *float64
 	clearedFields                 map[string]struct{}
 	api_keys                      map[int64]struct{}
 	removedapi_keys               map[int64]struct{}
@@ -14459,6 +14677,146 @@ func (m *UserMutation) ResetNotes() {
 	m.notes = nil
 }
 
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (m *UserMutation) SetBalanceDailyQuota(f float64) {
+	m.balance_daily_quota = &f
+	m.addbalance_daily_quota = nil
+}
+
+// BalanceDailyQuota returns the value of the "balance_daily_quota" field in the mutation.
+func (m *UserMutation) BalanceDailyQuota() (r float64, exists bool) {
+	v := m.balance_daily_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceDailyQuota returns the old "balance_daily_quota" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldBalanceDailyQuota(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceDailyQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceDailyQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceDailyQuota: %w", err)
+	}
+	return oldValue.BalanceDailyQuota, nil
+}
+
+// AddBalanceDailyQuota adds f to the "balance_daily_quota" field.
+func (m *UserMutation) AddBalanceDailyQuota(f float64) {
+	if m.addbalance_daily_quota != nil {
+		*m.addbalance_daily_quota += f
+	} else {
+		m.addbalance_daily_quota = &f
+	}
+}
+
+// AddedBalanceDailyQuota returns the value that was added to the "balance_daily_quota" field in this mutation.
+func (m *UserMutation) AddedBalanceDailyQuota() (r float64, exists bool) {
+	v := m.addbalance_daily_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (m *UserMutation) ClearBalanceDailyQuota() {
+	m.balance_daily_quota = nil
+	m.addbalance_daily_quota = nil
+	m.clearedFields[user.FieldBalanceDailyQuota] = struct{}{}
+}
+
+// BalanceDailyQuotaCleared returns if the "balance_daily_quota" field was cleared in this mutation.
+func (m *UserMutation) BalanceDailyQuotaCleared() bool {
+	_, ok := m.clearedFields[user.FieldBalanceDailyQuota]
+	return ok
+}
+
+// ResetBalanceDailyQuota resets all changes to the "balance_daily_quota" field.
+func (m *UserMutation) ResetBalanceDailyQuota() {
+	m.balance_daily_quota = nil
+	m.addbalance_daily_quota = nil
+	delete(m.clearedFields, user.FieldBalanceDailyQuota)
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (m *UserMutation) SetBalanceWeeklyQuota(f float64) {
+	m.balance_weekly_quota = &f
+	m.addbalance_weekly_quota = nil
+}
+
+// BalanceWeeklyQuota returns the value of the "balance_weekly_quota" field in the mutation.
+func (m *UserMutation) BalanceWeeklyQuota() (r float64, exists bool) {
+	v := m.balance_weekly_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceWeeklyQuota returns the old "balance_weekly_quota" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldBalanceWeeklyQuota(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceWeeklyQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceWeeklyQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceWeeklyQuota: %w", err)
+	}
+	return oldValue.BalanceWeeklyQuota, nil
+}
+
+// AddBalanceWeeklyQuota adds f to the "balance_weekly_quota" field.
+func (m *UserMutation) AddBalanceWeeklyQuota(f float64) {
+	if m.addbalance_weekly_quota != nil {
+		*m.addbalance_weekly_quota += f
+	} else {
+		m.addbalance_weekly_quota = &f
+	}
+}
+
+// AddedBalanceWeeklyQuota returns the value that was added to the "balance_weekly_quota" field in this mutation.
+func (m *UserMutation) AddedBalanceWeeklyQuota() (r float64, exists bool) {
+	v := m.addbalance_weekly_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (m *UserMutation) ClearBalanceWeeklyQuota() {
+	m.balance_weekly_quota = nil
+	m.addbalance_weekly_quota = nil
+	m.clearedFields[user.FieldBalanceWeeklyQuota] = struct{}{}
+}
+
+// BalanceWeeklyQuotaCleared returns if the "balance_weekly_quota" field was cleared in this mutation.
+func (m *UserMutation) BalanceWeeklyQuotaCleared() bool {
+	_, ok := m.clearedFields[user.FieldBalanceWeeklyQuota]
+	return ok
+}
+
+// ResetBalanceWeeklyQuota resets all changes to the "balance_weekly_quota" field.
+func (m *UserMutation) ResetBalanceWeeklyQuota() {
+	m.balance_weekly_quota = nil
+	m.addbalance_weekly_quota = nil
+	delete(m.clearedFields, user.FieldBalanceWeeklyQuota)
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by ids.
 func (m *UserMutation) AddAPIKeyIDs(ids ...int64) {
 	if m.api_keys == nil {
@@ -14925,7 +15283,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 13)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -14959,6 +15317,12 @@ func (m *UserMutation) Fields() []string {
 	if m.notes != nil {
 		fields = append(fields, user.FieldNotes)
 	}
+	if m.balance_daily_quota != nil {
+		fields = append(fields, user.FieldBalanceDailyQuota)
+	}
+	if m.balance_weekly_quota != nil {
+		fields = append(fields, user.FieldBalanceWeeklyQuota)
+	}
 	return fields
 }
 
@@ -14989,6 +15353,10 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Username()
 	case user.FieldNotes:
 		return m.Notes()
+	case user.FieldBalanceDailyQuota:
+		return m.BalanceDailyQuota()
+	case user.FieldBalanceWeeklyQuota:
+		return m.BalanceWeeklyQuota()
 	}
 	return nil, false
 }
@@ -15020,6 +15388,10 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldUsername(ctx)
 	case user.FieldNotes:
 		return m.OldNotes(ctx)
+	case user.FieldBalanceDailyQuota:
+		return m.OldBalanceDailyQuota(ctx)
+	case user.FieldBalanceWeeklyQuota:
+		return m.OldBalanceWeeklyQuota(ctx)
 	}
 	return nil, fmt.Errorf("unknown User field %s", name)
 }
@@ -15106,6 +15478,20 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetNotes(v)
 		return nil
+	case user.FieldBalanceDailyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceDailyQuota(v)
+		return nil
+	case user.FieldBalanceWeeklyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceWeeklyQuota(v)
+		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)
 }
@@ -15120,6 +15506,12 @@ func (m *UserMutation) AddedFields() []string {
 	if m.addconcurrency != nil {
 		fields = append(fields, user.FieldConcurrency)
 	}
+	if m.addbalance_daily_quota != nil {
+		fields = append(fields, user.FieldBalanceDailyQuota)
+	}
+	if m.addbalance_weekly_quota != nil {
+		fields = append(fields, user.FieldBalanceWeeklyQuota)
+	}
 	return fields
 }
 
@@ -15132,6 +15524,10 @@ func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedBalance()
 	case user.FieldConcurrency:
 		return m.AddedConcurrency()
+	case user.FieldBalanceDailyQuota:
+		return m.AddedBalanceDailyQuota()
+	case user.FieldBalanceWeeklyQuota:
+		return m.AddedBalanceWeeklyQuota()
 	}
 	return nil, false
 }
@@ -15155,6 +15551,20 @@ func (m *UserMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddConcurrency(v)
 		return nil
+	case user.FieldBalanceDailyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceDailyQuota(v)
+		return nil
+	case user.FieldBalanceWeeklyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceWeeklyQuota(v)
+		return nil
 	}
 	return fmt.Errorf("unknown User numeric field %s", name)
 }
@@ -15165,6 +15575,12 @@ func (m *UserMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(user.FieldDeletedAt) {
 		fields = append(fields, user.FieldDeletedAt)
+	}
+	if m.FieldCleared(user.FieldBalanceDailyQuota) {
+		fields = append(fields, user.FieldBalanceDailyQuota)
+	}
+	if m.FieldCleared(user.FieldBalanceWeeklyQuota) {
+		fields = append(fields, user.FieldBalanceWeeklyQuota)
 	}
 	return fields
 }
@@ -15182,6 +15598,12 @@ func (m *UserMutation) ClearField(name string) error {
 	switch name {
 	case user.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case user.FieldBalanceDailyQuota:
+		m.ClearBalanceDailyQuota()
+		return nil
+	case user.FieldBalanceWeeklyQuota:
+		m.ClearBalanceWeeklyQuota()
 		return nil
 	}
 	return fmt.Errorf("unknown User nullable field %s", name)
@@ -15223,6 +15645,12 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldNotes:
 		m.ResetNotes()
+		return nil
+	case user.FieldBalanceDailyQuota:
+		m.ResetBalanceDailyQuota()
+		return nil
+	case user.FieldBalanceWeeklyQuota:
+		m.ResetBalanceWeeklyQuota()
 		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)

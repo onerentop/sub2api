@@ -2200,3 +2200,18 @@ func setToSlice(set map[int64]struct{}) []int64 {
 	}
 	return out
 }
+
+// SumActualCostByUserAndTimeRange 获取用户在指定时间范围内的消费总额
+// 用于余额计费模式的限额检查
+func (r *usageLogRepository) SumActualCostByUserAndTimeRange(ctx context.Context, userID int64, startTime, endTime time.Time) (float64, error) {
+	query := `
+		SELECT COALESCE(SUM(actual_cost), 0)
+		FROM usage_logs
+		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
+	`
+	var totalCost float64
+	if err := scanSingleRow(ctx, r.sql, query, []any{userID, startTime, endTime}, &totalCost); err != nil {
+		return 0, err
+	}
+	return totalCost, nil
+}

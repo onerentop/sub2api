@@ -15,6 +15,10 @@ type User struct {
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 
+	// 余额计费模式限额覆盖
+	BalanceDailyQuota  *float64 `json:"balance_daily_quota,omitempty"`
+	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
+
 	APIKeys       []APIKey           `json:"api_keys,omitempty"`
 	Subscriptions []UserSubscription `json:"subscriptions,omitempty"`
 }
@@ -57,6 +61,10 @@ type Group struct {
 	// Claude Code 客户端限制
 	ClaudeCodeOnly  bool   `json:"claude_code_only"`
 	FallbackGroupID *int64 `json:"fallback_group_id"`
+
+	// 余额计费模式限额
+	BalanceDailyQuota  *float64 `json:"balance_daily_quota,omitempty"`
+	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

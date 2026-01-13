@@ -40,6 +40,9 @@ type CreateGroupRequest struct {
 	ImagePrice4K    *float64 `json:"image_price_4k"`
 	ClaudeCodeOnly  bool     `json:"claude_code_only"`
 	FallbackGroupID *int64   `json:"fallback_group_id"`
+	// 余额计费模式限额（standard 类型分组使用）
+	BalanceDailyQuota  *float64 `json:"balance_daily_quota"`
+	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota"`
 }
 
 // UpdateGroupRequest represents update group request
@@ -60,6 +63,9 @@ type UpdateGroupRequest struct {
 	ImagePrice4K    *float64 `json:"image_price_4k"`
 	ClaudeCodeOnly  *bool    `json:"claude_code_only"`
 	FallbackGroupID *int64   `json:"fallback_group_id"`
+	// 余额计费模式限额（standard 类型分组使用）
+	BalanceDailyQuota  *float64 `json:"balance_daily_quota"`
+	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota"`
 }
 
 // List handles listing all groups with pagination
@@ -149,20 +155,22 @@ func (h *GroupHandler) Create(c *gin.Context) {
 	}
 
 	group, err := h.adminService.CreateGroup(c.Request.Context(), &service.CreateGroupInput{
-		Name:             req.Name,
-		Description:      req.Description,
-		Platform:         req.Platform,
-		RateMultiplier:   req.RateMultiplier,
-		IsExclusive:      req.IsExclusive,
-		SubscriptionType: req.SubscriptionType,
-		DailyLimitUSD:    req.DailyLimitUSD,
-		WeeklyLimitUSD:   req.WeeklyLimitUSD,
-		MonthlyLimitUSD:  req.MonthlyLimitUSD,
-		ImagePrice1K:     req.ImagePrice1K,
-		ImagePrice2K:     req.ImagePrice2K,
-		ImagePrice4K:     req.ImagePrice4K,
-		ClaudeCodeOnly:   req.ClaudeCodeOnly,
-		FallbackGroupID:  req.FallbackGroupID,
+		Name:               req.Name,
+		Description:        req.Description,
+		Platform:           req.Platform,
+		RateMultiplier:     req.RateMultiplier,
+		IsExclusive:        req.IsExclusive,
+		SubscriptionType:   req.SubscriptionType,
+		DailyLimitUSD:      req.DailyLimitUSD,
+		WeeklyLimitUSD:     req.WeeklyLimitUSD,
+		MonthlyLimitUSD:    req.MonthlyLimitUSD,
+		ImagePrice1K:       req.ImagePrice1K,
+		ImagePrice2K:       req.ImagePrice2K,
+		ImagePrice4K:       req.ImagePrice4K,
+		ClaudeCodeOnly:     req.ClaudeCodeOnly,
+		FallbackGroupID:    req.FallbackGroupID,
+		BalanceDailyQuota:  req.BalanceDailyQuota,
+		BalanceWeeklyQuota: req.BalanceWeeklyQuota,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -188,21 +196,23 @@ func (h *GroupHandler) Update(c *gin.Context) {
 	}
 
 	group, err := h.adminService.UpdateGroup(c.Request.Context(), groupID, &service.UpdateGroupInput{
-		Name:             req.Name,
-		Description:      req.Description,
-		Platform:         req.Platform,
-		RateMultiplier:   req.RateMultiplier,
-		IsExclusive:      req.IsExclusive,
-		Status:           req.Status,
-		SubscriptionType: req.SubscriptionType,
-		DailyLimitUSD:    req.DailyLimitUSD,
-		WeeklyLimitUSD:   req.WeeklyLimitUSD,
-		MonthlyLimitUSD:  req.MonthlyLimitUSD,
-		ImagePrice1K:     req.ImagePrice1K,
-		ImagePrice2K:     req.ImagePrice2K,
-		ImagePrice4K:     req.ImagePrice4K,
-		ClaudeCodeOnly:   req.ClaudeCodeOnly,
-		FallbackGroupID:  req.FallbackGroupID,
+		Name:               req.Name,
+		Description:        req.Description,
+		Platform:           req.Platform,
+		RateMultiplier:     req.RateMultiplier,
+		IsExclusive:        req.IsExclusive,
+		Status:             req.Status,
+		SubscriptionType:   req.SubscriptionType,
+		DailyLimitUSD:      req.DailyLimitUSD,
+		WeeklyLimitUSD:     req.WeeklyLimitUSD,
+		MonthlyLimitUSD:    req.MonthlyLimitUSD,
+		ImagePrice1K:       req.ImagePrice1K,
+		ImagePrice2K:       req.ImagePrice2K,
+		ImagePrice4K:       req.ImagePrice4K,
+		ClaudeCodeOnly:     req.ClaudeCodeOnly,
+		FallbackGroupID:    req.FallbackGroupID,
+		BalanceDailyQuota:  req.BalanceDailyQuota,
+		BalanceWeeklyQuota: req.BalanceWeeklyQuota,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

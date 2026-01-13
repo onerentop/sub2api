@@ -277,6 +277,8 @@ var (
 		{Name: "image_price_4k", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "claude_code_only", Type: field.TypeBool, Default: false},
 		{Name: "fallback_group_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "balance_daily_quota", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "balance_weekly_quota", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 	}
 	// GroupsTable holds the schema information for the "groups" table.
 	GroupsTable = &schema.Table{
@@ -620,6 +622,8 @@ var (
 		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
 		{Name: "username", Type: field.TypeString, Size: 100, Default: ""},
 		{Name: "notes", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "balance_daily_quota", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "balance_weekly_quota", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{

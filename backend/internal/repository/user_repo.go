@@ -59,6 +59,8 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 		SetBalance(userIn.Balance).
 		SetConcurrency(userIn.Concurrency).
 		SetStatus(userIn.Status).
+		SetNillableBalanceDailyQuota(userIn.BalanceDailyQuota).
+		SetNillableBalanceWeeklyQuota(userIn.BalanceWeeklyQuota).
 		Save(ctx)
 	if err != nil {
 		return translatePersistenceError(err, nil, service.ErrEmailExists)
@@ -132,7 +134,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		txClient = r.client
 	}
 
-	updated, err := txClient.User.UpdateOneID(userIn.ID).
+	builder := txClient.User.UpdateOneID(userIn.ID).
 		SetEmail(userIn.Email).
 		SetUsername(userIn.Username).
 		SetNotes(userIn.Notes).
@@ -140,8 +142,21 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).
 		SetConcurrency(userIn.Concurrency).
-		SetStatus(userIn.Status).
-		Save(ctx)
+		SetStatus(userIn.Status)
+
+	// 处理余额限额字段：nil 时清除，否则设置
+	if userIn.BalanceDailyQuota != nil {
+		builder = builder.SetBalanceDailyQuota(*userIn.BalanceDailyQuota)
+	} else {
+		builder = builder.ClearBalanceDailyQuota()
+	}
+	if userIn.BalanceWeeklyQuota != nil {
+		builder = builder.SetBalanceWeeklyQuota(*userIn.BalanceWeeklyQuota)
+	} else {
+		builder = builder.ClearBalanceWeeklyQuota()
+	}
+
+	updated, err := builder.Save(ctx)
 	if err != nil {
 		return translatePersistenceError(err, service.ErrUserNotFound, service.ErrEmailExists)
 	}

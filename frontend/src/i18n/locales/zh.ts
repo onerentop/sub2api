@@ -307,7 +307,21 @@ export default {
     viewUsage: '查看使用记录',
     checkDetailedLogs: '查看详细的使用日志',
     redeemCode: '兑换码',
-    addBalanceWithCode: '使用兑换码充值'
+    addBalanceWithCode: '使用兑换码充值',
+    // Balance Quota
+    quota: {
+      title: '消费限额',
+      daily: '每日限额',
+      weekly: '每周限额',
+      remaining: '剩余',
+      resetsAt: '重置于',
+      resettingSoon: '即将重置',
+      userOverride: '用户覆盖',
+      groupDefault: '分组默认',
+      days: '天',
+      hours: '小时',
+      minutes: '分钟'
+    }
   },
 
   // Groups (shared)
@@ -805,6 +819,13 @@ export default {
       columnSettings: '列设置',
       filterValue: '输入值',
       // User Attributes
+      balanceQuota: {
+        title: '余额限额覆盖',
+        description: '为该用户单独设置消费限额，覆盖分组默认值。留空则使用分组默认限额。',
+        dailyQuota: '每日限额 (USD)',
+        weeklyQuota: '每周限额 (USD)',
+        useGroupDefault: '使用分组默认'
+      },
       attributes: {
         title: '用户属性配置',
         description: '配置用户的自定义属性字段',
@@ -992,6 +1013,12 @@ export default {
         fallbackGroup: '降级分组',
         fallbackHint: '非 Claude Code 请求将使用此分组，留空则直接拒绝',
         noFallback: '不降级（直接拒绝）'
+      },
+      balanceQuota: {
+        description: '为余额计费模式的用户设置每日/每周消费限额，限制单用户的消费速度',
+        dailyQuota: '每日限额 (USD)',
+        weeklyQuota: '每周限额 (USD)',
+        noLimit: '无限制'
       }
     },
 
