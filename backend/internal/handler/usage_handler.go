@@ -447,6 +447,29 @@ func (h *UsageHandler) DashboardQuota(c *gin.Context) {
 			response.BadRequest(c, "Balance quota is only available for standard groups")
 			return
 		}
+	} else {
+		// 未指定 group_id 时，自动查找用户绑定的 standard 分组
+		availableGroups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID)
+		if err == nil {
+			// 找到第一个有限额设置的 standard 分组
+			for i := range availableGroups {
+				g := &availableGroups[i]
+				if g.SubscriptionType == "standard" && (g.BalanceDailyQuota != nil || g.BalanceWeeklyQuota != nil) {
+					group = g
+					break
+				}
+			}
+			// 如果没有找到有限额的分组，使用第一个 standard 分组
+			if group == nil {
+				for i := range availableGroups {
+					g := &availableGroups[i]
+					if g.SubscriptionType == "standard" {
+						group = g
+						break
+					}
+				}
+			}
+		}
 	}
 
 	// 获取限额信息

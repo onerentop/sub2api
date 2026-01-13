@@ -25,8 +25,8 @@
         <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
           <div
             class="h-2 rounded-full transition-all duration-300"
-            :class="getProgressClass(getDailyPercentage)"
-            :style="{ width: `${Math.min(getDailyPercentage, 100)}%` }"
+            :class="getProgressClass(getDailyUsedPercentage)"
+            :style="{ width: `${getDailyRemainingPercentage}%` }"
           ></div>
         </div>
         <div class="flex items-center justify-between mt-1">
@@ -50,8 +50,8 @@
         <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
           <div
             class="h-2 rounded-full transition-all duration-300"
-            :class="getProgressClass(getWeeklyPercentage)"
-            :style="{ width: `${Math.min(getWeeklyPercentage, 100)}%` }"
+            :class="getProgressClass(getWeeklyUsedPercentage)"
+            :style="{ width: `${getWeeklyRemainingPercentage}%` }"
           ></div>
         </div>
         <div class="flex items-center justify-between mt-1">
@@ -83,20 +83,31 @@ const hasQuota = computed(() => {
   return props.quotaInfo.daily.limit !== null || props.quotaInfo.weekly.limit !== null
 })
 
-const getDailyPercentage = computed(() => {
-  if (!props.quotaInfo || props.quotaInfo.daily.limit === null) return 0
+// 计算已使用百分比（用于颜色判断）
+const getDailyUsedPercentage = computed(() => {
+  if (!props.quotaInfo || props.quotaInfo.daily.limit === null || props.quotaInfo.daily.limit === 0) return 0
   return (props.quotaInfo.daily.used / props.quotaInfo.daily.limit) * 100
 })
 
-const getWeeklyPercentage = computed(() => {
-  if (!props.quotaInfo || props.quotaInfo.weekly.limit === null) return 0
+const getWeeklyUsedPercentage = computed(() => {
+  if (!props.quotaInfo || props.quotaInfo.weekly.limit === null || props.quotaInfo.weekly.limit === 0) return 0
   return (props.quotaInfo.weekly.used / props.quotaInfo.weekly.limit) * 100
 })
 
-const getProgressClass = (percentage: number) => {
-  if (percentage >= 100) return 'bg-red-500'
-  if (percentage >= 80) return 'bg-orange-500'
-  if (percentage >= 60) return 'bg-yellow-500'
+// 计算剩余百分比（用于进度条宽度）
+const getDailyRemainingPercentage = computed(() => {
+  return Math.max(0, 100 - getDailyUsedPercentage.value)
+})
+
+const getWeeklyRemainingPercentage = computed(() => {
+  return Math.max(0, 100 - getWeeklyUsedPercentage.value)
+})
+
+// 根据已使用百分比决定颜色（使用越多颜色越危险）
+const getProgressClass = (usedPercentage: number) => {
+  if (usedPercentage >= 100) return 'bg-red-500'
+  if (usedPercentage >= 80) return 'bg-orange-500'
+  if (usedPercentage >= 60) return 'bg-yellow-500'
   return 'bg-green-500'
 }
 
