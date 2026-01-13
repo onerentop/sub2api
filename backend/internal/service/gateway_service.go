@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -160,6 +161,11 @@ type GatewayService struct {
 	httpUpstream        HTTPUpstream
 	deferredService     *DeferredService
 	concurrencyService  *ConcurrencyService
+
+	// antigravity429BlockCache: 429 后临时阻塞缓存
+	// key: "accountID:model" → value: 阻塞到期时间
+	antigravity429BlockMu    sync.RWMutex
+	antigravity429BlockCache map[string]time.Time
 }
 
 // NewGatewayService creates a new GatewayService
@@ -195,7 +201,8 @@ func NewGatewayService(
 		billingCacheService: billingCacheService,
 		identityService:     identityService,
 		httpUpstream:        httpUpstream,
-		deferredService:     deferredService,
+		deferredService:             deferredService,
+		antigravity429BlockCache: make(map[string]time.Time),
 	}
 }
 
@@ -885,7 +892,74 @@ func (s *GatewayService) compareAntigravityQuotaForScheduling(a, b *Account, req
 }
 
 func (s *GatewayService) isHardBlockedByAntigravityQuota(account *Account, requestedModel string, now time.Time) bool {
+	// 1. 检查内存级 429 临时阻塞缓存
+	if s.isAntigravity429Blocked(account.ID, requestedModel, now) {
+		return true
+	}
+	// 2. 检查配额快照中的 hardBlocked 状态
 	return s.antigravityQuotaKeyForAccount(account, requestedModel, now).hardBlocked
+}
+
+// antigravity429BlockKey 生成 429 临时阻塞缓存的 key
+func antigravity429BlockKey(accountID int64, model string) string {
+	return fmt.Sprintf("%d:%s", accountID, model)
+}
+
+// markAntigravity429Blocked 标记账号+模型为临时阻塞状态
+// duration: 阻塞持续时间（默认 5 分钟）
+func (s *GatewayService) markAntigravity429Blocked(accountID int64, model string, duration time.Duration) {
+	if duration <= 0 {
+		duration = 5 * time.Minute
+	}
+	key := antigravity429BlockKey(accountID, model)
+	now := time.Now()
+	until := now.Add(duration)
+
+	s.antigravity429BlockMu.Lock()
+	if s.antigravity429BlockCache == nil {
+		s.antigravity429BlockCache = make(map[string]time.Time)
+	}
+	s.antigravity429BlockCache[key] = until
+
+	// 懒惰清理：每次写入时顺便清理过期条目（缓存较小，开销可接受）
+	for k, v := range s.antigravity429BlockCache {
+		if now.After(v) {
+			delete(s.antigravity429BlockCache, k)
+		}
+	}
+	s.antigravity429BlockMu.Unlock()
+
+	log.Printf("Account %d: marked as 429-blocked for model %s until %v", accountID, model, until)
+}
+
+// isAntigravity429Blocked 检查账号+模型是否在 429 临时阻塞状态
+func (s *GatewayService) isAntigravity429Blocked(accountID int64, model string, now time.Time) bool {
+	s.antigravity429BlockMu.RLock()
+	defer s.antigravity429BlockMu.RUnlock()
+
+	if s.antigravity429BlockCache == nil {
+		return false
+	}
+
+	key := antigravity429BlockKey(accountID, model)
+	until, exists := s.antigravity429BlockCache[key]
+	if !exists {
+		return false
+	}
+	return now.Before(until)
+}
+
+// cleanupExpiredAntigravity429Blocks 清理过期的 429 阻塞记录（可选：定期调用）
+func (s *GatewayService) cleanupExpiredAntigravity429Blocks() {
+	now := time.Now()
+	s.antigravity429BlockMu.Lock()
+	defer s.antigravity429BlockMu.Unlock()
+
+	for key, until := range s.antigravity429BlockCache {
+		if now.After(until) {
+			delete(s.antigravity429BlockCache, key)
+		}
+	}
 }
 
 func (s *GatewayService) sortAccountsByPriorityAndLastUsedWithAntigravityQuota(accounts []*Account, requestedModel string, preferOAuth bool) {
@@ -1992,7 +2066,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			_ = resp.Body.Close()
 			resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
-			s.handleRetryExhaustedSideEffects(ctx, resp, account)
+			s.handleRetryExhaustedSideEffects(ctx, resp, account, reqModel)
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
@@ -2009,7 +2083,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			})
 			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode}
 		}
-		return s.handleRetryExhaustedError(ctx, resp, c, account)
+		return s.handleRetryExhaustedError(ctx, resp, c, account, reqModel)
 	}
 
 	// 处理可切换账号的错误
@@ -2018,7 +2092,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		_ = resp.Body.Close()
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
-		s.handleFailoverSideEffects(ctx, resp, account)
+		s.handleFailoverSideEffects(ctx, resp, account, reqModel)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 			Platform:           account.Platform,
 			AccountID:          account.ID,
@@ -2078,7 +2152,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				} else {
 					log.Printf("Account %d: 400 error, attempting failover", account.ID)
 				}
-				s.handleFailoverSideEffects(ctx, resp, account)
+				s.handleFailoverSideEffects(ctx, resp, account, reqModel)
 				return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode}
 			}
 		}
@@ -2467,9 +2541,20 @@ func (s *GatewayService) handleErrorResponse(ctx context.Context, resp *http.Res
 	return nil, fmt.Errorf("upstream error: %d message=%s", resp.StatusCode, upstreamMsg)
 }
 
-func (s *GatewayService) handleRetryExhaustedSideEffects(ctx context.Context, resp *http.Response, account *Account) {
+func (s *GatewayService) handleRetryExhaustedSideEffects(ctx context.Context, resp *http.Response, account *Account, reqModel string) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	statusCode := resp.StatusCode
+
+	// Antigravity 账号遇到 429 时，也需要标记临时阻塞
+	if statusCode == 429 && account.Platform == PlatformAntigravity && reqModel != "" {
+		duration := 5 * time.Minute
+		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
+			if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 {
+				duration = time.Duration(seconds) * time.Second
+			}
+		}
+		s.markAntigravity429Blocked(account.ID, reqModel, duration)
+	}
 
 	// OAuth/Setup Token 账号的 403：标记账号异常
 	if account.IsOAuth() && statusCode == 403 {
@@ -2481,21 +2566,33 @@ func (s *GatewayService) handleRetryExhaustedSideEffects(ctx context.Context, re
 	}
 }
 
-func (s *GatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account) {
+func (s *GatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account, reqModel string) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
+
+	// Antigravity 账号遇到 429 时，临时标记为阻塞状态，避免短时间内再次被选中
+	if resp.StatusCode == 429 && account.Platform == PlatformAntigravity && reqModel != "" {
+		// 尝试从 Retry-After header 获取阻塞时间，否则默认 5 分钟
+		duration := 5 * time.Minute
+		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
+			if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 {
+				duration = time.Duration(seconds) * time.Second
+			}
+		}
+		s.markAntigravity429Blocked(account.ID, reqModel, duration)
+	}
 }
 
 // handleRetryExhaustedError 处理重试耗尽后的错误
 // OAuth 403：标记账号异常
 // API Key 未配置错误码：仅返回错误，不标记账号
-func (s *GatewayService) handleRetryExhaustedError(ctx context.Context, resp *http.Response, c *gin.Context, account *Account) (*ForwardResult, error) {
+func (s *GatewayService) handleRetryExhaustedError(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, reqModel string) (*ForwardResult, error) {
 	// Capture upstream error body before side-effects consume the stream.
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	_ = resp.Body.Close()
 	resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
-	s.handleRetryExhaustedSideEffects(ctx, resp, account)
+	s.handleRetryExhaustedSideEffects(ctx, resp, account, reqModel)
 
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
