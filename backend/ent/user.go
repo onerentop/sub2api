@@ -39,6 +39,10 @@ type User struct {
 	Username string `json:"username,omitempty"`
 	// Notes holds the value of the "notes" field.
 	Notes string `json:"notes,omitempty"`
+	// 用户每日限额覆盖（余额计费模式）
+	BalanceDailyQuota *float64 `json:"balance_daily_quota,omitempty"`
+	// 用户每周限额覆盖（余额计费模式）
+	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserQuery when eager-loading is set.
 	Edges        UserEdges `json:"edges"`
@@ -156,7 +160,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldBalance:
+		case user.FieldBalance, user.FieldBalanceDailyQuota, user.FieldBalanceWeeklyQuota:
 			values[i] = new(sql.NullFloat64)
 		case user.FieldID, user.FieldConcurrency:
 			values[i] = new(sql.NullInt64)
@@ -251,6 +255,20 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field notes", values[i])
 			} else if value.Valid {
 				_m.Notes = value.String
+			}
+		case user.FieldBalanceDailyQuota:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field balance_daily_quota", values[i])
+			} else if value.Valid {
+				_m.BalanceDailyQuota = new(float64)
+				*_m.BalanceDailyQuota = value.Float64
+			}
+		case user.FieldBalanceWeeklyQuota:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field balance_weekly_quota", values[i])
+			} else if value.Valid {
+				_m.BalanceWeeklyQuota = new(float64)
+				*_m.BalanceWeeklyQuota = value.Float64
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -367,6 +385,16 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("notes=")
 	builder.WriteString(_m.Notes)
+	builder.WriteString(", ")
+	if v := _m.BalanceDailyQuota; v != nil {
+		builder.WriteString("balance_daily_quota=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.BalanceWeeklyQuota; v != nil {
+		builder.WriteString("balance_weekly_quota=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

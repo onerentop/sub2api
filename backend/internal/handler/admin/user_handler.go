@@ -45,6 +45,8 @@ type UpdateUserRequest struct {
 	Concurrency   *int     `json:"concurrency"`
 	Status        string   `json:"status" binding:"omitempty,oneof=active disabled"`
 	AllowedGroups *[]int64 `json:"allowed_groups"`
+	BalanceDailyQuota  *float64 `json:"balance_daily_quota"`  // 余额计费每日限额覆盖
+	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota"` // 余额计费每周限额覆盖
 }
 
 // UpdateBalanceRequest represents balance update request
@@ -183,6 +185,8 @@ func (h *UserHandler) Update(c *gin.Context) {
 		Concurrency:   req.Concurrency,
 		Status:        req.Status,
 		AllowedGroups: req.AllowedGroups,
+		BalanceDailyQuota:  req.BalanceDailyQuota,
+		BalanceWeeklyQuota: req.BalanceWeeklyQuota,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/accountgroup"
+	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
@@ -205,6 +206,34 @@ func init() {
 	accountgroupDescCreatedAt := accountgroupFields[3].Descriptor()
 	// accountgroup.DefaultCreatedAt holds the default value on creation for the created_at field.
 	accountgroup.DefaultCreatedAt = accountgroupDescCreatedAt.Default.(func() time.Time)
+	announcementFields := schema.Announcement{}.Fields()
+	_ = announcementFields
+	// announcementDescTitle is the schema descriptor for title field.
+	announcementDescTitle := announcementFields[0].Descriptor()
+	// announcement.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	announcement.TitleValidator = announcementDescTitle.Validators[0].(func(string) error)
+	// announcementDescContent is the schema descriptor for content field.
+	announcementDescContent := announcementFields[1].Descriptor()
+	// announcement.ContentValidator is a validator for the "content" field. It is called by the builders before save.
+	announcement.ContentValidator = announcementDescContent.Validators[0].(func(string) error)
+	// announcementDescSortOrder is the schema descriptor for sort_order field.
+	announcementDescSortOrder := announcementFields[3].Descriptor()
+	// announcement.DefaultSortOrder holds the default value on creation for the sort_order field.
+	announcement.DefaultSortOrder = announcementDescSortOrder.Default.(int)
+	// announcementDescEnabled is the schema descriptor for enabled field.
+	announcementDescEnabled := announcementFields[4].Descriptor()
+	// announcement.DefaultEnabled holds the default value on creation for the enabled field.
+	announcement.DefaultEnabled = announcementDescEnabled.Default.(bool)
+	// announcementDescCreatedAt is the schema descriptor for created_at field.
+	announcementDescCreatedAt := announcementFields[7].Descriptor()
+	// announcement.DefaultCreatedAt holds the default value on creation for the created_at field.
+	announcement.DefaultCreatedAt = announcementDescCreatedAt.Default.(func() time.Time)
+	// announcementDescUpdatedAt is the schema descriptor for updated_at field.
+	announcementDescUpdatedAt := announcementFields[8].Descriptor()
+	// announcement.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	announcement.DefaultUpdatedAt = announcementDescUpdatedAt.Default.(func() time.Time)
+	// announcement.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	announcement.UpdateDefaultUpdatedAt = announcementDescUpdatedAt.UpdateDefault.(func() time.Time)
 	groupMixin := schema.Group{}.Mixin()
 	groupMixinHooks1 := groupMixin[1].Hooks()
 	group.Hooks[0] = groupMixinHooks1[0]

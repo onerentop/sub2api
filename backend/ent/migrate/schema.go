@@ -203,6 +203,58 @@ var (
 			},
 		},
 	}
+	// AnnouncementsColumns holds the columns for the "announcements" table.
+	AnnouncementsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "title", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "content", Type: field.TypeString, Size: 2147483647, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "type", Type: field.TypeEnum, Enums: []string{"info", "success", "warning", "error"}, Default: "info"},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "start_time", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "end_time", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// AnnouncementsTable holds the schema information for the "announcements" table.
+	AnnouncementsTable = &schema.Table{
+		Name:       "announcements",
+		Columns:    AnnouncementsColumns,
+		PrimaryKey: []*schema.Column{AnnouncementsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "announcement_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementsColumns[5]},
+			},
+			{
+				Name:    "announcement_type",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementsColumns[3]},
+			},
+			{
+				Name:    "announcement_sort_order",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementsColumns[4]},
+			},
+			{
+				Name:    "announcement_start_time",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementsColumns[6]},
+			},
+			{
+				Name:    "announcement_end_time",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementsColumns[7]},
+			},
+			{
+				Name:    "announcement_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementsColumns[10]},
+			},
+		},
+	}
 	// GroupsColumns holds the columns for the "groups" table.
 	GroupsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -225,6 +277,8 @@ var (
 		{Name: "image_price_4k", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "claude_code_only", Type: field.TypeBool, Default: false},
 		{Name: "fallback_group_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "balance_daily_quota", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "balance_weekly_quota", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 	}
 	// GroupsTable holds the schema information for the "groups" table.
 	GroupsTable = &schema.Table{
@@ -568,6 +622,8 @@ var (
 		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
 		{Name: "username", Type: field.TypeString, Size: 100, Default: ""},
 		{Name: "notes", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "balance_daily_quota", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "balance_weekly_quota", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
@@ -795,6 +851,7 @@ var (
 		APIKeysTable,
 		AccountsTable,
 		AccountGroupsTable,
+		AnnouncementsTable,
 		GroupsTable,
 		PromoCodesTable,
 		PromoCodeUsagesTable,
@@ -824,6 +881,9 @@ func init() {
 	AccountGroupsTable.ForeignKeys[1].RefTable = GroupsTable
 	AccountGroupsTable.Annotation = &entsql.Annotation{
 		Table: "account_groups",
+	}
+	AnnouncementsTable.Annotation = &entsql.Annotation{
+		Table: "announcements",
 	}
 	GroupsTable.Annotation = &entsql.Annotation{
 		Table: "groups",

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 )
 
 // 错误定义
@@ -18,6 +19,12 @@ import (
 var (
 	ErrSubscriptionInvalid       = infraerrors.Forbidden("SUBSCRIPTION_INVALID", "subscription is invalid or expired")
 	ErrBillingServiceUnavailable = infraerrors.ServiceUnavailable("BILLING_SERVICE_ERROR", "Billing service temporarily unavailable. Please retry later.")
+	// 余额计费模式限额错误
+	ErrBalanceDailyQuotaExceeded  = infraerrors.TooManyRequests("BALANCE_DAILY_QUOTA_EXCEEDED", "daily quota exceeded for balance billing")
+	ErrBalanceWeeklyQuotaExceeded = infraerrors.TooManyRequests("BALANCE_WEEKLY_QUOTA_EXCEEDED", "weekly quota exceeded for balance billing")
+	// 余额计费模式全局限额错误（跨所有分组）
+	ErrBalanceGlobalDailyQuotaExceeded  = infraerrors.TooManyRequests("BALANCE_GLOBAL_DAILY_QUOTA_EXCEEDED", "global daily quota exceeded for balance billing")
+	ErrBalanceGlobalWeeklyQuotaExceeded = infraerrors.TooManyRequests("BALANCE_GLOBAL_WEEKLY_QUOTA_EXCEEDED", "global weekly quota exceeded for balance billing")
 )
 
 // subscriptionCacheData 订阅缓存数据结构（内部使用）
@@ -28,6 +35,13 @@ type subscriptionCacheData struct {
 	WeeklyUsage  float64
 	MonthlyUsage float64
 	Version      int64
+}
+
+// BalanceUsage 余额用量数据
+type BalanceUsage struct {
+	DailyUsage  float64   // 当日已用金额
+	WeeklyUsage float64   // 本周已用金额
+	UpdatedAt   time.Time // 数据更新时间
 }
 
 // 缓存写入任务类型
@@ -70,14 +84,25 @@ type cacheWriteTask struct {
 	subscriptionData *subscriptionCacheData
 }
 
+// BalanceUsageQuerier 余额用量查询接口
+type BalanceUsageQuerier interface {
+	// SumActualCostByUserAndTimeRange 获取用户在指定时间范围内的消费总额（全局）
+	SumActualCostByUserAndTimeRange(ctx context.Context, userID int64, startTime, endTime time.Time) (float64, error)
+	// SumActualCostByUserGroupAndTimeRange 获取用户在指定分组内指定时间范围的消费总额
+	SumActualCostByUserGroupAndTimeRange(ctx context.Context, userID, groupID int64, startTime, endTime time.Time) (float64, error)
+	// SumActualCostByUserGroupedByGroup 获取用户在指定时间范围内按分组汇总的消费（避免 N+1 问题）
+	SumActualCostByUserGroupedByGroup(ctx context.Context, userID int64, startTime, endTime time.Time) (map[int64]float64, error)
+}
+
 // BillingCacheService 计费缓存服务
 // 负责余额和订阅数据的缓存管理，提供高性能的计费资格检查
 type BillingCacheService struct {
-	cache          BillingCache
-	userRepo       UserRepository
-	subRepo        UserSubscriptionRepository
-	cfg            *config.Config
-	circuitBreaker *billingCircuitBreaker
+	cache            BillingCache
+	userRepo         UserRepository
+	subRepo          UserSubscriptionRepository
+	balanceUsageRepo BalanceUsageQuerier
+	cfg              *config.Config
+	circuitBreaker   *billingCircuitBreaker
 
 	cacheWriteChan     chan cacheWriteTask
 	cacheWriteWg       sync.WaitGroup
@@ -90,12 +115,13 @@ type BillingCacheService struct {
 }
 
 // NewBillingCacheService 创建计费缓存服务
-func NewBillingCacheService(cache BillingCache, userRepo UserRepository, subRepo UserSubscriptionRepository, cfg *config.Config) *BillingCacheService {
+func NewBillingCacheService(cache BillingCache, userRepo UserRepository, subRepo UserSubscriptionRepository, balanceUsageRepo BalanceUsageQuerier, cfg *config.Config) *BillingCacheService {
 	svc := &BillingCacheService{
-		cache:    cache,
-		userRepo: userRepo,
-		subRepo:  subRepo,
-		cfg:      cfg,
+		cache:            cache,
+		userRepo:         userRepo,
+		subRepo:          subRepo,
+		balanceUsageRepo: balanceUsageRepo,
+		cfg:              cfg,
 	}
 	svc.circuitBreaker = newBillingCircuitBreaker(cfg.Billing.CircuitBreaker)
 	svc.startCacheWriteWorkers()
@@ -446,7 +472,7 @@ func (s *BillingCacheService) InvalidateSubscription(ctx context.Context, userID
 // ============================================
 
 // CheckBillingEligibility 检查用户是否有资格发起请求
-// 余额模式：检查缓存余额 > 0
+// 余额模式：检查缓存余额 > 0，并检查每日/每周限额
 // 订阅模式：检查缓存用量未超过限额（Group限额从参数传入）
 func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription) error {
 	// 简易模式：跳过所有计费检查
@@ -464,17 +490,21 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 		return s.checkSubscriptionEligibility(ctx, user.ID, group, subscription)
 	}
 
-	return s.checkBalanceEligibility(ctx, user.ID)
+	return s.checkBalanceEligibility(ctx, user, group)
 }
 
 // checkBalanceEligibility 检查余额模式资格
-func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userID int64) error {
-	balance, err := s.GetUserBalance(ctx, userID)
+// 新逻辑：
+// 1. 检查余额充足
+// 2. 检查用户全局限额（跨所有分组的总消费上限）
+// 3. 检查分组独立限额（按分组独立统计）
+func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, user *User, group *Group) error {
+	balance, err := s.GetUserBalance(ctx, user.ID)
 	if err != nil {
 		if s.circuitBreaker != nil {
 			s.circuitBreaker.OnFailure(err)
 		}
-		log.Printf("ALERT: billing balance check failed for user %d: %v", userID, err)
+		log.Printf("ALERT: billing balance check failed for user %d: %v", user.ID, err)
 		return ErrBillingServiceUnavailable.WithCause(err)
 	}
 	if s.circuitBreaker != nil {
@@ -485,6 +515,80 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 		return ErrInsufficientBalance
 	}
 
+	// 1. 检查用户全局限额（跨所有分组的总消费上限，优先检查）
+	if user.BalanceDailyQuota != nil || user.BalanceWeeklyQuota != nil {
+		globalUsage, err := s.GetBalanceUsage(ctx, user.ID)
+		if err != nil {
+			log.Printf("Warning: failed to get global balance usage for user %d: %v", user.ID, err)
+			// 用量查询失败不阻塞请求
+		} else {
+			if user.BalanceDailyQuota != nil && globalUsage.DailyUsage >= *user.BalanceDailyQuota {
+				return ErrBalanceGlobalDailyQuotaExceeded.
+					WithMetadata(map[string]string{
+						"used":  fmt.Sprintf("%.6f", globalUsage.DailyUsage),
+						"limit": fmt.Sprintf("%.6f", *user.BalanceDailyQuota),
+					})
+			}
+			if user.BalanceWeeklyQuota != nil && globalUsage.WeeklyUsage >= *user.BalanceWeeklyQuota {
+				return ErrBalanceGlobalWeeklyQuotaExceeded.
+					WithMetadata(map[string]string{
+						"used":  fmt.Sprintf("%.6f", globalUsage.WeeklyUsage),
+						"limit": fmt.Sprintf("%.6f", *user.BalanceWeeklyQuota),
+					})
+			}
+		}
+	}
+
+	// 2. 检查分组独立限额（按分组独立统计）
+	if group != nil && (group.BalanceDailyQuota != nil || group.BalanceWeeklyQuota != nil) {
+		groupUsage, err := s.GetBalanceUsageByGroup(ctx, user.ID, group.ID)
+		if err != nil {
+			log.Printf("Warning: failed to get group balance usage for user %d group %d: %v", user.ID, group.ID, err)
+			// 用量查询失败不阻塞请求
+		} else {
+			if group.BalanceDailyQuota != nil && groupUsage.DailyUsage >= *group.BalanceDailyQuota {
+				return ErrBalanceDailyQuotaExceeded.
+					WithMetadata(map[string]string{
+						"group_id":   fmt.Sprintf("%d", group.ID),
+						"group_name": group.Name,
+						"used":       fmt.Sprintf("%.6f", groupUsage.DailyUsage),
+						"limit":      fmt.Sprintf("%.6f", *group.BalanceDailyQuota),
+					})
+			}
+			if group.BalanceWeeklyQuota != nil && groupUsage.WeeklyUsage >= *group.BalanceWeeklyQuota {
+				return ErrBalanceWeeklyQuotaExceeded.
+					WithMetadata(map[string]string{
+						"group_id":   fmt.Sprintf("%d", group.ID),
+						"group_name": group.Name,
+						"used":       fmt.Sprintf("%.6f", groupUsage.WeeklyUsage),
+						"limit":      fmt.Sprintf("%.6f", *group.BalanceWeeklyQuota),
+					})
+			}
+		}
+	}
+
+	return nil
+}
+
+// getEffectiveBalanceDailyQuota 获取有效的每日限额（用户优先于分组）
+func (s *BillingCacheService) getEffectiveBalanceDailyQuota(user *User, group *Group) *float64 {
+	if user != nil && user.BalanceDailyQuota != nil {
+		return user.BalanceDailyQuota
+	}
+	if group != nil && group.BalanceDailyQuota != nil {
+		return group.BalanceDailyQuota
+	}
+	return nil
+}
+
+// getEffectiveBalanceWeeklyQuota 获取有效的每周限额（用户优先于分组）
+func (s *BillingCacheService) getEffectiveBalanceWeeklyQuota(user *User, group *Group) *float64 {
+	if user != nil && user.BalanceWeeklyQuota != nil {
+		return user.BalanceWeeklyQuota
+	}
+	if group != nil && group.BalanceWeeklyQuota != nil {
+		return group.BalanceWeeklyQuota
+	}
 	return nil
 }
 
@@ -658,4 +762,309 @@ func circuitStateString(state billingCircuitBreakerState) string {
 	default:
 		return "unknown"
 	}
+}
+
+// ============================================
+// 余额用量方法
+// ============================================
+
+// GetBalanceUsage 获取用户的余额用量（当日和本周）
+func (s *BillingCacheService) GetBalanceUsage(ctx context.Context, userID int64) (*BalanceUsage, error) {
+	if s.balanceUsageRepo == nil {
+		// 没有配置用量仓库，返回零用量
+		return &BalanceUsage{UpdatedAt: timezone.Now()}, nil
+	}
+
+	now := timezone.Now()
+	dayStart := timezone.Today()
+	weekStart := timezone.StartOfWeek(now)
+
+	// 查询当日用量
+	dailyUsage, err := s.balanceUsageRepo.SumActualCostByUserAndTimeRange(ctx, userID, dayStart, now)
+	if err != nil {
+		return nil, fmt.Errorf("get daily usage: %w", err)
+	}
+
+	// 查询本周用量
+	weeklyUsage, err := s.balanceUsageRepo.SumActualCostByUserAndTimeRange(ctx, userID, weekStart, now)
+	if err != nil {
+		return nil, fmt.Errorf("get weekly usage: %w", err)
+	}
+
+	return &BalanceUsage{
+		DailyUsage:  dailyUsage,
+		WeeklyUsage: weeklyUsage,
+		UpdatedAt:   now,
+	}, nil
+}
+
+// GetBalanceQuotaInfo 获取用户的余额限额信息（用于仪表盘展示）
+func (s *BillingCacheService) GetBalanceQuotaInfo(ctx context.Context, user *User, group *Group) (*BalanceQuotaInfo, error) {
+	now := timezone.Now()
+
+	// 获取有效限额
+	dailyQuota := s.getEffectiveBalanceDailyQuota(user, group)
+	weeklyQuota := s.getEffectiveBalanceWeeklyQuota(user, group)
+
+	// 获取用量
+	usage, err := s.GetBalanceUsage(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 计算下次重置时间
+	nextDayReset := timezone.StartOfDay(now.AddDate(0, 0, 1))
+	nextWeekReset := timezone.StartOfWeek(now.AddDate(0, 0, 7))
+
+	info := &BalanceQuotaInfo{
+		Daily: BalanceQuotaDetail{
+			Used:    usage.DailyUsage,
+			Limit:   dailyQuota,
+			ResetAt: nextDayReset,
+		},
+		Weekly: BalanceQuotaDetail{
+			Used:    usage.WeeklyUsage,
+			Limit:   weeklyQuota,
+			ResetAt: nextWeekReset,
+		},
+	}
+
+	// 计算剩余额度
+	if dailyQuota != nil {
+		remaining := *dailyQuota - usage.DailyUsage
+		if remaining < 0 {
+			remaining = 0
+		}
+		info.Daily.Remaining = &remaining
+	}
+
+	if weeklyQuota != nil {
+		remaining := *weeklyQuota - usage.WeeklyUsage
+		if remaining < 0 {
+			remaining = 0
+		}
+		info.Weekly.Remaining = &remaining
+	}
+
+	// 确定限额来源
+	if user != nil && (user.BalanceDailyQuota != nil || user.BalanceWeeklyQuota != nil) {
+		info.Source = "user"
+	} else if group != nil && (group.BalanceDailyQuota != nil || group.BalanceWeeklyQuota != nil) {
+		info.Source = "group"
+	}
+
+	return info, nil
+}
+
+// BalanceQuotaInfo 余额限额信息（用于仪表盘展示）
+type BalanceQuotaInfo struct {
+	Daily  BalanceQuotaDetail `json:"daily"`
+	Weekly BalanceQuotaDetail `json:"weekly"`
+	Source string             `json:"source,omitempty"` // "user" | "group" | ""
+}
+
+// BalanceQuotaDetail 限额详情
+type BalanceQuotaDetail struct {
+	Used      float64   `json:"used"`
+	Limit     *float64  `json:"limit,omitempty"`
+	Remaining *float64  `json:"remaining,omitempty"`
+	ResetAt   time.Time `json:"reset_at"`
+}
+
+// calcRemaining 计算剩余额度（辅助函数，消除重复代码）
+// 如果 limit 为 nil 返回 nil，否则返回 max(0, limit - used)
+func calcRemaining(used float64, limit *float64) *float64 {
+	if limit == nil {
+		return nil
+	}
+	remaining := *limit - used
+	if remaining < 0 {
+		remaining = 0
+	}
+	return &remaining
+}
+
+// ============================================
+// 余额分组限额功能（v2）
+// ============================================
+
+// GroupQuotaDetail 分组限额详情
+type GroupQuotaDetail struct {
+	GroupID   int64              `json:"group_id"`
+	GroupName string             `json:"group_name"`
+	Daily     BalanceQuotaDetail `json:"daily"`
+	Weekly    BalanceQuotaDetail `json:"weekly"`
+}
+
+// BalanceQuotaInfoV2 余额限额信息（v2，支持分组）
+type BalanceQuotaInfoV2 struct {
+	// 全局限额（跨所有分组）
+	Global struct {
+		Daily  BalanceQuotaDetail `json:"daily"`
+		Weekly BalanceQuotaDetail `json:"weekly"`
+	} `json:"global"`
+	// 各分组详情
+	Groups      []GroupQuotaDetail `json:"groups"`
+	TotalGroups int                `json:"total_groups"`
+	// 向后兼容字段
+	Daily  BalanceQuotaDetail `json:"daily"`
+	Weekly BalanceQuotaDetail `json:"weekly"`
+	Source string             `json:"source,omitempty"`
+}
+
+// GetBalanceUsageByGroup 获取用户在指定分组的余额用量
+func (s *BillingCacheService) GetBalanceUsageByGroup(ctx context.Context, userID, groupID int64) (*BalanceUsage, error) {
+	if s.balanceUsageRepo == nil {
+		return &BalanceUsage{UpdatedAt: timezone.Now()}, nil
+	}
+
+	now := timezone.Now()
+	dayStart := timezone.Today()
+	weekStart := timezone.StartOfWeek(now)
+
+	// 查询分组当日用量
+	dailyUsage, err := s.balanceUsageRepo.SumActualCostByUserGroupAndTimeRange(ctx, userID, groupID, dayStart, now)
+	if err != nil {
+		return nil, fmt.Errorf("get group daily usage: %w", err)
+	}
+
+	// 查询分组本周用量
+	weeklyUsage, err := s.balanceUsageRepo.SumActualCostByUserGroupAndTimeRange(ctx, userID, groupID, weekStart, now)
+	if err != nil {
+		return nil, fmt.Errorf("get group weekly usage: %w", err)
+	}
+
+	return &BalanceUsage{
+		DailyUsage:  dailyUsage,
+		WeeklyUsage: weeklyUsage,
+		UpdatedAt:   now,
+	}, nil
+}
+
+// GetBalanceUsageByGroups 批量获取多个分组的用量（避免 N+1 问题）
+func (s *BillingCacheService) GetBalanceUsageByGroups(ctx context.Context, userID int64, groupIDs []int64) (map[int64]*BalanceUsage, error) {
+	result := make(map[int64]*BalanceUsage)
+
+	if s.balanceUsageRepo == nil || len(groupIDs) == 0 {
+		for _, gid := range groupIDs {
+			result[gid] = &BalanceUsage{UpdatedAt: timezone.Now()}
+		}
+		return result, nil
+	}
+
+	now := timezone.Now()
+	dayStart := timezone.Today()
+	weekStart := timezone.StartOfWeek(now)
+
+	// 批量查询每日用量
+	dailyUsageMap, err := s.balanceUsageRepo.SumActualCostByUserGroupedByGroup(ctx, userID, dayStart, now)
+	if err != nil {
+		return nil, fmt.Errorf("get daily usage by groups: %w", err)
+	}
+
+	// 批量查询每周用量
+	weeklyUsageMap, err := s.balanceUsageRepo.SumActualCostByUserGroupedByGroup(ctx, userID, weekStart, now)
+	if err != nil {
+		return nil, fmt.Errorf("get weekly usage by groups: %w", err)
+	}
+
+	// 组装结果
+	for _, groupID := range groupIDs {
+		result[groupID] = &BalanceUsage{
+			DailyUsage:  dailyUsageMap[groupID],
+			WeeklyUsage: weeklyUsageMap[groupID],
+			UpdatedAt:   now,
+		}
+	}
+
+	return result, nil
+}
+
+// GetBalanceQuotaInfoV2 获取用户的余额限额信息（v2，支持分组）
+func (s *BillingCacheService) GetBalanceQuotaInfoV2(ctx context.Context, user *User, groups []Group) (*BalanceQuotaInfoV2, error) {
+	now := timezone.Now()
+	nextDayReset := timezone.StartOfDay(now.AddDate(0, 0, 1))
+	nextWeekReset := timezone.StartOfWeek(now.AddDate(0, 0, 7))
+
+	// 1. 获取全局用量
+	globalUsage, err := s.GetBalanceUsage(ctx, user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("get global usage: %w", err)
+	}
+
+	info := &BalanceQuotaInfoV2{
+		TotalGroups: 0,
+		Source:      "global",
+	}
+
+	// 2. 构建全局限额信息
+	info.Global.Daily = BalanceQuotaDetail{
+		Used:      globalUsage.DailyUsage,
+		Limit:     user.BalanceDailyQuota,
+		Remaining: calcRemaining(globalUsage.DailyUsage, user.BalanceDailyQuota),
+		ResetAt:   nextDayReset,
+	}
+	info.Global.Weekly = BalanceQuotaDetail{
+		Used:      globalUsage.WeeklyUsage,
+		Limit:     user.BalanceWeeklyQuota,
+		Remaining: calcRemaining(globalUsage.WeeklyUsage, user.BalanceWeeklyQuota),
+		ResetAt:   nextWeekReset,
+	}
+
+	// 3. 筛选 standard 类型分组并收集 ID
+	var standardGroups []Group
+	var groupIDs []int64
+	for _, g := range groups {
+		if g.SubscriptionType == "standard" {
+			standardGroups = append(standardGroups, g)
+			groupIDs = append(groupIDs, g.ID)
+		}
+	}
+
+	// 4. 批量获取各分组用量
+	var groupUsageMap map[int64]*BalanceUsage
+	if len(groupIDs) > 0 {
+		groupUsageMap, err = s.GetBalanceUsageByGroups(ctx, user.ID, groupIDs)
+		if err != nil {
+			log.Printf("Warning: failed to get group usages: %v", err)
+			groupUsageMap = make(map[int64]*BalanceUsage)
+		}
+	} else {
+		groupUsageMap = make(map[int64]*BalanceUsage)
+	}
+
+	// 5. 构建分组详情
+	info.Groups = make([]GroupQuotaDetail, 0, len(standardGroups))
+	for _, g := range standardGroups {
+		groupUsage := groupUsageMap[g.ID]
+		if groupUsage == nil {
+			groupUsage = &BalanceUsage{}
+		}
+
+		detail := GroupQuotaDetail{
+			GroupID:   g.ID,
+			GroupName: g.Name,
+			Daily: BalanceQuotaDetail{
+				Used:      groupUsage.DailyUsage,
+				Limit:     g.BalanceDailyQuota,
+				Remaining: calcRemaining(groupUsage.DailyUsage, g.BalanceDailyQuota),
+				ResetAt:   nextDayReset,
+			},
+			Weekly: BalanceQuotaDetail{
+				Used:      groupUsage.WeeklyUsage,
+				Limit:     g.BalanceWeeklyQuota,
+				Remaining: calcRemaining(groupUsage.WeeklyUsage, g.BalanceWeeklyQuota),
+				ResetAt:   nextWeekReset,
+			},
+		}
+
+		info.Groups = append(info.Groups, detail)
+	}
+	info.TotalGroups = len(info.Groups)
+
+	// 6. 向后兼容字段（等于全局限额）
+	info.Daily = info.Global.Daily
+	info.Weekly = info.Global.Weekly
+
+	return info, nil
 }

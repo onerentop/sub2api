@@ -95,6 +95,19 @@ func (Group) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("非 Claude Code 请求降级使用的分组 ID"),
+
+		// 余额计费模式限额 (added by migration 035)
+		// 注：区别于 subscription 模式的 daily_limit_usd/weekly_limit_usd
+		field.Float("balance_daily_quota").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Comment("余额计费模式的每日限额（金额）"),
+		field.Float("balance_weekly_quota").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Comment("余额计费模式的每周限额（金额）"),
 	}
 }
 

@@ -54,7 +54,7 @@ func (b *billingCacheWorkerStub) InvalidateSubscriptionCache(ctx context.Context
 
 func TestBillingCacheServiceQueueHighLoad(t *testing.T) {
 	cache := &billingCacheWorkerStub{}
-	svc := NewBillingCacheService(cache, nil, nil, &config.Config{})
+	svc := NewBillingCacheService(cache, nil, nil, nil, &config.Config{})
 	t.Cleanup(svc.Stop)
 
 	start := time.Now()

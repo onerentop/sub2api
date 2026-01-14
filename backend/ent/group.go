@@ -55,6 +55,10 @@ type Group struct {
 	ClaudeCodeOnly bool `json:"claude_code_only,omitempty"`
 	// 非 Claude Code 请求降级使用的分组 ID
 	FallbackGroupID *int64 `json:"fallback_group_id,omitempty"`
+	// 余额计费模式的每日限额（金额）
+	BalanceDailyQuota *float64 `json:"balance_daily_quota,omitempty"`
+	// 余额计费模式的每周限额（金额）
+	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GroupQuery when eager-loading is set.
 	Edges        GroupEdges `json:"edges"`
@@ -163,7 +167,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case group.FieldIsExclusive, group.FieldClaudeCodeOnly:
 			values[i] = new(sql.NullBool)
-		case group.FieldRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k:
+		case group.FieldRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k, group.FieldBalanceDailyQuota, group.FieldBalanceWeeklyQuota:
 			values[i] = new(sql.NullFloat64)
 		case group.FieldID, group.FieldDefaultValidityDays, group.FieldFallbackGroupID:
 			values[i] = new(sql.NullInt64)
@@ -315,6 +319,20 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 				_m.FallbackGroupID = new(int64)
 				*_m.FallbackGroupID = value.Int64
 			}
+		case group.FieldBalanceDailyQuota:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field balance_daily_quota", values[i])
+			} else if value.Valid {
+				_m.BalanceDailyQuota = new(float64)
+				*_m.BalanceDailyQuota = value.Float64
+			}
+		case group.FieldBalanceWeeklyQuota:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field balance_weekly_quota", values[i])
+			} else if value.Valid {
+				_m.BalanceWeeklyQuota = new(float64)
+				*_m.BalanceWeeklyQuota = value.Float64
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -463,6 +481,16 @@ func (_m *Group) String() string {
 	builder.WriteString(", ")
 	if v := _m.FallbackGroupID; v != nil {
 		builder.WriteString("fallback_group_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.BalanceDailyQuota; v != nil {
+		builder.WriteString("balance_daily_quota=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.BalanceWeeklyQuota; v != nil {
+		builder.WriteString("balance_weekly_quota=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteByte(')')

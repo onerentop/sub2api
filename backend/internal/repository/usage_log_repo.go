@@ -2200,3 +2200,70 @@ func setToSlice(set map[int64]struct{}) []int64 {
 	}
 	return out
 }
+
+// SumActualCostByUserAndTimeRange 获取用户在指定时间范围内的消费总额
+// 用于余额计费模式的限额检查
+func (r *usageLogRepository) SumActualCostByUserAndTimeRange(ctx context.Context, userID int64, startTime, endTime time.Time) (float64, error) {
+	query := `
+		SELECT COALESCE(SUM(actual_cost), 0)
+		FROM usage_logs
+		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
+	`
+	var totalCost float64
+	if err := scanSingleRow(ctx, r.sql, query, []any{userID, startTime, endTime}, &totalCost); err != nil {
+		return 0, err
+	}
+	return totalCost, nil
+}
+
+// SumActualCostByUserGroupAndTimeRange 获取用户在指定分组内指定时间范围的消费总额
+// 用于余额计费模式的按分组限额检查
+func (r *usageLogRepository) SumActualCostByUserGroupAndTimeRange(
+	ctx context.Context,
+	userID, groupID int64,
+	startTime, endTime time.Time,
+) (float64, error) {
+	query := `
+		SELECT COALESCE(SUM(actual_cost), 0)
+		FROM usage_logs
+		WHERE user_id = $1 AND group_id = $2
+		  AND created_at >= $3 AND created_at < $4
+	`
+	var totalCost float64
+	if err := scanSingleRow(ctx, r.sql, query, []any{userID, groupID, startTime, endTime}, &totalCost); err != nil {
+		return 0, err
+	}
+	return totalCost, nil
+}
+
+// SumActualCostByUserGroupedByGroup 获取用户在指定时间范围内按分组汇总的消费
+// 用于批量获取各分组用量，避免 N+1 查询问题
+func (r *usageLogRepository) SumActualCostByUserGroupedByGroup(
+	ctx context.Context,
+	userID int64,
+	startTime, endTime time.Time,
+) (map[int64]float64, error) {
+	query := `
+		SELECT group_id, COALESCE(SUM(actual_cost), 0)
+		FROM usage_logs
+		WHERE user_id = $1 AND group_id IS NOT NULL
+		  AND created_at >= $2 AND created_at < $3
+		GROUP BY group_id
+	`
+	rows, err := r.sql.QueryContext(ctx, query, userID, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[int64]float64)
+	for rows.Next() {
+		var groupID int64
+		var cost float64
+		if err := rows.Scan(&groupID, &cost); err != nil {
+			return nil, err
+		}
+		result[groupID] = cost
+	}
+	return result, rows.Err()
+}

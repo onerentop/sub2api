@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/accountgroup"
+	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
@@ -41,6 +42,7 @@ const (
 	TypeAPIKey                  = "APIKey"
 	TypeAccount                 = "Account"
 	TypeAccountGroup            = "AccountGroup"
+	TypeAnnouncement            = "Announcement"
 	TypeGroup                   = "Group"
 	TypePromoCode               = "PromoCode"
 	TypePromoCodeUsage          = "PromoCodeUsage"
@@ -3743,6 +3745,933 @@ func (m *AccountGroupMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown AccountGroup edge %s", name)
 }
 
+// AnnouncementMutation represents an operation that mutates the Announcement nodes in the graph.
+type AnnouncementMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int64
+	title         *string
+	content       *string
+	_type         *announcement.Type
+	sort_order    *int
+	addsort_order *int
+	enabled       *bool
+	start_time    *time.Time
+	end_time      *time.Time
+	created_at    *time.Time
+	updated_at    *time.Time
+	deleted_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*Announcement, error)
+	predicates    []predicate.Announcement
+}
+
+var _ ent.Mutation = (*AnnouncementMutation)(nil)
+
+// announcementOption allows management of the mutation configuration using functional options.
+type announcementOption func(*AnnouncementMutation)
+
+// newAnnouncementMutation creates new mutation for the Announcement entity.
+func newAnnouncementMutation(c config, op Op, opts ...announcementOption) *AnnouncementMutation {
+	m := &AnnouncementMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAnnouncement,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAnnouncementID sets the ID field of the mutation.
+func withAnnouncementID(id int64) announcementOption {
+	return func(m *AnnouncementMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Announcement
+		)
+		m.oldValue = func(ctx context.Context) (*Announcement, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Announcement.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAnnouncement sets the old Announcement of the mutation.
+func withAnnouncement(node *Announcement) announcementOption {
+	return func(m *AnnouncementMutation) {
+		m.oldValue = func(context.Context) (*Announcement, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AnnouncementMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AnnouncementMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AnnouncementMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AnnouncementMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Announcement.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTitle sets the "title" field.
+func (m *AnnouncementMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *AnnouncementMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldTitle(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ClearTitle clears the value of the "title" field.
+func (m *AnnouncementMutation) ClearTitle() {
+	m.title = nil
+	m.clearedFields[announcement.FieldTitle] = struct{}{}
+}
+
+// TitleCleared returns if the "title" field was cleared in this mutation.
+func (m *AnnouncementMutation) TitleCleared() bool {
+	_, ok := m.clearedFields[announcement.FieldTitle]
+	return ok
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *AnnouncementMutation) ResetTitle() {
+	m.title = nil
+	delete(m.clearedFields, announcement.FieldTitle)
+}
+
+// SetContent sets the "content" field.
+func (m *AnnouncementMutation) SetContent(s string) {
+	m.content = &s
+}
+
+// Content returns the value of the "content" field in the mutation.
+func (m *AnnouncementMutation) Content() (r string, exists bool) {
+	v := m.content
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContent returns the old "content" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldContent(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContent: %w", err)
+	}
+	return oldValue.Content, nil
+}
+
+// ResetContent resets all changes to the "content" field.
+func (m *AnnouncementMutation) ResetContent() {
+	m.content = nil
+}
+
+// SetType sets the "type" field.
+func (m *AnnouncementMutation) SetType(a announcement.Type) {
+	m._type = &a
+}
+
+// GetType returns the value of the "type" field in the mutation.
+func (m *AnnouncementMutation) GetType() (r announcement.Type, exists bool) {
+	v := m._type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldType returns the old "type" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldType(ctx context.Context) (v announcement.Type, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
+	}
+	return oldValue.Type, nil
+}
+
+// ResetType resets all changes to the "type" field.
+func (m *AnnouncementMutation) ResetType() {
+	m._type = nil
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (m *AnnouncementMutation) SetSortOrder(i int) {
+	m.sort_order = &i
+	m.addsort_order = nil
+}
+
+// SortOrder returns the value of the "sort_order" field in the mutation.
+func (m *AnnouncementMutation) SortOrder() (r int, exists bool) {
+	v := m.sort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSortOrder returns the old "sort_order" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldSortOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSortOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSortOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSortOrder: %w", err)
+	}
+	return oldValue.SortOrder, nil
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (m *AnnouncementMutation) AddSortOrder(i int) {
+	if m.addsort_order != nil {
+		*m.addsort_order += i
+	} else {
+		m.addsort_order = &i
+	}
+}
+
+// AddedSortOrder returns the value that was added to the "sort_order" field in this mutation.
+func (m *AnnouncementMutation) AddedSortOrder() (r int, exists bool) {
+	v := m.addsort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSortOrder resets all changes to the "sort_order" field.
+func (m *AnnouncementMutation) ResetSortOrder() {
+	m.sort_order = nil
+	m.addsort_order = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *AnnouncementMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *AnnouncementMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *AnnouncementMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetStartTime sets the "start_time" field.
+func (m *AnnouncementMutation) SetStartTime(t time.Time) {
+	m.start_time = &t
+}
+
+// StartTime returns the value of the "start_time" field in the mutation.
+func (m *AnnouncementMutation) StartTime() (r time.Time, exists bool) {
+	v := m.start_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartTime returns the old "start_time" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldStartTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartTime: %w", err)
+	}
+	return oldValue.StartTime, nil
+}
+
+// ClearStartTime clears the value of the "start_time" field.
+func (m *AnnouncementMutation) ClearStartTime() {
+	m.start_time = nil
+	m.clearedFields[announcement.FieldStartTime] = struct{}{}
+}
+
+// StartTimeCleared returns if the "start_time" field was cleared in this mutation.
+func (m *AnnouncementMutation) StartTimeCleared() bool {
+	_, ok := m.clearedFields[announcement.FieldStartTime]
+	return ok
+}
+
+// ResetStartTime resets all changes to the "start_time" field.
+func (m *AnnouncementMutation) ResetStartTime() {
+	m.start_time = nil
+	delete(m.clearedFields, announcement.FieldStartTime)
+}
+
+// SetEndTime sets the "end_time" field.
+func (m *AnnouncementMutation) SetEndTime(t time.Time) {
+	m.end_time = &t
+}
+
+// EndTime returns the value of the "end_time" field in the mutation.
+func (m *AnnouncementMutation) EndTime() (r time.Time, exists bool) {
+	v := m.end_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEndTime returns the old "end_time" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldEndTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEndTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEndTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEndTime: %w", err)
+	}
+	return oldValue.EndTime, nil
+}
+
+// ClearEndTime clears the value of the "end_time" field.
+func (m *AnnouncementMutation) ClearEndTime() {
+	m.end_time = nil
+	m.clearedFields[announcement.FieldEndTime] = struct{}{}
+}
+
+// EndTimeCleared returns if the "end_time" field was cleared in this mutation.
+func (m *AnnouncementMutation) EndTimeCleared() bool {
+	_, ok := m.clearedFields[announcement.FieldEndTime]
+	return ok
+}
+
+// ResetEndTime resets all changes to the "end_time" field.
+func (m *AnnouncementMutation) ResetEndTime() {
+	m.end_time = nil
+	delete(m.clearedFields, announcement.FieldEndTime)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *AnnouncementMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *AnnouncementMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *AnnouncementMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *AnnouncementMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *AnnouncementMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *AnnouncementMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *AnnouncementMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *AnnouncementMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *AnnouncementMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[announcement.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *AnnouncementMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[announcement.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *AnnouncementMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, announcement.FieldDeletedAt)
+}
+
+// Where appends a list predicates to the AnnouncementMutation builder.
+func (m *AnnouncementMutation) Where(ps ...predicate.Announcement) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AnnouncementMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AnnouncementMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Announcement, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AnnouncementMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AnnouncementMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Announcement).
+func (m *AnnouncementMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AnnouncementMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.title != nil {
+		fields = append(fields, announcement.FieldTitle)
+	}
+	if m.content != nil {
+		fields = append(fields, announcement.FieldContent)
+	}
+	if m._type != nil {
+		fields = append(fields, announcement.FieldType)
+	}
+	if m.sort_order != nil {
+		fields = append(fields, announcement.FieldSortOrder)
+	}
+	if m.enabled != nil {
+		fields = append(fields, announcement.FieldEnabled)
+	}
+	if m.start_time != nil {
+		fields = append(fields, announcement.FieldStartTime)
+	}
+	if m.end_time != nil {
+		fields = append(fields, announcement.FieldEndTime)
+	}
+	if m.created_at != nil {
+		fields = append(fields, announcement.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, announcement.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, announcement.FieldDeletedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AnnouncementMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case announcement.FieldTitle:
+		return m.Title()
+	case announcement.FieldContent:
+		return m.Content()
+	case announcement.FieldType:
+		return m.GetType()
+	case announcement.FieldSortOrder:
+		return m.SortOrder()
+	case announcement.FieldEnabled:
+		return m.Enabled()
+	case announcement.FieldStartTime:
+		return m.StartTime()
+	case announcement.FieldEndTime:
+		return m.EndTime()
+	case announcement.FieldCreatedAt:
+		return m.CreatedAt()
+	case announcement.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case announcement.FieldDeletedAt:
+		return m.DeletedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AnnouncementMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case announcement.FieldTitle:
+		return m.OldTitle(ctx)
+	case announcement.FieldContent:
+		return m.OldContent(ctx)
+	case announcement.FieldType:
+		return m.OldType(ctx)
+	case announcement.FieldSortOrder:
+		return m.OldSortOrder(ctx)
+	case announcement.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case announcement.FieldStartTime:
+		return m.OldStartTime(ctx)
+	case announcement.FieldEndTime:
+		return m.OldEndTime(ctx)
+	case announcement.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case announcement.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case announcement.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Announcement field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AnnouncementMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case announcement.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
+		return nil
+	case announcement.FieldContent:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContent(v)
+		return nil
+	case announcement.FieldType:
+		v, ok := value.(announcement.Type)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetType(v)
+		return nil
+	case announcement.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSortOrder(v)
+		return nil
+	case announcement.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case announcement.FieldStartTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartTime(v)
+		return nil
+	case announcement.FieldEndTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEndTime(v)
+		return nil
+	case announcement.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case announcement.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case announcement.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Announcement field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AnnouncementMutation) AddedFields() []string {
+	var fields []string
+	if m.addsort_order != nil {
+		fields = append(fields, announcement.FieldSortOrder)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AnnouncementMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case announcement.FieldSortOrder:
+		return m.AddedSortOrder()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AnnouncementMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case announcement.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSortOrder(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Announcement numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AnnouncementMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(announcement.FieldTitle) {
+		fields = append(fields, announcement.FieldTitle)
+	}
+	if m.FieldCleared(announcement.FieldStartTime) {
+		fields = append(fields, announcement.FieldStartTime)
+	}
+	if m.FieldCleared(announcement.FieldEndTime) {
+		fields = append(fields, announcement.FieldEndTime)
+	}
+	if m.FieldCleared(announcement.FieldDeletedAt) {
+		fields = append(fields, announcement.FieldDeletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AnnouncementMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AnnouncementMutation) ClearField(name string) error {
+	switch name {
+	case announcement.FieldTitle:
+		m.ClearTitle()
+		return nil
+	case announcement.FieldStartTime:
+		m.ClearStartTime()
+		return nil
+	case announcement.FieldEndTime:
+		m.ClearEndTime()
+		return nil
+	case announcement.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Announcement nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AnnouncementMutation) ResetField(name string) error {
+	switch name {
+	case announcement.FieldTitle:
+		m.ResetTitle()
+		return nil
+	case announcement.FieldContent:
+		m.ResetContent()
+		return nil
+	case announcement.FieldType:
+		m.ResetType()
+		return nil
+	case announcement.FieldSortOrder:
+		m.ResetSortOrder()
+		return nil
+	case announcement.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case announcement.FieldStartTime:
+		m.ResetStartTime()
+		return nil
+	case announcement.FieldEndTime:
+		m.ResetEndTime()
+		return nil
+	case announcement.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case announcement.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case announcement.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Announcement field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AnnouncementMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AnnouncementMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AnnouncementMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AnnouncementMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AnnouncementMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AnnouncementMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AnnouncementMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Announcement unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AnnouncementMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Announcement edge %s", name)
+}
+
 // GroupMutation represents an operation that mutates the Group nodes in the graph.
 type GroupMutation struct {
 	config
@@ -3777,6 +4706,10 @@ type GroupMutation struct {
 	claude_code_only         *bool
 	fallback_group_id        *int64
 	addfallback_group_id     *int64
+	balance_daily_quota      *float64
+	addbalance_daily_quota   *float64
+	balance_weekly_quota     *float64
+	addbalance_weekly_quota  *float64
 	clearedFields            map[string]struct{}
 	api_keys                 map[int64]struct{}
 	removedapi_keys          map[int64]struct{}
@@ -4887,6 +5820,146 @@ func (m *GroupMutation) ResetFallbackGroupID() {
 	delete(m.clearedFields, group.FieldFallbackGroupID)
 }
 
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (m *GroupMutation) SetBalanceDailyQuota(f float64) {
+	m.balance_daily_quota = &f
+	m.addbalance_daily_quota = nil
+}
+
+// BalanceDailyQuota returns the value of the "balance_daily_quota" field in the mutation.
+func (m *GroupMutation) BalanceDailyQuota() (r float64, exists bool) {
+	v := m.balance_daily_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceDailyQuota returns the old "balance_daily_quota" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldBalanceDailyQuota(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceDailyQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceDailyQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceDailyQuota: %w", err)
+	}
+	return oldValue.BalanceDailyQuota, nil
+}
+
+// AddBalanceDailyQuota adds f to the "balance_daily_quota" field.
+func (m *GroupMutation) AddBalanceDailyQuota(f float64) {
+	if m.addbalance_daily_quota != nil {
+		*m.addbalance_daily_quota += f
+	} else {
+		m.addbalance_daily_quota = &f
+	}
+}
+
+// AddedBalanceDailyQuota returns the value that was added to the "balance_daily_quota" field in this mutation.
+func (m *GroupMutation) AddedBalanceDailyQuota() (r float64, exists bool) {
+	v := m.addbalance_daily_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (m *GroupMutation) ClearBalanceDailyQuota() {
+	m.balance_daily_quota = nil
+	m.addbalance_daily_quota = nil
+	m.clearedFields[group.FieldBalanceDailyQuota] = struct{}{}
+}
+
+// BalanceDailyQuotaCleared returns if the "balance_daily_quota" field was cleared in this mutation.
+func (m *GroupMutation) BalanceDailyQuotaCleared() bool {
+	_, ok := m.clearedFields[group.FieldBalanceDailyQuota]
+	return ok
+}
+
+// ResetBalanceDailyQuota resets all changes to the "balance_daily_quota" field.
+func (m *GroupMutation) ResetBalanceDailyQuota() {
+	m.balance_daily_quota = nil
+	m.addbalance_daily_quota = nil
+	delete(m.clearedFields, group.FieldBalanceDailyQuota)
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (m *GroupMutation) SetBalanceWeeklyQuota(f float64) {
+	m.balance_weekly_quota = &f
+	m.addbalance_weekly_quota = nil
+}
+
+// BalanceWeeklyQuota returns the value of the "balance_weekly_quota" field in the mutation.
+func (m *GroupMutation) BalanceWeeklyQuota() (r float64, exists bool) {
+	v := m.balance_weekly_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceWeeklyQuota returns the old "balance_weekly_quota" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldBalanceWeeklyQuota(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceWeeklyQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceWeeklyQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceWeeklyQuota: %w", err)
+	}
+	return oldValue.BalanceWeeklyQuota, nil
+}
+
+// AddBalanceWeeklyQuota adds f to the "balance_weekly_quota" field.
+func (m *GroupMutation) AddBalanceWeeklyQuota(f float64) {
+	if m.addbalance_weekly_quota != nil {
+		*m.addbalance_weekly_quota += f
+	} else {
+		m.addbalance_weekly_quota = &f
+	}
+}
+
+// AddedBalanceWeeklyQuota returns the value that was added to the "balance_weekly_quota" field in this mutation.
+func (m *GroupMutation) AddedBalanceWeeklyQuota() (r float64, exists bool) {
+	v := m.addbalance_weekly_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (m *GroupMutation) ClearBalanceWeeklyQuota() {
+	m.balance_weekly_quota = nil
+	m.addbalance_weekly_quota = nil
+	m.clearedFields[group.FieldBalanceWeeklyQuota] = struct{}{}
+}
+
+// BalanceWeeklyQuotaCleared returns if the "balance_weekly_quota" field was cleared in this mutation.
+func (m *GroupMutation) BalanceWeeklyQuotaCleared() bool {
+	_, ok := m.clearedFields[group.FieldBalanceWeeklyQuota]
+	return ok
+}
+
+// ResetBalanceWeeklyQuota resets all changes to the "balance_weekly_quota" field.
+func (m *GroupMutation) ResetBalanceWeeklyQuota() {
+	m.balance_weekly_quota = nil
+	m.addbalance_weekly_quota = nil
+	delete(m.clearedFields, group.FieldBalanceWeeklyQuota)
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by ids.
 func (m *GroupMutation) AddAPIKeyIDs(ids ...int64) {
 	if m.api_keys == nil {
@@ -5245,7 +6318,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 21)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -5303,6 +6376,12 @@ func (m *GroupMutation) Fields() []string {
 	if m.fallback_group_id != nil {
 		fields = append(fields, group.FieldFallbackGroupID)
 	}
+	if m.balance_daily_quota != nil {
+		fields = append(fields, group.FieldBalanceDailyQuota)
+	}
+	if m.balance_weekly_quota != nil {
+		fields = append(fields, group.FieldBalanceWeeklyQuota)
+	}
 	return fields
 }
 
@@ -5349,6 +6428,10 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.ClaudeCodeOnly()
 	case group.FieldFallbackGroupID:
 		return m.FallbackGroupID()
+	case group.FieldBalanceDailyQuota:
+		return m.BalanceDailyQuota()
+	case group.FieldBalanceWeeklyQuota:
+		return m.BalanceWeeklyQuota()
 	}
 	return nil, false
 }
@@ -5396,6 +6479,10 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldClaudeCodeOnly(ctx)
 	case group.FieldFallbackGroupID:
 		return m.OldFallbackGroupID(ctx)
+	case group.FieldBalanceDailyQuota:
+		return m.OldBalanceDailyQuota(ctx)
+	case group.FieldBalanceWeeklyQuota:
+		return m.OldBalanceWeeklyQuota(ctx)
 	}
 	return nil, fmt.Errorf("unknown Group field %s", name)
 }
@@ -5538,6 +6625,20 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetFallbackGroupID(v)
 		return nil
+	case group.FieldBalanceDailyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceDailyQuota(v)
+		return nil
+	case group.FieldBalanceWeeklyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceWeeklyQuota(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
 }
@@ -5573,6 +6674,12 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.addfallback_group_id != nil {
 		fields = append(fields, group.FieldFallbackGroupID)
 	}
+	if m.addbalance_daily_quota != nil {
+		fields = append(fields, group.FieldBalanceDailyQuota)
+	}
+	if m.addbalance_weekly_quota != nil {
+		fields = append(fields, group.FieldBalanceWeeklyQuota)
+	}
 	return fields
 }
 
@@ -5599,6 +6706,10 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedImagePrice4k()
 	case group.FieldFallbackGroupID:
 		return m.AddedFallbackGroupID()
+	case group.FieldBalanceDailyQuota:
+		return m.AddedBalanceDailyQuota()
+	case group.FieldBalanceWeeklyQuota:
+		return m.AddedBalanceWeeklyQuota()
 	}
 	return nil, false
 }
@@ -5671,6 +6782,20 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddFallbackGroupID(v)
 		return nil
+	case group.FieldBalanceDailyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceDailyQuota(v)
+		return nil
+	case group.FieldBalanceWeeklyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceWeeklyQuota(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Group numeric field %s", name)
 }
@@ -5705,6 +6830,12 @@ func (m *GroupMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(group.FieldFallbackGroupID) {
 		fields = append(fields, group.FieldFallbackGroupID)
+	}
+	if m.FieldCleared(group.FieldBalanceDailyQuota) {
+		fields = append(fields, group.FieldBalanceDailyQuota)
+	}
+	if m.FieldCleared(group.FieldBalanceWeeklyQuota) {
+		fields = append(fields, group.FieldBalanceWeeklyQuota)
 	}
 	return fields
 }
@@ -5746,6 +6877,12 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldFallbackGroupID:
 		m.ClearFallbackGroupID()
+		return nil
+	case group.FieldBalanceDailyQuota:
+		m.ClearBalanceDailyQuota()
+		return nil
+	case group.FieldBalanceWeeklyQuota:
+		m.ClearBalanceWeeklyQuota()
 		return nil
 	}
 	return fmt.Errorf("unknown Group nullable field %s", name)
@@ -5811,6 +6948,12 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldFallbackGroupID:
 		m.ResetFallbackGroupID()
+		return nil
+	case group.FieldBalanceDailyQuota:
+		m.ResetBalanceDailyQuota()
+		return nil
+	case group.FieldBalanceWeeklyQuota:
+		m.ResetBalanceWeeklyQuota()
 		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
@@ -12953,6 +14096,10 @@ type UserMutation struct {
 	status                        *string
 	username                      *string
 	notes                         *string
+	balance_daily_quota           *float64
+	addbalance_daily_quota        *float64
+	balance_weekly_quota          *float64
+	addbalance_weekly_quota       *float64
 	clearedFields                 map[string]struct{}
 	api_keys                      map[int64]struct{}
 	removedapi_keys               map[int64]struct{}
@@ -13530,6 +14677,146 @@ func (m *UserMutation) ResetNotes() {
 	m.notes = nil
 }
 
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (m *UserMutation) SetBalanceDailyQuota(f float64) {
+	m.balance_daily_quota = &f
+	m.addbalance_daily_quota = nil
+}
+
+// BalanceDailyQuota returns the value of the "balance_daily_quota" field in the mutation.
+func (m *UserMutation) BalanceDailyQuota() (r float64, exists bool) {
+	v := m.balance_daily_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceDailyQuota returns the old "balance_daily_quota" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldBalanceDailyQuota(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceDailyQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceDailyQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceDailyQuota: %w", err)
+	}
+	return oldValue.BalanceDailyQuota, nil
+}
+
+// AddBalanceDailyQuota adds f to the "balance_daily_quota" field.
+func (m *UserMutation) AddBalanceDailyQuota(f float64) {
+	if m.addbalance_daily_quota != nil {
+		*m.addbalance_daily_quota += f
+	} else {
+		m.addbalance_daily_quota = &f
+	}
+}
+
+// AddedBalanceDailyQuota returns the value that was added to the "balance_daily_quota" field in this mutation.
+func (m *UserMutation) AddedBalanceDailyQuota() (r float64, exists bool) {
+	v := m.addbalance_daily_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (m *UserMutation) ClearBalanceDailyQuota() {
+	m.balance_daily_quota = nil
+	m.addbalance_daily_quota = nil
+	m.clearedFields[user.FieldBalanceDailyQuota] = struct{}{}
+}
+
+// BalanceDailyQuotaCleared returns if the "balance_daily_quota" field was cleared in this mutation.
+func (m *UserMutation) BalanceDailyQuotaCleared() bool {
+	_, ok := m.clearedFields[user.FieldBalanceDailyQuota]
+	return ok
+}
+
+// ResetBalanceDailyQuota resets all changes to the "balance_daily_quota" field.
+func (m *UserMutation) ResetBalanceDailyQuota() {
+	m.balance_daily_quota = nil
+	m.addbalance_daily_quota = nil
+	delete(m.clearedFields, user.FieldBalanceDailyQuota)
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (m *UserMutation) SetBalanceWeeklyQuota(f float64) {
+	m.balance_weekly_quota = &f
+	m.addbalance_weekly_quota = nil
+}
+
+// BalanceWeeklyQuota returns the value of the "balance_weekly_quota" field in the mutation.
+func (m *UserMutation) BalanceWeeklyQuota() (r float64, exists bool) {
+	v := m.balance_weekly_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceWeeklyQuota returns the old "balance_weekly_quota" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldBalanceWeeklyQuota(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceWeeklyQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceWeeklyQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceWeeklyQuota: %w", err)
+	}
+	return oldValue.BalanceWeeklyQuota, nil
+}
+
+// AddBalanceWeeklyQuota adds f to the "balance_weekly_quota" field.
+func (m *UserMutation) AddBalanceWeeklyQuota(f float64) {
+	if m.addbalance_weekly_quota != nil {
+		*m.addbalance_weekly_quota += f
+	} else {
+		m.addbalance_weekly_quota = &f
+	}
+}
+
+// AddedBalanceWeeklyQuota returns the value that was added to the "balance_weekly_quota" field in this mutation.
+func (m *UserMutation) AddedBalanceWeeklyQuota() (r float64, exists bool) {
+	v := m.addbalance_weekly_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (m *UserMutation) ClearBalanceWeeklyQuota() {
+	m.balance_weekly_quota = nil
+	m.addbalance_weekly_quota = nil
+	m.clearedFields[user.FieldBalanceWeeklyQuota] = struct{}{}
+}
+
+// BalanceWeeklyQuotaCleared returns if the "balance_weekly_quota" field was cleared in this mutation.
+func (m *UserMutation) BalanceWeeklyQuotaCleared() bool {
+	_, ok := m.clearedFields[user.FieldBalanceWeeklyQuota]
+	return ok
+}
+
+// ResetBalanceWeeklyQuota resets all changes to the "balance_weekly_quota" field.
+func (m *UserMutation) ResetBalanceWeeklyQuota() {
+	m.balance_weekly_quota = nil
+	m.addbalance_weekly_quota = nil
+	delete(m.clearedFields, user.FieldBalanceWeeklyQuota)
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by ids.
 func (m *UserMutation) AddAPIKeyIDs(ids ...int64) {
 	if m.api_keys == nil {
@@ -13996,7 +15283,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 13)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -14030,6 +15317,12 @@ func (m *UserMutation) Fields() []string {
 	if m.notes != nil {
 		fields = append(fields, user.FieldNotes)
 	}
+	if m.balance_daily_quota != nil {
+		fields = append(fields, user.FieldBalanceDailyQuota)
+	}
+	if m.balance_weekly_quota != nil {
+		fields = append(fields, user.FieldBalanceWeeklyQuota)
+	}
 	return fields
 }
 
@@ -14060,6 +15353,10 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Username()
 	case user.FieldNotes:
 		return m.Notes()
+	case user.FieldBalanceDailyQuota:
+		return m.BalanceDailyQuota()
+	case user.FieldBalanceWeeklyQuota:
+		return m.BalanceWeeklyQuota()
 	}
 	return nil, false
 }
@@ -14091,6 +15388,10 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldUsername(ctx)
 	case user.FieldNotes:
 		return m.OldNotes(ctx)
+	case user.FieldBalanceDailyQuota:
+		return m.OldBalanceDailyQuota(ctx)
+	case user.FieldBalanceWeeklyQuota:
+		return m.OldBalanceWeeklyQuota(ctx)
 	}
 	return nil, fmt.Errorf("unknown User field %s", name)
 }
@@ -14177,6 +15478,20 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetNotes(v)
 		return nil
+	case user.FieldBalanceDailyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceDailyQuota(v)
+		return nil
+	case user.FieldBalanceWeeklyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceWeeklyQuota(v)
+		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)
 }
@@ -14191,6 +15506,12 @@ func (m *UserMutation) AddedFields() []string {
 	if m.addconcurrency != nil {
 		fields = append(fields, user.FieldConcurrency)
 	}
+	if m.addbalance_daily_quota != nil {
+		fields = append(fields, user.FieldBalanceDailyQuota)
+	}
+	if m.addbalance_weekly_quota != nil {
+		fields = append(fields, user.FieldBalanceWeeklyQuota)
+	}
 	return fields
 }
 
@@ -14203,6 +15524,10 @@ func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedBalance()
 	case user.FieldConcurrency:
 		return m.AddedConcurrency()
+	case user.FieldBalanceDailyQuota:
+		return m.AddedBalanceDailyQuota()
+	case user.FieldBalanceWeeklyQuota:
+		return m.AddedBalanceWeeklyQuota()
 	}
 	return nil, false
 }
@@ -14226,6 +15551,20 @@ func (m *UserMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddConcurrency(v)
 		return nil
+	case user.FieldBalanceDailyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceDailyQuota(v)
+		return nil
+	case user.FieldBalanceWeeklyQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceWeeklyQuota(v)
+		return nil
 	}
 	return fmt.Errorf("unknown User numeric field %s", name)
 }
@@ -14236,6 +15575,12 @@ func (m *UserMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(user.FieldDeletedAt) {
 		fields = append(fields, user.FieldDeletedAt)
+	}
+	if m.FieldCleared(user.FieldBalanceDailyQuota) {
+		fields = append(fields, user.FieldBalanceDailyQuota)
+	}
+	if m.FieldCleared(user.FieldBalanceWeeklyQuota) {
+		fields = append(fields, user.FieldBalanceWeeklyQuota)
 	}
 	return fields
 }
@@ -14253,6 +15598,12 @@ func (m *UserMutation) ClearField(name string) error {
 	switch name {
 	case user.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case user.FieldBalanceDailyQuota:
+		m.ClearBalanceDailyQuota()
+		return nil
+	case user.FieldBalanceWeeklyQuota:
+		m.ClearBalanceWeeklyQuota()
 		return nil
 	}
 	return fmt.Errorf("unknown User nullable field %s", name)
@@ -14294,6 +15645,12 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldNotes:
 		m.ResetNotes()
+		return nil
+	case user.FieldBalanceDailyQuota:
+		m.ResetBalanceDailyQuota()
+		return nil
+	case user.FieldBalanceWeeklyQuota:
+		m.ResetBalanceWeeklyQuota()
 		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)

@@ -395,6 +395,60 @@ func (_u *GroupUpdate) ClearFallbackGroupID() *GroupUpdate {
 	return _u
 }
 
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (_u *GroupUpdate) SetBalanceDailyQuota(v float64) *GroupUpdate {
+	_u.mutation.ResetBalanceDailyQuota()
+	_u.mutation.SetBalanceDailyQuota(v)
+	return _u
+}
+
+// SetNillableBalanceDailyQuota sets the "balance_daily_quota" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableBalanceDailyQuota(v *float64) *GroupUpdate {
+	if v != nil {
+		_u.SetBalanceDailyQuota(*v)
+	}
+	return _u
+}
+
+// AddBalanceDailyQuota adds value to the "balance_daily_quota" field.
+func (_u *GroupUpdate) AddBalanceDailyQuota(v float64) *GroupUpdate {
+	_u.mutation.AddBalanceDailyQuota(v)
+	return _u
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (_u *GroupUpdate) ClearBalanceDailyQuota() *GroupUpdate {
+	_u.mutation.ClearBalanceDailyQuota()
+	return _u
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (_u *GroupUpdate) SetBalanceWeeklyQuota(v float64) *GroupUpdate {
+	_u.mutation.ResetBalanceWeeklyQuota()
+	_u.mutation.SetBalanceWeeklyQuota(v)
+	return _u
+}
+
+// SetNillableBalanceWeeklyQuota sets the "balance_weekly_quota" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableBalanceWeeklyQuota(v *float64) *GroupUpdate {
+	if v != nil {
+		_u.SetBalanceWeeklyQuota(*v)
+	}
+	return _u
+}
+
+// AddBalanceWeeklyQuota adds value to the "balance_weekly_quota" field.
+func (_u *GroupUpdate) AddBalanceWeeklyQuota(v float64) *GroupUpdate {
+	_u.mutation.AddBalanceWeeklyQuota(v)
+	return _u
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (_u *GroupUpdate) ClearBalanceWeeklyQuota() *GroupUpdate {
+	_u.mutation.ClearBalanceWeeklyQuota()
+	return _u
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by IDs.
 func (_u *GroupUpdate) AddAPIKeyIDs(ids ...int64) *GroupUpdate {
 	_u.mutation.AddAPIKeyIDs(ids...)
@@ -802,6 +856,24 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.FallbackGroupIDCleared() {
 		_spec.ClearField(group.FieldFallbackGroupID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.BalanceDailyQuota(); ok {
+		_spec.SetField(group.FieldBalanceDailyQuota, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBalanceDailyQuota(); ok {
+		_spec.AddField(group.FieldBalanceDailyQuota, field.TypeFloat64, value)
+	}
+	if _u.mutation.BalanceDailyQuotaCleared() {
+		_spec.ClearField(group.FieldBalanceDailyQuota, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.BalanceWeeklyQuota(); ok {
+		_spec.SetField(group.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBalanceWeeklyQuota(); ok {
+		_spec.AddField(group.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
+	}
+	if _u.mutation.BalanceWeeklyQuotaCleared() {
+		_spec.ClearField(group.FieldBalanceWeeklyQuota, field.TypeFloat64)
 	}
 	if _u.mutation.APIKeysCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1478,6 +1550,60 @@ func (_u *GroupUpdateOne) ClearFallbackGroupID() *GroupUpdateOne {
 	return _u
 }
 
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (_u *GroupUpdateOne) SetBalanceDailyQuota(v float64) *GroupUpdateOne {
+	_u.mutation.ResetBalanceDailyQuota()
+	_u.mutation.SetBalanceDailyQuota(v)
+	return _u
+}
+
+// SetNillableBalanceDailyQuota sets the "balance_daily_quota" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableBalanceDailyQuota(v *float64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetBalanceDailyQuota(*v)
+	}
+	return _u
+}
+
+// AddBalanceDailyQuota adds value to the "balance_daily_quota" field.
+func (_u *GroupUpdateOne) AddBalanceDailyQuota(v float64) *GroupUpdateOne {
+	_u.mutation.AddBalanceDailyQuota(v)
+	return _u
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (_u *GroupUpdateOne) ClearBalanceDailyQuota() *GroupUpdateOne {
+	_u.mutation.ClearBalanceDailyQuota()
+	return _u
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (_u *GroupUpdateOne) SetBalanceWeeklyQuota(v float64) *GroupUpdateOne {
+	_u.mutation.ResetBalanceWeeklyQuota()
+	_u.mutation.SetBalanceWeeklyQuota(v)
+	return _u
+}
+
+// SetNillableBalanceWeeklyQuota sets the "balance_weekly_quota" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableBalanceWeeklyQuota(v *float64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetBalanceWeeklyQuota(*v)
+	}
+	return _u
+}
+
+// AddBalanceWeeklyQuota adds value to the "balance_weekly_quota" field.
+func (_u *GroupUpdateOne) AddBalanceWeeklyQuota(v float64) *GroupUpdateOne {
+	_u.mutation.AddBalanceWeeklyQuota(v)
+	return _u
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (_u *GroupUpdateOne) ClearBalanceWeeklyQuota() *GroupUpdateOne {
+	_u.mutation.ClearBalanceWeeklyQuota()
+	return _u
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by IDs.
 func (_u *GroupUpdateOne) AddAPIKeyIDs(ids ...int64) *GroupUpdateOne {
 	_u.mutation.AddAPIKeyIDs(ids...)
@@ -1915,6 +2041,24 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if _u.mutation.FallbackGroupIDCleared() {
 		_spec.ClearField(group.FieldFallbackGroupID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.BalanceDailyQuota(); ok {
+		_spec.SetField(group.FieldBalanceDailyQuota, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBalanceDailyQuota(); ok {
+		_spec.AddField(group.FieldBalanceDailyQuota, field.TypeFloat64, value)
+	}
+	if _u.mutation.BalanceDailyQuotaCleared() {
+		_spec.ClearField(group.FieldBalanceDailyQuota, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.BalanceWeeklyQuota(); ok {
+		_spec.SetField(group.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBalanceWeeklyQuota(); ok {
+		_spec.AddField(group.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
+	}
+	if _u.mutation.BalanceWeeklyQuotaCleared() {
+		_spec.ClearField(group.FieldBalanceWeeklyQuota, field.TypeFloat64)
 	}
 	if _u.mutation.APIKeysCleared() {
 		edge := &sqlgraph.EdgeSpec{
