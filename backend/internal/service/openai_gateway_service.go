@@ -42,6 +42,7 @@ var openaiSSEDataRe = regexp.MustCompile(`^data:\s*`)
 var openaiAllowedHeaders = map[string]bool{
 	"accept-language": true,
 	"content-type":    true,
+	"conversation_id": true,
 	"user-agent":      true,
 	"originator":      true,
 	"session_id":      true,
@@ -183,6 +184,11 @@ func (s *OpenAIGatewayService) SelectAccountForModelWithExclusions(ctx context.C
 	for i := range accounts {
 		acc := &accounts[i]
 		if _, excluded := excludedIDs[acc.ID]; excluded {
+			continue
+		}
+		// Scheduler snapshots can be temporarily stale; re-check schedulability here to
+		// avoid selecting accounts that were recently rate-limited/overloaded.
+		if !acc.IsSchedulable() {
 			continue
 		}
 		// Check model support
@@ -329,6 +335,12 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 	for i := range accounts {
 		acc := &accounts[i]
 		if isExcluded(acc.ID) {
+			continue
+		}
+		// Scheduler snapshots can be temporarily stale (bucket rebuild is throttled);
+		// re-check schedulability here so recently rate-limited/overloaded accounts
+		// are not selected again before the bucket is rebuilt.
+		if !acc.IsSchedulable() {
 			continue
 		}
 		if requestedModel != "" && !acc.IsModelSupported(requestedModel) {
@@ -545,12 +557,33 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 
 	isCodexCLI := openai.IsCodexCLIRequest(c.GetHeader("User-Agent"))
 
-	// Apply model mapping for all requests (including Codex CLI)
+	// 对所有请求执行模型映射（包含 Codex CLI）。
 	mappedModel := account.GetMappedModel(reqModel)
 	if mappedModel != reqModel {
 		log.Printf("[OpenAI] Model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", reqModel, mappedModel, account.Name, isCodexCLI)
 		reqBody["model"] = mappedModel
 		bodyModified = true
+	}
+
+	// 针对所有 OpenAI 账号执行 Codex 模型名规范化，确保上游识别一致。
+	if model, ok := reqBody["model"].(string); ok {
+		normalizedModel := normalizeCodexModel(model)
+		if normalizedModel != "" && normalizedModel != model {
+			log.Printf("[OpenAI] Codex model normalization: %s -> %s (account: %s, type: %s, isCodexCLI: %v)",
+				model, normalizedModel, account.Name, account.Type, isCodexCLI)
+			reqBody["model"] = normalizedModel
+			mappedModel = normalizedModel
+			bodyModified = true
+		}
+	}
+
+	// 规范化 reasoning.effort 参数（minimal -> none），与上游允许值对齐。
+	if reasoning, ok := reqBody["reasoning"].(map[string]any); ok {
+		if effort, ok := reasoning["effort"].(string); ok && effort == "minimal" {
+			reasoning["effort"] = "none"
+			bodyModified = true
+			log.Printf("[OpenAI] Normalized reasoning.effort: minimal -> none (account: %s)", account.Name)
+		}
 	}
 
 	if account.Type == AccountTypeOAuth && !isCodexCLI {
@@ -783,9 +816,6 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 		if promptCacheKey != "" {
 			req.Header.Set("conversation_id", promptCacheKey)
 			req.Header.Set("session_id", promptCacheKey)
-		} else {
-			req.Header.Del("conversation_id")
-			req.Header.Del("session_id")
 		}
 	}
 
