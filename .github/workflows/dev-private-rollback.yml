@@ -3,12 +3,21 @@ name: Dev Private Rollback
 on:
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: '要回退到的镜像标签 (例如: dev, dev-7b3f1a2)'
+      action:
+        description: '选择操作'
+        required: true
+        type: choice
+        default: 'list'
+        options:
+          - list
+          - rollback_to_previous
+          - rollback_to_custom
+      custom_tag:
+        description: '自定义镜像标签（仅 rollback_to_custom 时需要，如: dev-abc1234）'
         required: false
         type: string
-      list_only:
-        description: '仅列出可用镜像，不执行回退'
+      confirm:
+        description: '⚠️ 确认执行回退（必须勾选才能执行回退操作）'
         required: false
         type: boolean
         default: false
@@ -26,14 +35,15 @@ jobs:
           PRIVATE_REGISTRY_USERNAME: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
           PRIVATE_REGISTRY_PASSWORD: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
           DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
-          IMAGE_TAG: ${{ inputs.image_tag }}
-          LIST_ONLY: ${{ inputs.list_only }}
+          ACTION: ${{ inputs.action }}
+          CUSTOM_TAG: ${{ inputs.custom_tag }}
+          CONFIRM: ${{ inputs.confirm }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           password: ${{ secrets.DEPLOY_PASSWORD }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,IMAGE_TAG,LIST_ONLY
+          envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,ACTION,CUSTOM_TAG,CONFIRM
           script: |
             set -e
 
@@ -47,29 +57,83 @@ jobs:
             docker images "${FULL_IMAGE}" --format "table {{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}" | head -20
             echo ""
 
-            # 获取当前运行的镜像
-            CURRENT_IMAGE=$(docker inspect --format='{{.Config.Image}}' $(docker-compose -f "${DEPLOY_DIR}/docker-compose.yml" ps -q 2>/dev/null | head -1) 2>/dev/null || echo "无法获取")
-            echo "📌 当前运行的镜像: ${CURRENT_IMAGE}"
+            # 获取当前运行的镜像标签
+            cd "$DEPLOY_DIR"
+            CURRENT_TAG=""
+            if grep -q "^DOCKER_IMAGE_NAME=" .env 2>/dev/null; then
+              CURRENT_IMAGE=$(grep "^DOCKER_IMAGE_NAME=" .env | cut -d'=' -f2)
+              CURRENT_TAG=$(echo "$CURRENT_IMAGE" | sed 's/.*://')
+            fi
+            echo "📌 当前运行的镜像标签: ${CURRENT_TAG:-未知}"
             echo ""
 
-            # 如果只是列出镜像，到此结束
-            if [ "$LIST_ONLY" = "true" ]; then
-              echo "=========================================="
-              echo "✅ 仅列出模式，未执行回退操作"
-              echo "=========================================="
-              exit 0
-            fi
+            # 根据操作类型执行
+            case "$ACTION" in
+              list)
+                echo "=========================================="
+                echo "✅ 仅列出模式，未执行回退操作"
+                echo "=========================================="
+                echo ""
+                echo "💡 提示: 选择 'rollback_to_previous' 可快速回退到上一版本"
+                echo "💡 提示: 选择 'rollback_to_custom' 并填写标签可回退到指定版本"
+                exit 0
+                ;;
 
-            # 检查是否提供了镜像标签
-            if [ -z "$IMAGE_TAG" ]; then
-              echo "=========================================="
-              echo "❌ 错误: 未指定要回退的镜像标签"
-              echo "请在 workflow 输入中指定 image_tag 参数"
-              echo "=========================================="
-              exit 1
-            fi
+              rollback_to_previous)
+                # 检查确认
+                if [ "$CONFIRM" != "true" ]; then
+                  echo "=========================================="
+                  echo "❌ 错误: 请勾选「确认执行回退」后再运行"
+                  echo "=========================================="
+                  exit 1
+                fi
 
-            TARGET_IMAGE="${FULL_IMAGE}:${IMAGE_TAG}"
+                # 获取上一版本（排除当前运行的标签，取最新的）
+                if [ -n "$CURRENT_TAG" ]; then
+                  TARGET_TAG=$(docker images "${FULL_IMAGE}" --format "{{.Tag}}" | grep -v "^${CURRENT_TAG}$" | head -1)
+                else
+                  # 如果无法获取当前标签，取第二个
+                  TARGET_TAG=$(docker images "${FULL_IMAGE}" --format "{{.Tag}}" | sed -n '2p')
+                fi
+
+                if [ -z "$TARGET_TAG" ]; then
+                  echo "=========================================="
+                  echo "❌ 错误: 没有可用的上一版本镜像"
+                  echo "=========================================="
+                  exit 1
+                fi
+
+                echo "🔄 将回退到上一版本: ${TARGET_TAG}"
+                ;;
+
+              rollback_to_custom)
+                # 检查确认
+                if [ "$CONFIRM" != "true" ]; then
+                  echo "=========================================="
+                  echo "❌ 错误: 请勾选「确认执行回退」后再运行"
+                  echo "=========================================="
+                  exit 1
+                fi
+
+                # 检查自定义标签
+                if [ -z "$CUSTOM_TAG" ]; then
+                  echo "=========================================="
+                  echo "❌ 错误: 请填写自定义镜像标签"
+                  echo "=========================================="
+                  exit 1
+                fi
+
+                TARGET_TAG="$CUSTOM_TAG"
+                echo "🔄 将回退到指定版本: ${TARGET_TAG}"
+                ;;
+
+              *)
+                echo "❌ 未知操作: $ACTION"
+                exit 1
+                ;;
+            esac
+
+            TARGET_IMAGE="${FULL_IMAGE}:${TARGET_TAG}"
 
             # 检查目标镜像是否存在于本地
             if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${TARGET_IMAGE}$"; then
@@ -91,9 +155,6 @@ jobs:
             echo "=========================================="
             echo "🔄 开始回退到: ${TARGET_IMAGE}"
             echo "=========================================="
-
-            # 进入部署目录
-            cd "$DEPLOY_DIR"
 
             # 更新 .env 中的镜像名
             touch .env
@@ -121,8 +182,3 @@ jobs:
             echo ""
             echo "📊 当前服务状态:"
             docker-compose ps
-            echo ""
-
-            # 健康检查
-            echo "🏥 容器健康状态:"
-            docker-compose ps --format "table {{.Name}}\t{{.Status}}"
