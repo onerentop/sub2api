@@ -532,8 +532,6 @@ async function handleRegister(): Promise<void> {
       errorMessage.value = t('auth.registrationFailed')
     }
 
-    // Also show error toast
-    appStore.showError(errorMessage.value)
   } finally {
     isLoading.value = false
   }

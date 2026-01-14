@@ -34,6 +34,9 @@ export interface User {
   concurrency: number // Allowed concurrent requests
   status: 'active' | 'disabled' // Account status
   allowed_groups: number[] | null // Allowed group IDs (null = all non-exclusive groups)
+  // 余额计费模式限额覆盖（覆盖分组默认值）
+  balance_daily_quota: number | null
+  balance_weekly_quota: number | null
   subscriptions?: UserSubscription[] // User's active subscriptions
   created_at: string
   updated_at: string
@@ -269,6 +272,9 @@ export interface Group {
   // Claude Code 客户端限制
   claude_code_only: boolean
   fallback_group_id: number | null
+  // 余额计费模式限额（standard 类型分组使用）
+  balance_daily_quota: number | null
+  balance_weekly_quota: number | null
   account_count?: number
   created_at: string
   updated_at: string
@@ -1005,4 +1011,57 @@ export interface UpdatePromoCodeRequest {
   status?: 'active' | 'disabled'
   expires_at?: number | null
   notes?: string
+}
+
+// ==================== Announcement Types ====================
+
+export type AnnouncementType = 'info' | 'success' | 'warning' | 'error'
+
+export interface Announcement {
+  id: number
+  title: string | null
+  content: string
+  type: AnnouncementType
+  sort_order: number
+  enabled: boolean
+  start_time: string | null
+  end_time: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AnnouncementSettings {
+  enabled: boolean
+  interval: number
+}
+
+export interface ActiveAnnouncementsResponse {
+  announcements: Announcement[]
+  settings: AnnouncementSettings
+}
+
+export interface CreateAnnouncementRequest {
+  title?: string
+  content: string
+  type?: AnnouncementType
+  enabled?: boolean
+  start_time?: number | null
+  end_time?: number | null
+}
+
+export interface UpdateAnnouncementRequest {
+  title?: string | null
+  content?: string
+  type?: AnnouncementType
+  sort_order?: number
+  enabled?: boolean
+  start_time?: number | null
+  end_time?: number | null
+  clear_start_time?: boolean
+  clear_end_time?: boolean
+}
+
+export interface AnnouncementSortItem {
+  id: number
+  sort_order: number
 }

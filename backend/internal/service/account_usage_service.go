@@ -58,6 +58,11 @@ type UsageLogRepository interface {
 	GetAccountStatsAggregated(ctx context.Context, accountID int64, startTime, endTime time.Time) (*usagestats.UsageStats, error)
 	GetModelStatsAggregated(ctx context.Context, modelName string, startTime, endTime time.Time) (*usagestats.UsageStats, error)
 	GetDailyStatsAggregated(ctx context.Context, userID int64, startTime, endTime time.Time) ([]map[string]any, error)
+
+	// Balance quota usage (for balance billing mode)
+	SumActualCostByUserAndTimeRange(ctx context.Context, userID int64, startTime, endTime time.Time) (float64, error)
+	SumActualCostByUserGroupAndTimeRange(ctx context.Context, userID, groupID int64, startTime, endTime time.Time) (float64, error)
+	SumActualCostByUserGroupedByGroup(ctx context.Context, userID int64, startTime, endTime time.Time) (map[int64]float64, error)
 }
 
 // apiUsageCache 缓存从 Anthropic API 获取的使用率数据（utilization, resets_at）

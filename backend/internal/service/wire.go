@@ -186,6 +186,11 @@ func ProvideAPIKeyAuthCacheInvalidator(apiKeyService *APIKeyService) APIKeyAuthC
 	return apiKeyService
 }
 
+// ProvideBalanceUsageQuerier 提供余额用量查询能力，用于限额检查
+func ProvideBalanceUsageQuerier(usageLogRepo UsageLogRepository) BalanceUsageQuerier {
+	return usageLogRepo
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
@@ -193,6 +198,7 @@ var ProviderSet = wire.NewSet(
 	NewUserService,
 	NewAPIKeyService,
 	ProvideAPIKeyAuthCacheInvalidator,
+	ProvideBalanceUsageQuerier,
 	NewGroupService,
 	NewAccountService,
 	NewProxyService,
@@ -242,4 +248,5 @@ var ProviderSet = wire.NewSet(
 	NewAntigravityQuotaFetcher,
 	NewUserAttributeService,
 	NewUsageCache,
+	NewAnnouncementService,
 )

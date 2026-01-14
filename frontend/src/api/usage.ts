@@ -39,6 +39,44 @@ export interface UserDashboardStats {
   tpm: number // 近5分钟平均每分钟Token数
 }
 
+// 余额限额信息
+export interface BalanceQuotaDetail {
+  used: number
+  limit: number | null
+  remaining: number | null
+  reset_at: string
+}
+
+export interface BalanceQuotaInfo {
+  daily: BalanceQuotaDetail
+  weekly: BalanceQuotaDetail
+  source: 'user' | 'group' | '' // 限额来源：用户覆盖、分组默认或无限额
+}
+// V2: 分组限额详情
+export interface GroupQuotaDetail {
+  group_id: number
+  group_name: string
+  daily: BalanceQuotaDetail
+  weekly: BalanceQuotaDetail
+}
+
+// V2: 余额限额信息（支持分组）
+export interface BalanceQuotaInfoV2 {
+  // 全局限额（跨所有分组）
+  global: {
+    daily: BalanceQuotaDetail
+    weekly: BalanceQuotaDetail
+  }
+  // 各分组详情
+  groups: GroupQuotaDetail[]
+  total_groups: number
+  // 向后兼容字段
+  daily: BalanceQuotaDetail
+  weekly: BalanceQuotaDetail
+  source: 'user' | 'group' | 'global' | ''
+}
+
+
 export interface TrendParams {
   start_date?: string
   end_date?: string
@@ -257,6 +295,26 @@ export async function getDashboardApiKeysUsage(
   return data
 }
 
+/**
+ * Get balance quota information for the current user
+ * @param groupId - Optional group ID to query quota for specific group
+ * @returns Balance quota info with daily/weekly limits and usage
+ */
+export async function getDashboardQuota(groupId?: number): Promise<BalanceQuotaInfo> {
+  const params = groupId ? { group_id: groupId } : {}
+  const { data } = await apiClient.get<BalanceQuotaInfo>('/usage/dashboard/quota', { params })
+  return data
+}
+
+/**
+ * Get balance quota information V2 (with group breakdown)
+ * @returns Balance quota info with global and per-group limits
+ */
+export async function getDashboardQuotaV2(): Promise<BalanceQuotaInfoV2> {
+  const { data } = await apiClient.get<BalanceQuotaInfoV2>('/usage/dashboard/quota/v2')
+  return data
+}
+
 export const usageAPI = {
   list,
   query,
@@ -268,7 +326,9 @@ export const usageAPI = {
   getDashboardStats,
   getDashboardTrend,
   getDashboardModels,
-  getDashboardApiKeysUsage
+  getDashboardApiKeysUsage,
+  getDashboardQuota,
+  getDashboardQuotaV2
 }
 
 export default usageAPI

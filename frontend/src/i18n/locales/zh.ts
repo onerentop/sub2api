@@ -167,6 +167,11 @@ export default {
     }
   },
 
+  // Announcement Bar (public display)
+  announcement: {
+    close: '关闭'
+  },
+
   // Navigation
   nav: {
     dashboard: '仪表盘',
@@ -182,6 +187,7 @@ export default {
     redeemCodes: '兑换码',
     ops: '运维监控',
     promoCodes: '优惠码',
+    announcements: '公告管理',
     settings: '系统设置',
     myAccount: '我的账户',
     lightMode: '浅色模式',
@@ -301,7 +307,26 @@ export default {
     viewUsage: '查看使用记录',
     checkDetailedLogs: '查看详细的使用日志',
     redeemCode: '兑换码',
-    addBalanceWithCode: '使用兑换码充值'
+    addBalanceWithCode: '使用兑换码充值',
+    // Balance Quota
+    quota: {
+      title: '消费限额',
+      daily: '每日限额',
+      weekly: '每周限额',
+      remaining: '剩余',
+      resetsAt: '重置于',
+      resettingSoon: '即将重置',
+      userOverride: '用户覆盖',
+      groupDefault: '分组默认',
+      globalLimit: '全局限额',
+      expandGroups: '展开分组',
+      collapse: '收起',
+      groupsCount: '{count} 个分组',
+      noLimit: '无限额',
+      days: '天',
+      hours: '小时',
+      minutes: '分钟'
+    }
   },
 
   // Groups (shared)
@@ -800,6 +825,13 @@ export default {
       columnSettings: '列设置',
       filterValue: '输入值',
       // User Attributes
+      balanceQuota: {
+        title: '余额限额覆盖',
+        description: '为该用户单独设置消费限额，覆盖分组默认值。留空则使用分组默认限额。',
+        dailyQuota: '每日限额 (USD)',
+        weeklyQuota: '每周限额 (USD)',
+        useGroupDefault: '使用分组默认'
+      },
       attributes: {
         title: '用户属性配置',
         description: '配置用户的自定义属性字段',
@@ -987,6 +1019,12 @@ export default {
         fallbackGroup: '降级分组',
         fallbackHint: '非 Claude Code 请求将使用此分组，留空则直接拒绝',
         noFallback: '不降级（直接拒绝）'
+      },
+      balanceQuota: {
+        description: '为余额计费模式的用户设置每日/每周消费限额，限制单用户的消费速度',
+        dailyQuota: '每日限额 (USD)',
+        weeklyQuota: '每周限额 (USD)',
+        noLimit: '无限制'
       }
     },
 
@@ -1963,6 +2001,45 @@ export default {
       failedToLoadUsages: '加载使用记录失败'
     },
 
+    // Announcements
+    announcements: {
+      title: '公告管理',
+      description: '创建和管理网站公告',
+      create: '创建公告',
+      edit: '编辑公告',
+      delete: '删除公告',
+      allStatus: '全部状态',
+      allTypes: '全部类型',
+      announcementTitle: '标题',
+      titlePlaceholder: '输入公告标题（可选）',
+      content: '内容',
+      contentPlaceholder: '输入公告内容，支持 HTML 格式',
+      htmlSupported: '支持 HTML 格式，如 <a href="...">链接</a>、<b>粗体</b> 等',
+      type: '类型',
+      types: {
+        info: '信息',
+        success: '成功',
+        warning: '警告',
+        error: '错误'
+      },
+      status: '状态',
+      enabled: '启用',
+      disabled: '禁用',
+      schedule: '定时',
+      startTime: '生效时间',
+      endTime: '过期时间',
+      sortOrder: '排序',
+      contentRequired: '内容不能为空',
+      createSuccess: '公告创建成功',
+      createFailed: '创建公告失败',
+      updateSuccess: '公告更新成功',
+      updateFailed: '更新公告失败',
+      deleteSuccess: '公告删除成功',
+      deleteFailed: '删除公告失败',
+      deleteConfirmTitle: '删除公告',
+      deleteConfirmMessage: '确定要删除此公告吗？此操作无法撤销。'
+    },
+
     // Usage Records
     usage: {
       title: '使用记录',
@@ -2578,7 +2655,10 @@ export default {
         enableRegistration: '开放注册',
         enableRegistrationHint: '允许新用户注册',
         emailVerification: '邮箱验证',
-        emailVerificationHint: '新用户注册时需要验证邮箱'
+        emailVerificationHint: '新用户注册时需要验证邮箱',
+        emailDomainWhitelist: '邮箱域名白名单',
+        emailDomainWhitelistPlaceholder: '输入域名后按回车添加...',
+        emailDomainWhitelistHint: '限制允许注册的邮箱域名。留空则不限制。支持从预设中选择或手动输入。'
       },
       turnstile: {
         title: 'Cloudflare Turnstile',

@@ -41,6 +41,12 @@ func RegisterAuthRoutes(
 		settings.GET("/public", h.Setting.GetPublicSettings)
 	}
 
+	// 公告（无需认证）
+	announcements := v1.Group("/announcements")
+	{
+		announcements.GET("/active", h.Announcement.GetActiveAnnouncements)
+	}
+
 	// 需要认证的当前用户信息
 	authenticated := v1.Group("")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))

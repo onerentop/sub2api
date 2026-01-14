@@ -137,6 +137,30 @@
                   t('admin.groups.subscription.noLimit')
                 }}</span>
               </div>
+              <!-- Balance Quota Limits - compact single line (standard type only) -->
+              <div
+                v-if="row.subscription_type === 'standard'"
+                class="text-xs text-gray-500 dark:text-gray-400"
+              >
+                <template
+                  v-if="row.balance_daily_quota || row.balance_weekly_quota"
+                >
+                  <span v-if="row.balance_daily_quota"
+                    >${{ row.balance_daily_quota }}/{{ t('admin.groups.limitDay') }}</span
+                  >
+                  <span
+                    v-if="row.balance_daily_quota && row.balance_weekly_quota"
+                    class="mx-1 text-gray-300 dark:text-gray-600"
+                    >·</span
+                  >
+                  <span v-if="row.balance_weekly_quota"
+                    >${{ row.balance_weekly_quota }}/{{ t('admin.groups.limitWeek') }}</span
+                  >
+                </template>
+                <span v-else class="text-gray-400 dark:text-gray-500">{{
+                  t('admin.groups.balanceQuota.noLimit')
+                }}</span>
+              </div>
             </div>
           </template>
 
@@ -355,6 +379,40 @@
                 class="input"
                 :placeholder="t('admin.groups.subscription.noLimit')"
               />
+            </div>
+          </div>
+
+          <!-- 余额限额配置（仅 standard 类型分组使用） -->
+          <div
+            v-if="createForm.subscription_type === 'standard'"
+            class="space-y-4 border-l-2 border-green-200 pl-4 dark:border-green-800"
+          >
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              {{ t('admin.groups.balanceQuota.description') }}
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="input-label">{{ t('admin.groups.balanceQuota.dailyQuota') }}</label>
+                <input
+                  v-model.number="createForm.balance_daily_quota"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  class="input"
+                  :placeholder="t('admin.groups.balanceQuota.noLimit')"
+                />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.groups.balanceQuota.weeklyQuota') }}</label>
+                <input
+                  v-model.number="createForm.balance_weekly_quota"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  class="input"
+                  :placeholder="t('admin.groups.balanceQuota.noLimit')"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -658,6 +716,40 @@
               />
             </div>
           </div>
+
+          <!-- 余额限额配置（仅 standard 类型分组使用） -->
+          <div
+            v-if="editForm.subscription_type === 'standard'"
+            class="space-y-4 border-l-2 border-green-200 pl-4 dark:border-green-800"
+          >
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              {{ t('admin.groups.balanceQuota.description') }}
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="input-label">{{ t('admin.groups.balanceQuota.dailyQuota') }}</label>
+                <input
+                  v-model.number="editForm.balance_daily_quota"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  class="input"
+                  :placeholder="t('admin.groups.balanceQuota.noLimit')"
+                />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.groups.balanceQuota.weeklyQuota') }}</label>
+                <input
+                  v-model.number="editForm.balance_weekly_quota"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  class="input"
+                  :placeholder="t('admin.groups.balanceQuota.noLimit')"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 图片生成计费配置（antigravity 和 gemini 平台） -->
@@ -956,7 +1048,10 @@ const createForm = reactive({
   image_price_4k: null as number | null,
   // Claude Code 客户端限制（仅 anthropic 平台使用）
   claude_code_only: false,
-  fallback_group_id: null as number | null
+  fallback_group_id: null as number | null,
+  // 余额计费模式限额（standard 类型分组使用）
+  balance_daily_quota: null as number | null,
+  balance_weekly_quota: null as number | null
 })
 
 const editForm = reactive({
@@ -976,7 +1071,10 @@ const editForm = reactive({
   image_price_4k: null as number | null,
   // Claude Code 客户端限制（仅 anthropic 平台使用）
   claude_code_only: false,
-  fallback_group_id: null as number | null
+  fallback_group_id: null as number | null,
+  // 余额计费模式限额（standard 类型分组使用）
+  balance_daily_quota: null as number | null,
+  balance_weekly_quota: null as number | null
 })
 
 // 根据分组类型返回不同的删除确认消息
@@ -1058,6 +1156,8 @@ const closeCreateModal = () => {
   createForm.image_price_4k = null
   createForm.claude_code_only = false
   createForm.fallback_group_id = null
+  createForm.balance_daily_quota = null
+  createForm.balance_weekly_quota = null
 }
 
 const handleCreateGroup = async () => {
@@ -1101,6 +1201,8 @@ const handleEdit = (group: Group) => {
   editForm.image_price_4k = group.image_price_4k
   editForm.claude_code_only = group.claude_code_only || false
   editForm.fallback_group_id = group.fallback_group_id
+  editForm.balance_daily_quota = group.balance_daily_quota
+  editForm.balance_weekly_quota = group.balance_weekly_quota
   showEditModal.value = true
 }
 

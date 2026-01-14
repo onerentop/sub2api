@@ -150,7 +150,7 @@ export default {
     invalidEmail: 'Please enter a valid email address',
     optional: 'optional',
     selectOption: 'Select an option',
-    searchPlaceholder: 'Search...', 
+    searchPlaceholder: 'Search...',
         noOptionsFound: 'No options found',
         noGroupsAvailable: 'No groups available',
         unknownError: 'Unknown error occurred',
@@ -169,6 +169,11 @@ export default {
     }
   },
 
+  // Announcement Bar (public display)
+  announcement: {
+    close: 'Close'
+  },
+
   // Navigation
   nav: {
     dashboard: 'Dashboard',
@@ -184,6 +189,7 @@ export default {
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',
     promoCodes: 'Promo Codes',
+    announcements: 'Announcements',
     settings: 'Settings',
     myAccount: 'My Account',
     lightMode: 'Light Mode',
@@ -303,7 +309,26 @@ export default {
     viewUsage: 'View Usage',
     checkDetailedLogs: 'Check detailed usage logs',
     redeemCode: 'Redeem Code',
-    addBalanceWithCode: 'Add balance with a code'
+    addBalanceWithCode: 'Add balance with a code',
+    // Balance Quota
+    quota: {
+      title: 'Spending Limits',
+      daily: 'Daily Limit',
+      weekly: 'Weekly Limit',
+      remaining: 'Remaining',
+      resetsAt: 'Resets in',
+      resettingSoon: 'Resetting soon',
+      userOverride: 'User Override',
+      groupDefault: 'Group Default',
+      globalLimit: 'Global Limit',
+      expandGroups: 'Show Groups',
+      collapse: 'Collapse',
+      groupsCount: '{count} groups',
+      noLimit: 'No limit',
+      days: 'd',
+      hours: 'h',
+      minutes: 'm'
+    }
   },
 
   // Groups (shared)
@@ -751,6 +776,13 @@ export default {
       columnSettings: 'Column Settings',
       filterValue: 'Enter value',
       // User Attributes
+      balanceQuota: {
+        title: 'Balance Quota Override',
+        description: 'Set individual spending limits for this user, overriding group defaults. Leave empty to use group defaults.',
+        dailyQuota: 'Daily Limit (USD)',
+        weeklyQuota: 'Weekly Limit (USD)',
+        useGroupDefault: 'Use group default'
+      },
       attributes: {
         title: 'User Attributes',
         description: 'Configure custom user attribute fields',
@@ -910,6 +942,12 @@ export default {
         fallbackGroup: 'Fallback Group',
         fallbackHint: 'Non-Claude Code requests will use this group. Leave empty to reject directly.',
         noFallback: 'No Fallback (Reject)'
+      },
+      balanceQuota: {
+        description: 'Set daily/weekly spending limits for balance billing users to control consumption rate',
+        dailyQuota: 'Daily Limit (USD)',
+        weeklyQuota: 'Weekly Limit (USD)',
+        noLimit: 'No limit'
       }
     },
 
@@ -1818,6 +1856,45 @@ export default {
       failedToLoadUsages: 'Failed to load usage records'
     },
 
+    // Announcements
+    announcements: {
+      title: 'Announcement Management',
+      description: 'Create and manage website announcements',
+      create: 'Create Announcement',
+      edit: 'Edit Announcement',
+      delete: 'Delete Announcement',
+      allStatus: 'All Status',
+      allTypes: 'All Types',
+      announcementTitle: 'Title',
+      titlePlaceholder: 'Enter announcement title (optional)',
+      content: 'Content',
+      contentPlaceholder: 'Enter announcement content, HTML format supported',
+      htmlSupported: 'Supports HTML format, e.g. <a href="...">link</a>, <b>bold</b>, etc.',
+      type: 'Type',
+      types: {
+        info: 'Info',
+        success: 'Success',
+        warning: 'Warning',
+        error: 'Error'
+      },
+      status: 'Status',
+      enabled: 'Enabled',
+      disabled: 'Disabled',
+      schedule: 'Schedule',
+      startTime: 'Start Time',
+      endTime: 'End Time',
+      sortOrder: 'Sort Order',
+      contentRequired: 'Content is required',
+      createSuccess: 'Announcement created successfully',
+      createFailed: 'Failed to create announcement',
+      updateSuccess: 'Announcement updated successfully',
+      updateFailed: 'Failed to update announcement',
+      deleteSuccess: 'Announcement deleted successfully',
+      deleteFailed: 'Failed to delete announcement',
+      deleteConfirmTitle: 'Delete Announcement',
+      deleteConfirmMessage: 'Are you sure you want to delete this announcement? This action cannot be undone.'
+    },
+
     // Usage Records
     usage: {
       title: 'Usage Records',
@@ -2433,7 +2510,10 @@ export default {
         enableRegistration: 'Enable Registration',
         enableRegistrationHint: 'Allow new users to register',
         emailVerification: 'Email Verification',
-        emailVerificationHint: 'Require email verification for new registrations'
+        emailVerificationHint: 'Require email verification for new registrations',
+        emailDomainWhitelist: 'Email Domain Whitelist',
+        emailDomainWhitelistPlaceholder: 'Type a domain and press Enter to add...',
+        emailDomainWhitelistHint: 'Restrict registration to specific email domains. Leave empty to allow all domains. Select from presets or enter custom domains.'
       },
       turnstile: {
         title: 'Cloudflare Turnstile',

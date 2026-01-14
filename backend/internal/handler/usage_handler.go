@@ -17,15 +17,27 @@ import (
 
 // UsageHandler handles usage-related requests
 type UsageHandler struct {
-	usageService  *service.UsageService
-	apiKeyService *service.APIKeyService
+	usageService        *service.UsageService
+	apiKeyService       *service.APIKeyService
+	billingCacheService *service.BillingCacheService
+	userService         *service.UserService
+	groupService        *service.GroupService
 }
 
 // NewUsageHandler creates a new UsageHandler
-func NewUsageHandler(usageService *service.UsageService, apiKeyService *service.APIKeyService) *UsageHandler {
+func NewUsageHandler(
+	usageService *service.UsageService,
+	apiKeyService *service.APIKeyService,
+	billingCacheService *service.BillingCacheService,
+	userService *service.UserService,
+	groupService *service.GroupService,
+) *UsageHandler {
 	return &UsageHandler{
-		usageService:  usageService,
-		apiKeyService: apiKeyService,
+		usageService:        usageService,
+		apiKeyService:       apiKeyService,
+		billingCacheService: billingCacheService,
+		userService:         userService,
+		groupService:        groupService,
 	}
 }
 
@@ -399,4 +411,107 @@ func (h *UsageHandler) DashboardAPIKeysUsage(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"stats": stats})
+}
+
+// DashboardQuota handles getting user balance quota information
+// GET /api/v1/usage/dashboard/quota
+func (h *UsageHandler) DashboardQuota(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	// 获取用户信息
+	user, err := h.userService.GetByID(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	// 可选参数：指定查询特定分组的限额
+	var group *service.Group
+	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
+		groupID, err := strconv.ParseInt(groupIDStr, 10, 64)
+		if err != nil {
+			response.BadRequest(c, "Invalid group_id")
+			return
+		}
+		group, err = h.groupService.GetByID(c.Request.Context(), groupID)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		// 验证是否为 standard 类型分组
+		if group.SubscriptionType != "standard" {
+			response.BadRequest(c, "Balance quota is only available for standard groups")
+			return
+		}
+	} else {
+		// 未指定 group_id 时，自动查找用户绑定的 standard 分组
+		availableGroups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID)
+		if err == nil {
+			// 找到第一个有限额设置的 standard 分组
+			for i := range availableGroups {
+				g := &availableGroups[i]
+				if g.SubscriptionType == "standard" && (g.BalanceDailyQuota != nil || g.BalanceWeeklyQuota != nil) {
+					group = g
+					break
+				}
+			}
+			// 如果没有找到有限额的分组，使用第一个 standard 分组
+			if group == nil {
+				for i := range availableGroups {
+					g := &availableGroups[i]
+					if g.SubscriptionType == "standard" {
+						group = g
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// 获取限额信息
+	quotaInfo, err := h.billingCacheService.GetBalanceQuotaInfo(c.Request.Context(), user, group)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, quotaInfo)
+}
+
+// DashboardQuotaV2 handles getting user balance quota information with group breakdown
+// GET /api/v1/usage/dashboard/quota/v2
+// 返回用户的全局限额和各分组独立限额信息
+func (h *UsageHandler) DashboardQuotaV2(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	// 获取用户信息
+	user, err := h.userService.GetByID(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	// 获取用户可用的所有分组
+	groups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID)
+	if err != nil {
+		// 如果获取分组失败，使用空列表
+		groups = []service.Group{}
+	}
+
+	// 获取 V2 限额信息（包含全局和各分组详情）
+	quotaInfo, err := h.billingCacheService.GetBalanceQuotaInfoV2(c.Request.Context(), user, groups)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, quotaInfo)
 }
