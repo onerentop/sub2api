@@ -892,8 +892,15 @@ func (s *GatewayService) compareAntigravityQuotaForScheduling(a, b *Account, req
 }
 
 func (s *GatewayService) isHardBlockedByAntigravityQuota(account *Account, requestedModel string, now time.Time) bool {
-	// 1. 检查内存级 429 临时阻塞缓存
-	if s.isAntigravity429Blocked(account.ID, requestedModel, now) {
+	// 使用映射后的模型名检查阻塞状态，确保与配额快照一致
+	// 例如 claude-opus-4-5-20251101 和 claude-opus-4-5-thinking 都映射到 claude-opus-4-5-thinking
+	mappedModel := requestedModel
+	if account != nil && account.Platform == PlatformAntigravity {
+		mappedModel = (&AntigravityGatewayService{}).getMappedModel(account, requestedModel)
+	}
+
+	// 1. 检查内存级 429 临时阻塞缓存（使用 mappedModel）
+	if s.isAntigravity429Blocked(account.ID, mappedModel, now) {
 		return true
 	}
 	// 2. 检查配额快照中的 hardBlocked 状态
@@ -970,7 +977,15 @@ func (s *GatewayService) ParseAntigravity429Duration(body []byte, headers http.H
 		}
 	}
 
-	// 3. 默认 30 秒（而非 5 分钟，因为 Antigravity 的 quota 重置通常很快）
+
+	// 3. 根据错误类型决定默认阻塞时间
+	// MODEL_CAPACITY_EXHAUSTED: 模型容量临时耗尽，通常很快恢复，使用较短阻塞时间
+	if bytes.Contains(body, []byte("MODEL_CAPACITY_EXHAUSTED")) ||
+		bytes.Contains(body, []byte("No capacity available")) {
+		return 5 * time.Second
+	}
+
+	// 4. 默认 30 秒（而非 5 分钟，因为 Antigravity 的 quota 重置通常很快）
 	return 30 * time.Second
 }
 
@@ -2565,9 +2580,11 @@ func (s *GatewayService) handleRetryExhaustedSideEffects(ctx context.Context, re
 
 	// Antigravity 账号遇到 429 时，也需要标记临时阻塞
 	if statusCode == 429 && account.Platform == PlatformAntigravity && reqModel != "" {
+		// 使用映射后的模型名，确保与阻塞检查一致
+		mappedModel := (&AntigravityGatewayService{}).getMappedModel(account, reqModel)
 		// 使用精确解析的阻塞时间（从 header 或 body 中解析）
 		duration := s.ParseAntigravity429Duration(body, resp.Header)
-		s.MarkAntigravity429Blocked(account.ID, reqModel, duration)
+		s.MarkAntigravity429Blocked(account.ID, mappedModel, duration)
 	}
 
 	// OAuth/Setup Token 账号的 403：标记账号异常
@@ -2585,9 +2602,11 @@ func (s *GatewayService) handleFailoverSideEffects(ctx context.Context, resp *ht
 
 	// Antigravity 账号遇到 429 时，临时标记为阻塞状态，避免短时间内再次被选中
 	if resp.StatusCode == 429 && account.Platform == PlatformAntigravity && reqModel != "" {
+		// 使用映射后的模型名，确保与阻塞检查一致
+		mappedModel := (&AntigravityGatewayService{}).getMappedModel(account, reqModel)
 		// 使用精确解析的阻塞时间（从 header 或 body 中解析）
 		duration := s.ParseAntigravity429Duration(body, resp.Header)
-		s.MarkAntigravity429Blocked(account.ID, reqModel, duration)
+		s.MarkAntigravity429Blocked(account.ID, mappedModel, duration)
 	}
 }
 

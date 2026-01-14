@@ -1734,12 +1734,14 @@ func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, pre
 
 		// 同步到内存级别的阻塞缓存（用于跨请求快速过滤）
 		if s.blockNotifier != nil && requestedModel != "" {
+			// 使用映射后的模型名，确保与阻塞检查一致
+			mappedModel := s.getMappedModel(account, requestedModel)
 			// 使用 blockNotifier 提供的精确解析（优先 Retry-After header）
 			duration := s.blockNotifier.ParseAntigravity429Duration(body, headers)
 			if duration <= 0 {
 				duration = blockDuration
 			}
-			s.blockNotifier.MarkAntigravity429Blocked(account.ID, requestedModel, duration)
+			s.blockNotifier.MarkAntigravity429Blocked(account.ID, mappedModel, duration)
 		}
 		return
 	}

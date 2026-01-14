@@ -179,7 +179,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	}
 
 	if platform == service.PlatformGemini {
-		const maxAccountSwitches = 3
+		const maxAccountSwitches = 20
 		switchCount := 0
 		failedAccountIDs := make(map[int64]struct{})
 		lastFailoverStatus := 0
@@ -313,7 +313,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		}
 	}
 
-	const maxAccountSwitches = 10
+	const maxAccountSwitches = 20
 	switchCount := 0
 	failedAccountIDs := make(map[int64]struct{})
 	lastFailoverStatus := 0
