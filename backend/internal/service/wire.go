@@ -181,6 +181,20 @@ func ProvideOpsScheduledReportService(
 	return svc
 }
 
+// ProvideAccount429Tracker creates Account429Tracker with configuration from config.
+func ProvideAccount429Tracker(cfg *config.Config) *Account429Tracker {
+	var trackerCfg *Account429TrackerConfig
+	if cfg != nil && cfg.Scheduling.BackoffBaseSeconds > 0 {
+		trackerCfg = &Account429TrackerConfig{
+			BackoffBaseSeconds:   cfg.Scheduling.BackoffBaseSeconds,
+			BackoffMaxSeconds:    cfg.Scheduling.BackoffMaxSeconds,
+			BackoffMaxExponent:   cfg.Scheduling.BackoffMaxExponent,
+			HistoryWindowMinutes: cfg.Scheduling.HistoryWindowMinutes,
+		}
+	}
+	return NewAccount429Tracker(trackerCfg)
+}
+
 // ProvideAntigravityGatewayService creates AntigravityGatewayService and wires up 429 block notifier.
 // This ensures Antigravity 429 rate limits are synced to memory-level block cache for fast cross-request filtering.
 func ProvideAntigravityGatewayService(
@@ -226,6 +240,7 @@ var ProviderSet = wire.NewSet(
 	NewBillingService,
 	NewBillingCacheService,
 	NewAdminService,
+	ProvideAccount429Tracker,
 	NewGatewayService,
 	NewOpenAIGatewayService,
 	NewOAuthService,

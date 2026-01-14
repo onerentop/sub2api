@@ -59,6 +59,7 @@ type Config struct {
 	Timezone     string                     `mapstructure:"timezone"` // e.g. "Asia/Shanghai", "UTC"
 	Gemini       GeminiConfig               `mapstructure:"gemini"`
 	Update       UpdateConfig               `mapstructure:"update"`
+	Scheduling   SchedulingConfig           `mapstructure:"scheduling"`
 }
 
 type GeminiConfig struct {
@@ -88,6 +89,39 @@ type UpdateConfig struct {
 	// 支持 http/https/socks5/socks5h 协议
 	// 例如: "http://127.0.0.1:7890", "socks5://127.0.0.1:1080"
 	ProxyURL string `mapstructure:"proxy_url"`
+}
+
+// SchedulingConfig 多因子调度算法配置
+// 控制账户选择时的评分权重和退避策略
+type SchedulingConfig struct {
+	// 评分权重（四个权重之和应为 1.0）
+	// WeightCapacity: 配额容量权重，默认 0.35
+	WeightCapacity float64 `mapstructure:"weight_capacity"`
+	// WeightLoad: 实时负载权重，默认 0.30
+	WeightLoad float64 `mapstructure:"weight_load"`
+	// WeightHistory: 历史表现权重（基于最近 429 次数），默认 0.25
+	WeightHistory float64 `mapstructure:"weight_history"`
+	// WeightPriority: 账户优先级权重，默认 0.10
+	WeightPriority float64 `mapstructure:"weight_priority"`
+
+	// 指数退避配置
+	// BackoffBaseSeconds: 基础退避时间（秒），默认 5
+	BackoffBaseSeconds int `mapstructure:"backoff_base_seconds"`
+	// BackoffMaxSeconds: 最大退避时间（秒），默认 300
+	BackoffMaxSeconds int `mapstructure:"backoff_max_seconds"`
+	// BackoffMaxExponent: 最大指数（2^n），默认 6
+	BackoffMaxExponent int `mapstructure:"backoff_max_exponent"`
+
+	// 历史窗口配置
+	// HistoryWindowMinutes: 429 历史统计窗口（分钟），默认 5
+	HistoryWindowMinutes int `mapstructure:"history_window_minutes"`
+
+	// 选择策略
+	// EnableWeightedRandom: 是否启用加权随机选择，默认 true
+	// 禁用时退回确定性选择（选择最高分账户）
+	EnableWeightedRandom bool `mapstructure:"enable_weighted_random"`
+	// MinScoreThreshold: 最低分数阈值，低于此分数的账户不参与选择，默认 10
+	MinScoreThreshold float64 `mapstructure:"min_score_threshold"`
 }
 
 type LinuxDoConnectConfig struct {
@@ -809,6 +843,22 @@ func setDefaults() {
 	// 3 * 300s = 15min：允许短暂抓取失败但避免长期使用陈旧数据
 	viper.SetDefault("gateway.scheduling.antigravity_quota.stale_after_seconds", 900)
 	viper.SetDefault("concurrency.ping_interval", 10)
+
+	// Scheduling - 多因子调度算法配置
+	// 评分权重（总和应为 1.0）
+	viper.SetDefault("scheduling.weight_capacity", 0.35)
+	viper.SetDefault("scheduling.weight_load", 0.30)
+	viper.SetDefault("scheduling.weight_history", 0.25)
+	viper.SetDefault("scheduling.weight_priority", 0.10)
+	// 指数退避配置
+	viper.SetDefault("scheduling.backoff_base_seconds", 5)
+	viper.SetDefault("scheduling.backoff_max_seconds", 300)
+	viper.SetDefault("scheduling.backoff_max_exponent", 6)
+	// 历史窗口
+	viper.SetDefault("scheduling.history_window_minutes", 5)
+	// 选择策略
+	viper.SetDefault("scheduling.enable_weighted_random", true)
+	viper.SetDefault("scheduling.min_score_threshold", 10.0)
 
 	// TokenRefresh
 	viper.SetDefault("token_refresh.enabled", true)

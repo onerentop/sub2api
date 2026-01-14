@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -162,10 +161,9 @@ type GatewayService struct {
 	deferredService     *DeferredService
 	concurrencyService  *ConcurrencyService
 
-	// antigravity429BlockCache: 429 后临时阻塞缓存
-	// key: "accountID:model" → value: 阻塞到期时间
-	antigravity429BlockMu    sync.RWMutex
-	antigravity429BlockCache map[string]time.Time
+	// 多因子调度算法组件
+	account429Tracker *Account429Tracker
+	scoringConfig     *AccountScoringConfig
 }
 
 // NewGatewayService creates a new GatewayService
@@ -185,24 +183,29 @@ func NewGatewayService(
 	identityService *IdentityService,
 	httpUpstream HTTPUpstream,
 	deferredService *DeferredService,
+	account429Tracker *Account429Tracker,
 ) *GatewayService {
+	// 从配置构建评分配置
+	scoringConfig := buildScoringConfigFromConfig(cfg)
+
 	return &GatewayService{
-		accountRepo:              accountRepo,
-		groupRepo:                groupRepo,
-		usageLogRepo:             usageLogRepo,
-		userRepo:                 userRepo,
-		userSubRepo:              userSubRepo,
-		cache:                    cache,
-		cfg:                      cfg,
-		schedulerSnapshot:        schedulerSnapshot,
-		concurrencyService:       concurrencyService,
-		billingService:           billingService,
-		rateLimitService:         rateLimitService,
-		billingCacheService:      billingCacheService,
-		identityService:          identityService,
-		httpUpstream:             httpUpstream,
-		deferredService:          deferredService,
-		antigravity429BlockCache: make(map[string]time.Time),
+		accountRepo:         accountRepo,
+		groupRepo:           groupRepo,
+		usageLogRepo:        usageLogRepo,
+		userRepo:            userRepo,
+		userSubRepo:         userSubRepo,
+		cache:               cache,
+		cfg:                 cfg,
+		schedulerSnapshot:   schedulerSnapshot,
+		concurrencyService:  concurrencyService,
+		billingService:      billingService,
+		rateLimitService:    rateLimitService,
+		billingCacheService: billingCacheService,
+		identityService:     identityService,
+		httpUpstream:        httpUpstream,
+		deferredService:     deferredService,
+		account429Tracker:   account429Tracker,
+		scoringConfig:       scoringConfig,
 	}
 }
 
@@ -244,6 +247,33 @@ func (s *GatewayService) GenerateSessionHash(parsed *ParsedRequest) string {
 	}
 
 	return ""
+}
+
+// buildScoringConfigFromConfig 从配置文件构建评分配置
+func buildScoringConfigFromConfig(cfg *config.Config) *AccountScoringConfig {
+	scoringCfg := DefaultAccountScoringConfig()
+	if cfg == nil {
+		return scoringCfg
+	}
+
+	sc := &cfg.Scheduling
+	if sc.WeightCapacity > 0 {
+		scoringCfg.WeightCapacity = sc.WeightCapacity
+	}
+	if sc.WeightLoad > 0 {
+		scoringCfg.WeightLoad = sc.WeightLoad
+	}
+	if sc.WeightHistory > 0 {
+		scoringCfg.WeightHistory = sc.WeightHistory
+	}
+	if sc.WeightPriority > 0 {
+		scoringCfg.WeightPriority = sc.WeightPriority
+	}
+	if sc.MinScoreThreshold > 0 {
+		scoringCfg.MinScoreThreshold = sc.MinScoreThreshold
+	}
+
+	return scoringCfg
 }
 
 // BindStickySession sets session -> account binding with standard TTL.
@@ -573,9 +603,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		}
 
 		if len(available) > 0 {
-			quotaKeys := make(map[int64]antigravityQuotaKey, len(available))
+			quotaKeys := make(map[int64]AntigravityQuotaKey, len(available))
 			for _, item := range available {
-				quotaKeys[item.account.ID] = s.antigravityQuotaKeyForAccount(item.account, requestedModel, now)
+				quotaKeys[item.account.ID] = s.AntigravityQuotaKeyForAccount(item.account, requestedModel, now)
 			}
 
 			sort.SliceStable(available, func(i, j int) bool {
@@ -691,7 +721,8 @@ const (
 	antigravityQuotaBucketUnknown  = 2
 )
 
-type antigravityQuotaKey struct {
+// AntigravityQuotaKey 配额快照键（用于调度决策）
+type AntigravityQuotaKey struct {
 	bucket      int
 	utilization int
 	hasUtil     bool
@@ -737,35 +768,35 @@ func (s *GatewayService) antigravityQuotaSchedulingConfig() config.AntigravityQu
 	return cfg
 }
 
-func (s *GatewayService) antigravityQuotaKeyForAccount(account *Account, requestedModel string, now time.Time) antigravityQuotaKey {
+func (s *GatewayService) AntigravityQuotaKeyForAccount(account *Account, requestedModel string, now time.Time) AntigravityQuotaKey {
 	// 非 Antigravity 账号：不参与配额快照逻辑，保持与旧调度一致
 	if account == nil {
-		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+		return AntigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
 	}
 
 	cfg := s.antigravityQuotaSchedulingConfig()
 	if !cfg.Enabled {
-		return antigravityQuotaKey{bucket: antigravityQuotaBucketHealthy}
+		return AntigravityQuotaKey{bucket: antigravityQuotaBucketHealthy}
 	}
 
 	if account.Platform != PlatformAntigravity || strings.TrimSpace(requestedModel) == "" {
-		return antigravityQuotaKey{bucket: antigravityQuotaBucketHealthy}
+		return AntigravityQuotaKey{bucket: antigravityQuotaBucketHealthy}
 	}
 
 	// 1) 解析快照
 	rawSnap, ok := account.Extra[antigravityQuotaSnapshotExtraKey].(map[string]any)
 	if !ok || rawSnap == nil {
-		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+		return AntigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
 	}
 
 	updatedAtStr, _ := rawSnap["updated_at"].(string)
 	updatedAtStr = strings.TrimSpace(updatedAtStr)
 	if updatedAtStr == "" {
-		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+		return AntigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
 	}
 	updatedAt, err := time.Parse(time.RFC3339, updatedAtStr)
 	if err != nil {
-		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+		return AntigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
 	}
 
 	staleAfter := time.Duration(cfg.StaleAfterSeconds) * time.Second
@@ -773,22 +804,22 @@ func (s *GatewayService) antigravityQuotaKeyForAccount(account *Account, request
 		staleAfter = 15 * time.Minute
 	}
 	if now.Sub(updatedAt) > staleAfter {
-		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+		return AntigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
 	}
 
 	modelsRaw, ok := rawSnap["models"].(map[string]any)
 	if !ok || modelsRaw == nil {
-		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+		return AntigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
 	}
 
 	// 2) Antigravity 实际使用的模型可能与请求模型不同（如 claude-opus-4-5-20251101 → claude-opus-4-5-thinking）
 	mappedModel := (&AntigravityGatewayService{}).getMappedModel(account, requestedModel)
 	modelRaw, ok := modelsRaw[mappedModel].(map[string]any)
 	if !ok || modelRaw == nil {
-		return antigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
+		return AntigravityQuotaKey{bucket: antigravityQuotaBucketUnknown}
 	}
 
-	key := antigravityQuotaKey{bucket: antigravityQuotaBucketHealthy}
+	key := AntigravityQuotaKey{bucket: antigravityQuotaBucketHealthy}
 
 	// utilization
 	if util, ok := intFromAny(modelRaw["utilization"]); ok {
@@ -860,37 +891,6 @@ func intFromAny(v any) (int, bool) {
 	}
 }
 
-func (s *GatewayService) compareAntigravityQuotaForScheduling(a, b *Account, requestedModel string, now time.Time) int {
-	ka := s.antigravityQuotaKeyForAccount(a, requestedModel, now)
-	kb := s.antigravityQuotaKeyForAccount(b, requestedModel, now)
-
-	// bucket：healthy < soft-risk < unknown
-	if ka.bucket != kb.bucket {
-		if ka.bucket < kb.bucket {
-			return -1
-		}
-		return 1
-	}
-
-	// utilization：仅在双方都有值时比较（避免跨平台/跨来源不一致导致的偏置）
-	if ka.hasUtil && kb.hasUtil && ka.utilization != kb.utilization {
-		if ka.utilization < kb.utilization {
-			return -1
-		}
-		return 1
-	}
-
-	// reset_time：仅对 soft-risk 且双方都有 reset_time 时比较
-	if ka.bucket == antigravityQuotaBucketSoftRisk && ka.hasReset && kb.hasReset && !ka.resetAt.Equal(kb.resetAt) {
-		if ka.resetAt.Before(kb.resetAt) {
-			return -1
-		}
-		return 1
-	}
-
-	return 0
-}
-
 func (s *GatewayService) isHardBlockedByAntigravityQuota(account *Account, requestedModel string, now time.Time) bool {
 	// 使用映射后的模型名检查阻塞状态，确保与配额快照一致
 	// 例如 claude-opus-4-5-20251101 和 claude-opus-4-5-thinking 都映射到 claude-opus-4-5-thinking
@@ -899,61 +899,24 @@ func (s *GatewayService) isHardBlockedByAntigravityQuota(account *Account, reque
 		mappedModel = (&AntigravityGatewayService{}).getMappedModel(account, requestedModel)
 	}
 
-	// 1. 检查内存级 429 临时阻塞缓存（使用 mappedModel）
-	if s.isAntigravity429Blocked(account.ID, mappedModel, now) {
+	// 1. 检查指数退避状态（使用 mappedModel）
+	if s.account429Tracker != nil && s.account429Tracker.ShouldSkipAt(account.ID, mappedModel, now) {
 		return true
 	}
 	// 2. 检查配额快照中的 hardBlocked 状态
-	return s.antigravityQuotaKeyForAccount(account, requestedModel, now).hardBlocked
+	return s.AntigravityQuotaKeyForAccount(account, requestedModel, now).hardBlocked
 }
 
-// antigravity429BlockKey 生成 429 临时阻塞缓存的 key
-func antigravity429BlockKey(accountID int64, model string) string {
-	return fmt.Sprintf("%d:%s", accountID, model)
-}
-
-// MarkAntigravity429Blocked 标记账号+模型为临时阻塞状态
-// duration: 阻塞持续时间（默认 30 秒）
+// MarkAntigravity429Blocked 标记账号+模型为临时阻塞状态（委托给 Account429Tracker）
+// 此方法实现 Antigravity429BlockNotifier 接口
 func (s *GatewayService) MarkAntigravity429Blocked(accountID int64, model string, duration time.Duration) {
-	if duration <= 0 {
-		duration = 30 * time.Second
+	if s.account429Tracker == nil {
+		return
 	}
-	key := antigravity429BlockKey(accountID, model)
-	now := time.Now()
-	until := now.Add(duration)
-
-	s.antigravity429BlockMu.Lock()
-	if s.antigravity429BlockCache == nil {
-		s.antigravity429BlockCache = make(map[string]time.Time)
-	}
-	s.antigravity429BlockCache[key] = until
-
-	// 懒惰清理：每次写入时顺便清理过期条目（缓存较小，开销可接受）
-	for k, v := range s.antigravity429BlockCache {
-		if now.After(v) {
-			delete(s.antigravity429BlockCache, k)
-		}
-	}
-	s.antigravity429BlockMu.Unlock()
-
-	log.Printf("Account %d: marked as 429-blocked for model %s until %v", accountID, model, until)
-}
-
-// isAntigravity429Blocked 检查账号+模型是否在 429 临时阻塞状态
-func (s *GatewayService) isAntigravity429Blocked(accountID int64, model string, now time.Time) bool {
-	s.antigravity429BlockMu.RLock()
-	defer s.antigravity429BlockMu.RUnlock()
-
-	if s.antigravity429BlockCache == nil {
-		return false
-	}
-
-	key := antigravity429BlockKey(accountID, model)
-	until, exists := s.antigravity429BlockCache[key]
-	if !exists {
-		return false
-	}
-	return now.Before(until)
+	// 记录 429 事件，Account429Tracker 会自动计算指数退避
+	s.account429Tracker.Record429(accountID, model)
+	log.Printf("Account %d: recorded 429 for model %s, backoff until %v",
+		accountID, model, s.account429Tracker.GetBackoffUntil(accountID, model))
 }
 
 // ParseAntigravity429Duration 精确解析 Antigravity/Gemini 格式 429 响应的阻塞时间
@@ -994,12 +957,12 @@ func (s *GatewayService) sortAccountsByPriorityAndLastUsedWithAntigravityQuota(a
 	}
 
 	now := time.Now()
-	quotaKeys := make(map[int64]antigravityQuotaKey, len(accounts))
+	quotaKeys := make(map[int64]AntigravityQuotaKey, len(accounts))
 	for _, acc := range accounts {
 		if acc == nil {
 			continue
 		}
-		quotaKeys[acc.ID] = s.antigravityQuotaKeyForAccount(acc, requestedModel, now)
+		quotaKeys[acc.ID] = s.AntigravityQuotaKeyForAccount(acc, requestedModel, now)
 	}
 
 	sort.SliceStable(accounts, func(i, j int) bool {
@@ -1285,51 +1248,8 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}
 
-	// 3. 按优先级+最久未用选择（考虑模型支持）
-	var selected *Account
-	for i := range accounts {
-		acc := &accounts[i]
-		if _, excluded := excludedIDs[acc.ID]; excluded {
-			continue
-		}
-		if !acc.IsSchedulableForModel(requestedModel) {
-			continue
-		}
-		if s.isHardBlockedByAntigravityQuota(acc, requestedModel, now) {
-			continue
-		}
-		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
-			continue
-		}
-		if selected == nil {
-			selected = acc
-			continue
-		}
-		if acc.Priority < selected.Priority {
-			selected = acc
-		} else if acc.Priority == selected.Priority {
-			if cmp := s.compareAntigravityQuotaForScheduling(acc, selected, requestedModel, now); cmp < 0 {
-				selected = acc
-				continue
-			} else if cmp > 0 {
-				continue
-			}
-			switch {
-			case acc.LastUsedAt == nil && selected.LastUsedAt != nil:
-				selected = acc
-			case acc.LastUsedAt != nil && selected.LastUsedAt == nil:
-				// keep selected (never used is preferred)
-			case acc.LastUsedAt == nil && selected.LastUsedAt == nil:
-				if preferOAuth && acc.Type != selected.Type && acc.Type == AccountTypeOAuth {
-					selected = acc
-				}
-			default:
-				if acc.LastUsedAt.Before(*selected.LastUsedAt) {
-					selected = acc
-				}
-			}
-		}
-	}
+	// 3. 硬过滤 + 多因子评分选择
+	selected := s.selectAccountByMultiFactorScoring(ctx, accounts, requestedModel, excludedIDs, now, preferOAuth, platform, false)
 
 	if selected == nil {
 		if requestedModel != "" {
@@ -1346,6 +1266,107 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 	}
 
 	return selected, nil
+}
+
+// selectAccountByMultiFactorScoring 使用多因子评分算法选择账户
+// 流程：硬过滤 -> 多因子评分 -> 加权随机选择
+func (s *GatewayService) selectAccountByMultiFactorScoring(
+	ctx context.Context,
+	accounts []Account,
+	requestedModel string,
+	excludedIDs map[int64]struct{},
+	now time.Time,
+	preferOAuth bool,
+	platform string,
+	isMixedScheduling bool,
+) *Account {
+	if len(accounts) == 0 {
+		return nil
+	}
+
+	// Phase 1: 硬过滤
+	var eligibleAccounts []Account
+	for i := range accounts {
+		acc := &accounts[i]
+
+		// 排除已排除的账户
+		if _, excluded := excludedIDs[acc.ID]; excluded {
+			continue
+		}
+
+		// 混合调度模式下，antigravity 账户需要启用混合调度
+		if isMixedScheduling && acc.Platform == PlatformAntigravity && !acc.IsMixedSchedulingEnabled() {
+			continue
+		}
+
+		// 检查模型可调度性
+		if !acc.IsSchedulableForModel(requestedModel) {
+			continue
+		}
+
+		// 检查硬阻塞（配额耗尽 + 指数退避）
+		if s.isHardBlockedByAntigravityQuota(acc, requestedModel, now) {
+			continue
+		}
+
+		// 检查模型支持
+		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
+			continue
+		}
+
+		eligibleAccounts = append(eligibleAccounts, *acc)
+	}
+
+	if len(eligibleAccounts) == 0 {
+		return nil
+	}
+
+	// 如果只有一个账户，直接返回
+	if len(eligibleAccounts) == 1 {
+		return &eligibleAccounts[0]
+	}
+
+	// Phase 2: 多因子评分
+	scoringCtx := &AccountScoringContext{
+		Now:              now,
+		RequestedModel:   requestedModel,
+		Tracker:          s.account429Tracker,
+		Config:           s.scoringConfig,
+		ConcurrencyCache: s.concurrencyService.cache,
+	}
+
+	// 配额信息提供者
+	quotaProvider := func(acc *Account) *AntigravityQuotaKey {
+		if acc.Platform != PlatformAntigravity {
+			return nil
+		}
+		key := s.AntigravityQuotaKeyForAccount(acc, requestedModel, now)
+		return &key
+	}
+
+	// 是否使用加权随机
+	useWeightedRandom := true
+	if s.cfg != nil {
+		useWeightedRandom = s.cfg.Scheduling.EnableWeightedRandom
+	}
+
+	minThreshold := 10.0
+	if s.scoringConfig != nil {
+		minThreshold = s.scoringConfig.MinScoreThreshold
+	}
+
+	// Phase 3: 评分并选择
+	selected, _ := ScoreAndSelectAccount(ctx, eligibleAccounts, scoringCtx, quotaProvider, useWeightedRandom)
+	if selected == nil {
+		return nil
+	}
+
+	// 如果分数太低，使用加权随机可能返回 nil，此时回退到确定性选择
+	if selected.Score < minThreshold && !useWeightedRandom {
+		return nil
+	}
+
+	return selected.Account
 }
 
 // selectAccountWithMixedScheduling 选择账户（支持混合调度）
@@ -1382,55 +1403,8 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}
 
-	// 3. 按优先级+最久未用选择（考虑模型支持和混合调度）
-	var selected *Account
-	for i := range accounts {
-		acc := &accounts[i]
-		if _, excluded := excludedIDs[acc.ID]; excluded {
-			continue
-		}
-		// 过滤：原生平台直接通过，antigravity 需要启用混合调度
-		if acc.Platform == PlatformAntigravity && !acc.IsMixedSchedulingEnabled() {
-			continue
-		}
-		if !acc.IsSchedulableForModel(requestedModel) {
-			continue
-		}
-		if s.isHardBlockedByAntigravityQuota(acc, requestedModel, now) {
-			continue
-		}
-		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
-			continue
-		}
-		if selected == nil {
-			selected = acc
-			continue
-		}
-		if acc.Priority < selected.Priority {
-			selected = acc
-		} else if acc.Priority == selected.Priority {
-			if cmp := s.compareAntigravityQuotaForScheduling(acc, selected, requestedModel, now); cmp < 0 {
-				selected = acc
-				continue
-			} else if cmp > 0 {
-				continue
-			}
-			switch {
-			case acc.LastUsedAt == nil && selected.LastUsedAt != nil:
-				selected = acc
-			case acc.LastUsedAt != nil && selected.LastUsedAt == nil:
-				// keep selected (never used is preferred)
-			case acc.LastUsedAt == nil && selected.LastUsedAt == nil:
-				if preferOAuth && acc.Platform == PlatformGemini && selected.Platform == PlatformGemini && acc.Type != selected.Type && acc.Type == AccountTypeOAuth {
-					selected = acc
-				}
-			default:
-				if acc.LastUsedAt.Before(*selected.LastUsedAt) {
-					selected = acc
-				}
-			}
-		}
-	}
+	// 3. 硬过滤 + 多因子评分选择（混合调度模式）
+	selected := s.selectAccountByMultiFactorScoring(ctx, accounts, requestedModel, excludedIDs, now, preferOAuth, nativePlatform, true)
 
 	if selected == nil {
 		if requestedModel != "" {
