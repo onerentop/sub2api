@@ -1396,6 +1396,10 @@ func (r *stubUsageLogRepo) GetStatsWithFilters(ctx context.Context, filters usag
 	return nil, errors.New("not implemented")
 }
 
+func (r *stubUsageLogRepo) SumActualCostByUserGroupAndTimeRange(ctx context.Context, userID, groupID int64, startTime, endTime time.Time) (float64, error) {
+	return 0, nil
+}
+
 type stubSettingRepo struct {
 	all map[string]string
 }

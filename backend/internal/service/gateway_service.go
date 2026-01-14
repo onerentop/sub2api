@@ -949,19 +949,6 @@ func (s *GatewayService) isAntigravity429Blocked(accountID int64, model string, 
 	return now.Before(until)
 }
 
-// cleanupExpiredAntigravity429Blocks 清理过期的 429 阻塞记录（可选：定期调用）
-func (s *GatewayService) cleanupExpiredAntigravity429Blocks() {
-	now := time.Now()
-	s.antigravity429BlockMu.Lock()
-	defer s.antigravity429BlockMu.Unlock()
-
-	for key, until := range s.antigravity429BlockCache {
-		if now.After(until) {
-			delete(s.antigravity429BlockCache, key)
-		}
-	}
-}
-
 // ParseAntigravity429Duration 精确解析 Antigravity/Gemini 格式 429 响应的阻塞时间
 // 优先级：1. Retry-After header → 2. body 中的 quotaResetDelay → 3. 默认 30 秒
 func (s *GatewayService) ParseAntigravity429Duration(body []byte, headers http.Header) time.Duration {

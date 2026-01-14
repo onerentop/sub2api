@@ -2254,7 +2254,7 @@ func (r *usageLogRepository) SumActualCostByUserGroupedByGroup(
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := make(map[int64]float64)
 	for rows.Next() {
