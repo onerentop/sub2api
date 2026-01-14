@@ -892,18 +892,11 @@ func intFromAny(v any) (int, bool) {
 }
 
 func (s *GatewayService) isHardBlockedByAntigravityQuota(account *Account, requestedModel string, now time.Time) bool {
-	// 使用映射后的模型名检查阻塞状态，确保与配额快照一致
-	// 例如 claude-opus-4-5-20251101 和 claude-opus-4-5-thinking 都映射到 claude-opus-4-5-thinking
-	mappedModel := requestedModel
-	if account != nil && account.Platform == PlatformAntigravity {
-		mappedModel = (&AntigravityGatewayService{}).getMappedModel(account, requestedModel)
-	}
+	// 注意：指数退避不再作为硬阻塞条件
+	// 退避状态会通过 calculateHistoryScore 降低账户分数，但不会完全排除
+	// 这样可以避免所有账户同时被阻塞导致 "no available accounts" 错误
 
-	// 1. 检查指数退避状态（使用 mappedModel）
-	if s.account429Tracker != nil && s.account429Tracker.ShouldSkipAt(account.ID, mappedModel, now) {
-		return true
-	}
-	// 2. 检查配额快照中的 hardBlocked 状态
+	// 只检查配额快照中的 hardBlocked 状态（配额完全耗尽）
 	return s.AntigravityQuotaKeyForAccount(account, requestedModel, now).hardBlocked
 }
 

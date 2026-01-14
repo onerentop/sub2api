@@ -138,24 +138,26 @@ func TestSelectByWeightedRandom(t *testing.T) {
 		}
 	})
 
-	t.Run("single account below threshold", func(t *testing.T) {
+	t.Run("single account below threshold - fallback to best", func(t *testing.T) {
 		accounts := []ScoredAccount{
 			{Account: &Account{ID: 1}, Score: 5},
 		}
 		result := SelectByWeightedRandom(accounts, 10)
-		if result != nil {
-			t.Error("Expected nil for account below threshold")
+		// 安全机制：即使低于阈值也返回账户，避免 "no available accounts"
+		if result == nil || result.Account.ID != 1 {
+			t.Error("Expected account 1 to be returned (fallback mechanism)")
 		}
 	})
 
-	t.Run("all accounts below threshold", func(t *testing.T) {
+	t.Run("all accounts below threshold - fallback to highest", func(t *testing.T) {
 		accounts := []ScoredAccount{
 			{Account: &Account{ID: 1}, Score: 5},
 			{Account: &Account{ID: 2}, Score: 8},
 		}
 		result := SelectByWeightedRandom(accounts, 10)
-		if result != nil {
-			t.Error("Expected nil when all accounts below threshold")
+		// 安全机制：返回最高分账户（ID=2，分数=8）
+		if result == nil || result.Account.ID != 2 {
+			t.Error("Expected account 2 (highest score) when all below threshold")
 		}
 	})
 
@@ -191,14 +193,15 @@ func TestSelectByHighestScore(t *testing.T) {
 		}
 	})
 
-	t.Run("all below threshold", func(t *testing.T) {
+	t.Run("all below threshold - fallback to highest", func(t *testing.T) {
 		accounts := []ScoredAccount{
 			{Account: &Account{ID: 1}, Score: 5},
 			{Account: &Account{ID: 2}, Score: 8},
 		}
 		result := SelectByHighestScore(accounts, 10)
-		if result != nil {
-			t.Error("Expected nil when all below threshold")
+		// 安全机制：返回最高分账户（ID=2，分数=8）
+		if result == nil || result.Account.ID != 2 {
+			t.Error("Expected account 2 (highest score) when all below threshold")
 		}
 	})
 

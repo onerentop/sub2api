@@ -193,10 +193,8 @@ func SelectByWeightedRandom(accounts []ScoredAccount, minScoreThreshold float64)
 		return nil
 	}
 	if len(accounts) == 1 {
-		if accounts[0].Score >= minScoreThreshold {
-			return &accounts[0]
-		}
-		return nil
+		// 单账户时直接返回（不检查阈值，避免完全无可用账户）
+		return &accounts[0]
 	}
 
 	// 过滤低于阈值的账户
@@ -207,8 +205,16 @@ func SelectByWeightedRandom(accounts []ScoredAccount, minScoreThreshold float64)
 		}
 	}
 
+	// 安全机制：如果所有账户都低于阈值，降级到选择最高分账户
+	// 避免 "no available accounts" 错误
 	if len(eligible) == 0 {
-		return nil
+		var best *ScoredAccount
+		for i := range accounts {
+			if best == nil || accounts[i].Score > best.Score {
+				best = &accounts[i]
+			}
+		}
+		return best
 	}
 	if len(eligible) == 1 {
 		return &eligible[0]
@@ -247,13 +253,25 @@ func SelectByHighestScore(accounts []ScoredAccount, minScoreThreshold float64) *
 	}
 
 	var best *ScoredAccount
+	var bestUnfiltered *ScoredAccount // 用于安全机制回退
+
 	for i := range accounts {
-		if accounts[i].Score < minScoreThreshold {
-			continue
+		// 跟踪最高分（忽略阈值）
+		if bestUnfiltered == nil || accounts[i].Score > bestUnfiltered.Score {
+			bestUnfiltered = &accounts[i]
 		}
-		if best == nil || accounts[i].Score > best.Score {
-			best = &accounts[i]
+		// 跟踪高于阈值的最高分
+		if accounts[i].Score >= minScoreThreshold {
+			if best == nil || accounts[i].Score > best.Score {
+				best = &accounts[i]
+			}
 		}
+	}
+
+	// 安全机制：如果没有高于阈值的账户，返回最高分账户
+	// 避免 "no available accounts" 错误
+	if best == nil {
+		return bestUnfiltered
 	}
 
 	return best
