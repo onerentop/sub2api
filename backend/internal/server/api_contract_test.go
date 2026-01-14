@@ -1400,6 +1400,10 @@ func (r *stubUsageLogRepo) SumActualCostByUserGroupAndTimeRange(ctx context.Cont
 	return 0, nil
 }
 
+func (r *stubUsageLogRepo) SumActualCostByUserGroupedByGroup(ctx context.Context, userID int64, startTime, endTime time.Time) (map[int64]float64, error) {
+	return make(map[int64]float64), nil
+}
+
 type stubSettingRepo struct {
 	all map[string]string
 }
