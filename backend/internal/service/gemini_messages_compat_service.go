@@ -46,6 +46,7 @@ type GeminiMessagesCompatService struct {
 	httpUpstream              HTTPUpstream
 	antigravityGatewayService *AntigravityGatewayService
 	cfg                       *config.Config
+	account429Tracker         *Account429Tracker
 }
 
 func NewGeminiMessagesCompatService(
@@ -58,6 +59,7 @@ func NewGeminiMessagesCompatService(
 	httpUpstream HTTPUpstream,
 	antigravityGatewayService *AntigravityGatewayService,
 	cfg *config.Config,
+	account429Tracker *Account429Tracker,
 ) *GeminiMessagesCompatService {
 	return &GeminiMessagesCompatService{
 		accountRepo:               accountRepo,
@@ -69,6 +71,7 @@ func NewGeminiMessagesCompatService(
 		httpUpstream:              httpUpstream,
 		antigravityGatewayService: antigravityGatewayService,
 		cfg:                       cfg,
+		account429Tracker:         account429Tracker,
 	}
 }
 
@@ -2328,12 +2331,20 @@ func (s *GeminiMessagesCompatService) handleGeminiUpstreamError(ctx context.Cont
 				log.Printf("[Gemini 429] Account %d rate limited, fallback to 5min", account.ID)
 			}
 		}
+		// Immediately record to in-memory tracker for fast filtering
+		if s.account429Tracker != nil {
+			s.account429Tracker.Record429(account.ID, ra, "")
+		}
 		_ = s.accountRepo.SetRateLimited(ctx, account.ID, ra)
 		return
 	}
 
 	// 使用解析到的重置时间
 	resetTime := time.Unix(*resetAt, 0)
+	// Immediately record to in-memory tracker for fast filtering
+	if s.account429Tracker != nil {
+		s.account429Tracker.Record429(account.ID, resetTime, "")
+	}
 	_ = s.accountRepo.SetRateLimited(ctx, account.ID, resetTime)
 	log.Printf("[Gemini 429] Account %d rate limited until %v (oauth_type=%s, tier=%s)",
 		account.ID, resetTime, oauthType, tierID)

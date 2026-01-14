@@ -107,11 +107,12 @@ var antigravityPrefixMapping = []struct {
 
 // AntigravityGatewayService 处理 Antigravity 平台的 API 转发
 type AntigravityGatewayService struct {
-	accountRepo      AccountRepository
-	tokenProvider    *AntigravityTokenProvider
-	rateLimitService *RateLimitService
-	httpUpstream     HTTPUpstream
-	settingService   *SettingService
+	accountRepo       AccountRepository
+	tokenProvider     *AntigravityTokenProvider
+	rateLimitService  *RateLimitService
+	httpUpstream      HTTPUpstream
+	settingService    *SettingService
+	account429Tracker *Account429Tracker
 }
 
 func NewAntigravityGatewayService(
@@ -121,13 +122,15 @@ func NewAntigravityGatewayService(
 	rateLimitService *RateLimitService,
 	httpUpstream HTTPUpstream,
 	settingService *SettingService,
+	account429Tracker *Account429Tracker,
 ) *AntigravityGatewayService {
 	return &AntigravityGatewayService{
-		accountRepo:      accountRepo,
-		tokenProvider:    tokenProvider,
-		rateLimitService: rateLimitService,
-		httpUpstream:     httpUpstream,
-		settingService:   settingService,
+		accountRepo:       accountRepo,
+		tokenProvider:     tokenProvider,
+		rateLimitService:  rateLimitService,
+		httpUpstream:      httpUpstream,
+		settingService:    settingService,
+		account429Tracker: account429Tracker,
 	}
 }
 
@@ -1674,6 +1677,10 @@ func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, pre
 				defaultDur = 5 * time.Minute
 			}
 			ra := time.Now().Add(defaultDur)
+			// Immediately record to in-memory tracker for fast filtering
+			if s.account429Tracker != nil {
+				s.account429Tracker.Record429(account.ID, ra, string(quotaScope))
+			}
 			log.Printf("%s status=429 rate_limited scope=%s reset_in=%v (fallback)", prefix, quotaScope, defaultDur)
 			if quotaScope == "" {
 				return
@@ -1684,6 +1691,10 @@ func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, pre
 			return
 		}
 		resetTime := time.Unix(*resetAt, 0)
+		// Immediately record to in-memory tracker for fast filtering
+		if s.account429Tracker != nil {
+			s.account429Tracker.Record429(account.ID, resetTime, string(quotaScope))
+		}
 		log.Printf("%s status=429 rate_limited scope=%s reset_at=%v reset_in=%v", prefix, quotaScope, resetTime.Format("15:04:05"), time.Until(resetTime).Truncate(time.Second))
 		if quotaScope == "" {
 			return

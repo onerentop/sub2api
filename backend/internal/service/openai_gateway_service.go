@@ -93,6 +93,7 @@ type OpenAIGatewayService struct {
 	billingCacheService *BillingCacheService
 	httpUpstream        HTTPUpstream
 	deferredService     *DeferredService
+	account429Tracker   *Account429Tracker
 }
 
 // NewOpenAIGatewayService creates a new OpenAIGatewayService
@@ -110,6 +111,7 @@ func NewOpenAIGatewayService(
 	billingCacheService *BillingCacheService,
 	httpUpstream HTTPUpstream,
 	deferredService *DeferredService,
+	account429Tracker *Account429Tracker,
 ) *OpenAIGatewayService {
 	return &OpenAIGatewayService{
 		accountRepo:         accountRepo,
@@ -125,6 +127,7 @@ func NewOpenAIGatewayService(
 		billingCacheService: billingCacheService,
 		httpUpstream:        httpUpstream,
 		deferredService:     deferredService,
+		account429Tracker:   account429Tracker,
 	}
 }
 
@@ -385,6 +388,10 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		}
 		var available []accountWithLoad
 		for _, acc := range candidates {
+			// Fast in-memory 429 check to avoid selecting rate-limited accounts
+			if s.account429Tracker != nil && !s.account429Tracker.IsAccountAvailable(acc.ID) {
+				continue
+			}
 			loadInfo := loadMap[acc.ID]
 			if loadInfo == nil {
 				loadInfo = &AccountLoadInfo{AccountID: acc.ID}

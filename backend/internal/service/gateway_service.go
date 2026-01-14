@@ -159,6 +159,7 @@ type GatewayService struct {
 	httpUpstream        HTTPUpstream
 	deferredService     *DeferredService
 	concurrencyService  *ConcurrencyService
+	account429Tracker   *Account429Tracker
 }
 
 // NewGatewayService creates a new GatewayService
@@ -178,6 +179,7 @@ func NewGatewayService(
 	identityService *IdentityService,
 	httpUpstream HTTPUpstream,
 	deferredService *DeferredService,
+	account429Tracker *Account429Tracker,
 ) *GatewayService {
 	return &GatewayService{
 		accountRepo:         accountRepo,
@@ -195,6 +197,7 @@ func NewGatewayService(
 		identityService:     identityService,
 		httpUpstream:        httpUpstream,
 		deferredService:     deferredService,
+		account429Tracker:   account429Tracker,
 	}
 }
 
@@ -902,6 +905,10 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		// Scheduler snapshots can be temporarily stale; re-check schedulability here to
 		// avoid selecting accounts that were recently rate-limited/overloaded.
 		if !acc.IsSchedulable() {
+			continue
+		}
+		// Fast in-memory 429 check to avoid selecting rate-limited accounts
+		if s.account429Tracker != nil && !s.account429Tracker.IsAccountAvailable(acc.ID) {
 			continue
 		}
 		if !acc.IsSchedulableForModel(requestedModel) {
