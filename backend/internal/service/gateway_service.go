@@ -520,6 +520,10 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		if !acc.IsSchedulable() {
 			continue
 		}
+		// Fast in-memory 429 check to avoid selecting rate-limited accounts
+		if s.account429Tracker != nil && !s.account429Tracker.IsAccountAvailable(acc.ID) {
+			continue
+		}
 		if !s.isAccountAllowedForPlatform(acc, platform, useMixed) {
 			continue
 		}
@@ -998,6 +1002,10 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 		// Scheduler snapshots can be temporarily stale; re-check schedulability here to
 		// avoid selecting accounts that were recently rate-limited/overloaded.
 		if !acc.IsSchedulable() {
+			continue
+		}
+		// Fast in-memory 429 check to avoid selecting rate-limited accounts
+		if s.account429Tracker != nil && !s.account429Tracker.IsAccountAvailable(acc.ID) {
 			continue
 		}
 		// 过滤：原生平台直接通过，antigravity 需要启用混合调度
