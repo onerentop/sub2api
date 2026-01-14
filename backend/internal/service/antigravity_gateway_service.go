@@ -885,6 +885,17 @@ func isSignatureRelatedError(respBody []byte) bool {
 		return true
 	}
 
+	// Detect cache_control errors in thinking blocks:
+	// "messages.X.content.Y.thinking.cache_control: Extra inputs are not permitted"
+	if strings.Contains(msg, "thinking") && strings.Contains(msg, "cache_control") {
+		return true
+	}
+
+	// Also detect generic "extra inputs" errors related to thinking blocks
+	if strings.Contains(msg, "thinking") && strings.Contains(msg, "extra inputs") {
+		return true
+	}
+
 	return false
 }
 
@@ -961,7 +972,7 @@ func removeCacheControlFromAny(v any) bool {
 // Thinking blocks do NOT support cache_control field (Anthropic API/Vertex AI requirement)
 // 注意：当请求启用了 thinking 模式时，历史消息中的 thinking 块也必须保留为 thinking，
 // 否则上游会报错：Expected `thinking`/`redacted_thinking` but found `text`。
-// 因此：仅在未启用 thinking 模式时才做“历史 thinking → text”的降级。
+// 因此：仅在未启用 thinking 模式时才做"历史 thinking → text"的降级。
 func sanitizeThinkingBlocks(req *antigravity.ClaudeRequest) {
 	if req == nil {
 		return
@@ -975,16 +986,22 @@ func sanitizeThinkingBlocks(req *antigravity.ClaudeRequest) {
 	if len(req.System) > 0 {
 		var systemBlocks []map[string]any
 		if err := json.Unmarshal(req.System, &systemBlocks); err == nil {
+			systemCleaned := false
 			for i := range systemBlocks {
-				if blockType, _ := systemBlocks[i]["type"].(string); blockType == "thinking" || systemBlocks[i]["thinking"] != nil {
+				blockType, _ := systemBlocks[i]["type"].(string)
+				// Clean cache_control from thinking and redacted_thinking blocks
+				if blockType == "thinking" || blockType == "redacted_thinking" || systemBlocks[i]["thinking"] != nil {
 					if removeCacheControlFromAny(systemBlocks[i]) {
 						log.Printf("[Antigravity] Deep cleaned cache_control from thinking block in system[%d]", i)
+						systemCleaned = true
 					}
 				}
 			}
 			// Marshal back
-			if cleaned, err := json.Marshal(systemBlocks); err == nil {
-				req.System = cleaned
+			if systemCleaned {
+				if cleaned, err := json.Marshal(systemBlocks); err == nil {
+					req.System = cleaned
+				}
 			}
 		}
 	}
@@ -1007,17 +1024,18 @@ func sanitizeThinkingBlocks(req *antigravity.ClaudeRequest) {
 		for blockIdx := range blocks {
 			blockType, _ := blocks[blockIdx]["type"].(string)
 
-			// Check for thinking blocks (typed or untyped)
-			if blockType == "thinking" || blocks[blockIdx]["thinking"] != nil {
-				// 1. Clean cache_control
+			// Always clean cache_control from thinking and redacted_thinking blocks
+			// These block types do NOT support cache_control field per Claude API spec
+			if blockType == "thinking" || blockType == "redacted_thinking" || blocks[blockIdx]["thinking"] != nil {
+				// 1. Clean cache_control - this MUST happen regardless of thinkingEnabled
 				if removeCacheControlFromAny(blocks[blockIdx]) {
-					log.Printf("[Antigravity] Deep cleaned cache_control from thinking block in messages[%d].content[%d]", msgIdx, blockIdx)
+					log.Printf("[Antigravity] Deep cleaned cache_control from %s block in messages[%d].content[%d]", blockType, msgIdx, blockIdx)
 					cleaned = true
 				}
 
 				// 2. Flatten to text if it's a history message (not the last one) AND thinking is NOT enabled.
 				// 在 thinking 模式下扁平化会破坏上游的结构约束，导致 400 INVALID_ARGUMENT。
-				if msgIdx < lastMsgIdx && !thinkingEnabled {
+				if msgIdx < lastMsgIdx && !thinkingEnabled && blockType == "thinking" {
 					log.Printf("[Antigravity] Flattening history thinking block to text at messages[%d].content[%d]", msgIdx, blockIdx)
 
 					// Extract thinking content
