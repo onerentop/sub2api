@@ -977,7 +977,6 @@ func (s *GatewayService) ParseAntigravity429Duration(body []byte, headers http.H
 		}
 	}
 
-
 	// 3. 根据错误类型决定默认阻塞时间
 	// MODEL_CAPACITY_EXHAUSTED: 模型容量临时耗尽，通常很快恢复，使用较短阻塞时间
 	if bytes.Contains(body, []byte("MODEL_CAPACITY_EXHAUSTED")) ||
