@@ -316,9 +316,15 @@ func TestDefaultAccountScoringConfig(t *testing.T) {
 	if cfg.WeightPriority != DefaultWeightPriority {
 		t.Errorf("Expected default weight priority %v, got %v", DefaultWeightPriority, cfg.WeightPriority)
 	}
+	if cfg.WeightFreshness != DefaultWeightFreshness {
+		t.Errorf("Expected default weight freshness %v, got %v", DefaultWeightFreshness, cfg.WeightFreshness)
+	}
+	if cfg.WeightOAuth != DefaultWeightOAuth {
+		t.Errorf("Expected default weight oauth %v, got %v", DefaultWeightOAuth, cfg.WeightOAuth)
+	}
 
 	// Verify weights sum to 1.0 (with floating point tolerance)
-	total := cfg.WeightCapacity + cfg.WeightLoad + cfg.WeightHistory + cfg.WeightPriority
+	total := cfg.WeightCapacity + cfg.WeightLoad + cfg.WeightHistory + cfg.WeightPriority + cfg.WeightFreshness + cfg.WeightOAuth
 	if math.Abs(total-1.0) > 1e-9 {
 		t.Errorf("Expected weights to sum to 1.0, got %v", total)
 	}

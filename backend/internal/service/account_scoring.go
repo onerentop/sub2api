@@ -8,18 +8,22 @@ import (
 
 // 默认评分权重
 const (
-	DefaultWeightCapacity = 0.35
-	DefaultWeightLoad     = 0.30
-	DefaultWeightHistory  = 0.25
-	DefaultWeightPriority = 0.10
+	DefaultWeightCapacity  = 0.30
+	DefaultWeightLoad      = 0.25
+	DefaultWeightHistory   = 0.20
+	DefaultWeightPriority  = 0.10
+	DefaultWeightFreshness = 0.10 // 最久未用优先
+	DefaultWeightOAuth     = 0.05 // Gemini 平台 OAuth 偏好
 )
 
 // AccountScoringConfig 评分配置
 type AccountScoringConfig struct {
-	WeightCapacity    float64 // 配额容量权重，默认 0.35
-	WeightLoad        float64 // 实时负载权重，默认 0.30
-	WeightHistory     float64 // 历史表现权重，默认 0.25
+	WeightCapacity    float64 // 配额容量权重，默认 0.30
+	WeightLoad        float64 // 实时负载权重，默认 0.25
+	WeightHistory     float64 // 历史表现权重，默认 0.20
 	WeightPriority    float64 // 优先级权重，默认 0.10
+	WeightFreshness   float64 // 新鲜度权重（最久未用优先），默认 0.10
+	WeightOAuth       float64 // OAuth 偏好权重（仅 Gemini），默认 0.05
 	MinScoreThreshold float64 // 最低分数阈值，低于此分数不参与选择，默认 10
 }
 
@@ -30,6 +34,8 @@ func DefaultAccountScoringConfig() *AccountScoringConfig {
 		WeightLoad:        DefaultWeightLoad,
 		WeightHistory:     DefaultWeightHistory,
 		WeightPriority:    DefaultWeightPriority,
+		WeightFreshness:   DefaultWeightFreshness,
+		WeightOAuth:       DefaultWeightOAuth,
 		MinScoreThreshold: 10,
 	}
 }
@@ -40,10 +46,12 @@ type ScoredAccount struct {
 	Score   float64
 
 	// 评分明细（用于调试/日志）
-	CapacityScore float64
-	LoadScore     float64
-	HistoryScore  float64
-	PriorityScore float64
+	CapacityScore  float64
+	LoadScore      float64
+	HistoryScore   float64
+	PriorityScore  float64
+	FreshnessScore float64 // 新鲜度分数（最久未用优先）
+	OAuthScore     float64 // OAuth 偏好分数（仅 Gemini 平台生效）
 }
 
 // AccountScoringContext 评分计算上下文
@@ -53,10 +61,12 @@ type AccountScoringContext struct {
 	Tracker          *Account429Tracker
 	Config           *AccountScoringConfig
 	ConcurrencyCache ConcurrencyCache // 用于获取实时负载
+	Platform         string           // 目标平台（用于 OAuth 偏好判断）
+	PreferOAuth      bool             // 是否偏好 OAuth 账户（Gemini 平台）
 }
 
 // calculateCapacityScore 计算配额容量分 [0-100]
-// 基于配额使用率：<50% → 100, 50-80% → 线性到50, 80-95% → 线性到10, >95% → 0
+// 基于配额使用率：<50% → 100, 50-80% → 线性到50, 80-95% → 线性到10, >95% → 10
 func calculateCapacityScore(utilization int, hardBlocked bool) float64 {
 	if hardBlocked {
 		return 0
@@ -77,6 +87,39 @@ func calculateCapacityScore(utilization int, hardBlocked bool) float64 {
 	}
 	// >= 95%
 	return 10
+}
+
+// calculateCapacityScoreWithReset 计算配额容量分，包含 reset_time 调整 [0-100]
+// 当 utilization >= 阈值（快满）时，reset_time 越早，分数越高
+// resetAt: 配额重置时间；now: 当前时间；hasReset: 是否有有效的重置时间
+func calculateCapacityScoreWithReset(utilization int, hardBlocked bool, resetAt time.Time, hasReset bool, now time.Time) float64 {
+	baseScore := calculateCapacityScore(utilization, hardBlocked)
+
+	// 只有快满（utilization >= 90）且有有效 reset_time 时才进行调整
+	if utilization < 90 || !hasReset {
+		return baseScore
+	}
+
+	// 计算 reset_time 距离现在的时间（分钟）
+	minutesUntilReset := resetAt.Sub(now).Minutes()
+
+	// 根据 reset_time 调整分数：0-30分钟内 → +5分，30-120分钟 → 线性到0分
+	// 这样可以区分快满但即将重置的账户
+	if minutesUntilReset <= 0 {
+		// 已过重置时间，给最大加分
+		return baseScore + 5
+	}
+	if minutesUntilReset <= 30 {
+		// 30分钟内重置，给满分加分
+		return baseScore + 5
+	}
+	if minutesUntilReset <= 120 {
+		// 30-120分钟：线性从 5 降到 0
+		bonus := 5 * (1 - (minutesUntilReset-30)/90)
+		return baseScore + bonus
+	}
+	// > 120 分钟，无加分
+	return baseScore
 }
 
 // calculateLoadScore 计算实时负载分 [0-100]
@@ -128,6 +171,41 @@ func calculatePriorityScore(priority int) float64 {
 	return float64(score)
 }
 
+// calculateFreshnessScore 计算新鲜度分 [0-100]
+// 最久未用的账户得分更高，避免所有请求集中到同一账户
+func calculateFreshnessScore(lastUsedAt *time.Time, now time.Time) float64 {
+	if lastUsedAt == nil {
+		// 从未使用过的账户优先级最高
+		return 100
+	}
+
+	// 计算距离上次使用的时间（分钟）
+	elapsedMinutes := now.Sub(*lastUsedAt).Minutes()
+
+	// 线性映射：0分钟 → 0分，120分钟（2小时）及以上 → 100分
+	// 这样可以精确区分 -1h 和 -2h 的账户
+	if elapsedMinutes >= 120 {
+		return 100
+	}
+	if elapsedMinutes <= 0 {
+		return 0
+	}
+	return elapsedMinutes * 100 / 120
+}
+
+// calculateOAuthPreferenceScore 计算 OAuth 偏好分 [0-100]
+// 仅在 Gemini 平台生效，OAuth 账户优先于 API Key
+func calculateOAuthPreferenceScore(accountType string, preferOAuth bool) float64 {
+	if !preferOAuth {
+		// 非 Gemini 平台或不需要 OAuth 偏好，返回中立值
+		return 50
+	}
+	if accountType == AccountTypeOAuth {
+		return 100
+	}
+	return 0
+}
+
 // CalculateAccountScore 计算账户综合评分
 func CalculateAccountScore(
 	ctx context.Context,
@@ -146,7 +224,10 @@ func CalculateAccountScore(
 
 	// 1. 配额容量分
 	if quotaInfo != nil {
-		scored.CapacityScore = calculateCapacityScore(quotaInfo.utilization, quotaInfo.hardBlocked)
+		scored.CapacityScore = calculateCapacityScoreWithReset(
+			quotaInfo.utilization, quotaInfo.hardBlocked,
+			quotaInfo.resetAt, quotaInfo.hasReset, scoringCtx.Now,
+		)
 	} else {
 		// 非 Antigravity 平台或无配额信息，给予满分
 		scored.CapacityScore = 100
@@ -176,11 +257,19 @@ func CalculateAccountScore(
 	// 4. 优先级分
 	scored.PriorityScore = calculatePriorityScore(account.Priority)
 
-	// 5. 综合评分
+	// 5. 新鲜度分（最久未用优先）
+	scored.FreshnessScore = calculateFreshnessScore(account.LastUsedAt, scoringCtx.Now)
+
+	// 6. OAuth 偏好分（仅 Gemini 平台）
+	scored.OAuthScore = calculateOAuthPreferenceScore(account.Type, scoringCtx.PreferOAuth)
+
+	// 7. 综合评分
 	scored.Score = cfg.WeightCapacity*scored.CapacityScore +
 		cfg.WeightLoad*scored.LoadScore +
 		cfg.WeightHistory*scored.HistoryScore +
-		cfg.WeightPriority*scored.PriorityScore
+		cfg.WeightPriority*scored.PriorityScore +
+		cfg.WeightFreshness*scored.FreshnessScore +
+		cfg.WeightOAuth*scored.OAuthScore
 
 	return scored
 }

@@ -1325,6 +1325,8 @@ func (s *GatewayService) selectAccountByMultiFactorScoring(
 		RequestedModel: requestedModel,
 		Tracker:        s.account429Tracker,
 		Config:         s.scoringConfig,
+		Platform:       platform,
+		PreferOAuth:    preferOAuth,
 	}
 	// 安全获取 concurrency cache
 	if s.concurrencyService != nil {
