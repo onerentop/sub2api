@@ -1328,11 +1328,14 @@ func (s *GatewayService) selectAccountByMultiFactorScoring(
 
 	// Phase 2: 多因子评分
 	scoringCtx := &AccountScoringContext{
-		Now:              now,
-		RequestedModel:   requestedModel,
-		Tracker:          s.account429Tracker,
-		Config:           s.scoringConfig,
-		ConcurrencyCache: s.concurrencyService.cache,
+		Now:            now,
+		RequestedModel: requestedModel,
+		Tracker:        s.account429Tracker,
+		Config:         s.scoringConfig,
+	}
+	// 安全获取 concurrency cache
+	if s.concurrencyService != nil {
+		scoringCtx.ConcurrencyCache = s.concurrencyService.cache
 	}
 
 	// 配额信息提供者
