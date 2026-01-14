@@ -905,11 +905,11 @@ func antigravity429BlockKey(accountID int64, model string) string {
 	return fmt.Sprintf("%d:%s", accountID, model)
 }
 
-// markAntigravity429Blocked 标记账号+模型为临时阻塞状态
-// duration: 阻塞持续时间（默认 5 分钟）
-func (s *GatewayService) markAntigravity429Blocked(accountID int64, model string, duration time.Duration) {
+// MarkAntigravity429Blocked 标记账号+模型为临时阻塞状态
+// duration: 阻塞持续时间（默认 30 秒）
+func (s *GatewayService) MarkAntigravity429Blocked(accountID int64, model string, duration time.Duration) {
 	if duration <= 0 {
-		duration = 5 * time.Minute
+		duration = 30 * time.Second
 	}
 	key := antigravity429BlockKey(accountID, model)
 	now := time.Now()
@@ -960,6 +960,31 @@ func (s *GatewayService) cleanupExpiredAntigravity429Blocks() {
 			delete(s.antigravity429BlockCache, key)
 		}
 	}
+}
+
+// ParseAntigravity429Duration 精确解析 Antigravity/Gemini 格式 429 响应的阻塞时间
+// 优先级：1. Retry-After header → 2. body 中的 quotaResetDelay → 3. 默认 30 秒
+func (s *GatewayService) ParseAntigravity429Duration(body []byte, headers http.Header) time.Duration {
+	// 1. 尝试从 Retry-After header 解析
+	if retryAfter := headers.Get("Retry-After"); retryAfter != "" {
+		if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 {
+			return time.Duration(seconds) * time.Second
+		}
+	}
+
+	// 2. 尝试从 Gemini 格式的 body 解析 quotaResetDelay
+	// 使用已有的 ParseGeminiRateLimitResetTime 函数
+	if resetTimestamp := ParseGeminiRateLimitResetTime(body); resetTimestamp != nil {
+		resetTime := time.Unix(*resetTimestamp, 0)
+		dur := time.Until(resetTime)
+		if dur > 0 {
+			// 添加 1 秒缓冲，避免边界情况
+			return dur + time.Second
+		}
+	}
+
+	// 3. 默认 30 秒（而非 5 分钟，因为 Antigravity 的 quota 重置通常很快）
+	return 30 * time.Second
 }
 
 func (s *GatewayService) sortAccountsByPriorityAndLastUsedWithAntigravityQuota(accounts []*Account, requestedModel string, preferOAuth bool) {
@@ -1484,6 +1509,13 @@ func (s *GatewayService) shouldRetryUpstreamError(account *Account, statusCode i
 	// OAuth/Setup Token 账号：仅 403 重试
 	if account.IsOAuth() {
 		return statusCode == 403
+	}
+
+	// Antigravity 账号的 429：不在同一账户重试，直接 failover 到其他账户
+	// 原因：Antigravity 的 quota 重置时间很短（通常 < 1秒），但同一账户短时间内再次请求仍会 429
+	// 切换到其他账户是更优策略
+	if account.Platform == PlatformAntigravity && statusCode == 429 {
+		return false
 	}
 
 	// API Key 账号：未配置的错误码重试
@@ -2066,7 +2098,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			_ = resp.Body.Close()
 			resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
-			s.handleRetryExhaustedSideEffects(ctx, resp, account, reqModel)
+			s.handleRetryExhaustedSideEffects(ctx, resp, respBody, account, reqModel)
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
@@ -2092,7 +2124,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		_ = resp.Body.Close()
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
-		s.handleFailoverSideEffects(ctx, resp, account, reqModel)
+		s.handleFailoverSideEffects(ctx, resp, respBody, account, reqModel)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 			Platform:           account.Platform,
 			AccountID:          account.ID,
@@ -2152,7 +2184,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				} else {
 					log.Printf("Account %d: 400 error, attempting failover", account.ID)
 				}
-				s.handleFailoverSideEffects(ctx, resp, account, reqModel)
+				s.handleFailoverSideEffects(ctx, resp, respBody, account, reqModel)
 				return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode}
 			}
 		}
@@ -2541,19 +2573,14 @@ func (s *GatewayService) handleErrorResponse(ctx context.Context, resp *http.Res
 	return nil, fmt.Errorf("upstream error: %d message=%s", resp.StatusCode, upstreamMsg)
 }
 
-func (s *GatewayService) handleRetryExhaustedSideEffects(ctx context.Context, resp *http.Response, account *Account, reqModel string) {
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+func (s *GatewayService) handleRetryExhaustedSideEffects(ctx context.Context, resp *http.Response, body []byte, account *Account, reqModel string) {
 	statusCode := resp.StatusCode
 
 	// Antigravity 账号遇到 429 时，也需要标记临时阻塞
 	if statusCode == 429 && account.Platform == PlatformAntigravity && reqModel != "" {
-		duration := 5 * time.Minute
-		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
-			if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 {
-				duration = time.Duration(seconds) * time.Second
-			}
-		}
-		s.markAntigravity429Blocked(account.ID, reqModel, duration)
+		// 使用精确解析的阻塞时间（从 header 或 body 中解析）
+		duration := s.ParseAntigravity429Duration(body, resp.Header)
+		s.MarkAntigravity429Blocked(account.ID, reqModel, duration)
 	}
 
 	// OAuth/Setup Token 账号的 403：标记账号异常
@@ -2566,20 +2593,14 @@ func (s *GatewayService) handleRetryExhaustedSideEffects(ctx context.Context, re
 	}
 }
 
-func (s *GatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account, reqModel string) {
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+func (s *GatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, body []byte, account *Account, reqModel string) {
 	s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
 
 	// Antigravity 账号遇到 429 时，临时标记为阻塞状态，避免短时间内再次被选中
 	if resp.StatusCode == 429 && account.Platform == PlatformAntigravity && reqModel != "" {
-		// 尝试从 Retry-After header 获取阻塞时间，否则默认 5 分钟
-		duration := 5 * time.Minute
-		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
-			if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 {
-				duration = time.Duration(seconds) * time.Second
-			}
-		}
-		s.markAntigravity429Blocked(account.ID, reqModel, duration)
+		// 使用精确解析的阻塞时间（从 header 或 body 中解析）
+		duration := s.ParseAntigravity429Duration(body, resp.Header)
+		s.MarkAntigravity429Blocked(account.ID, reqModel, duration)
 	}
 }
 
@@ -2592,7 +2613,7 @@ func (s *GatewayService) handleRetryExhaustedError(ctx context.Context, resp *ht
 	_ = resp.Body.Close()
 	resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
-	s.handleRetryExhaustedSideEffects(ctx, resp, account, reqModel)
+	s.handleRetryExhaustedSideEffects(ctx, resp, respBody, account, reqModel)
 
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)

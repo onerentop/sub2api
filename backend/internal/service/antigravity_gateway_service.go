@@ -105,6 +105,13 @@ var antigravityPrefixMapping = []struct {
 	{"gemini-3-pro", "gemini-3-pro-high"}, // gemini-3-pro, gemini-3-pro-preview 等
 }
 
+// Antigravity429BlockNotifier 是 429 阻塞通知回调接口
+// 用于将 Antigravity 的 429 状态同步到内存级别的阻塞缓存
+type Antigravity429BlockNotifier interface {
+	MarkAntigravity429Blocked(accountID int64, model string, duration time.Duration)
+	ParseAntigravity429Duration(body []byte, headers http.Header) time.Duration
+}
+
 // AntigravityGatewayService 处理 Antigravity 平台的 API 转发
 type AntigravityGatewayService struct {
 	accountRepo      AccountRepository
@@ -112,6 +119,7 @@ type AntigravityGatewayService struct {
 	rateLimitService *RateLimitService
 	httpUpstream     HTTPUpstream
 	settingService   *SettingService
+	blockNotifier    Antigravity429BlockNotifier // 429 阻塞通知器（可选）
 }
 
 func NewAntigravityGatewayService(
@@ -134,6 +142,12 @@ func NewAntigravityGatewayService(
 // GetTokenProvider 返回 token provider
 func (s *AntigravityGatewayService) GetTokenProvider() *AntigravityTokenProvider {
 	return s.tokenProvider
+}
+
+// SetBlockNotifier 设置 429 阻塞通知器
+// 通常在应用初始化后调用，将 GatewayService 作为 notifier 传入
+func (s *AntigravityGatewayService) SetBlockNotifier(notifier Antigravity429BlockNotifier) {
+	s.blockNotifier = notifier
 }
 
 // getMappedModel 获取映射后的模型名
@@ -660,7 +674,7 @@ urlFallbackLoop:
 				}
 				// 所有重试都失败，标记限流状态
 				if resp.StatusCode == 429 {
-					s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope)
+					s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope, originalModel)
 				}
 				// 最后一次尝试也失败
 				resp = &http.Response{
@@ -800,7 +814,7 @@ urlFallbackLoop:
 
 		// 处理错误响应（重试后仍失败或不触发重试）
 		if resp.StatusCode >= 400 {
-			s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope)
+			s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope, originalModel)
 
 			if s.shouldFailoverUpstreamError(resp.StatusCode) {
 				upstreamMsg := strings.TrimSpace(extractAntigravityErrorMessage(respBody))
@@ -1480,7 +1494,7 @@ urlFallbackLoop:
 				}
 				// 所有重试都失败，标记限流状态
 				if resp.StatusCode == 429 {
-					s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope)
+					s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope, originalModel)
 				}
 				resp = &http.Response{
 					StatusCode: resp.StatusCode,
@@ -1534,7 +1548,7 @@ urlFallbackLoop:
 			goto handleSuccess
 		}
 
-		s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope)
+		s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope, originalModel)
 
 		requestID := resp.Header.Get("x-request-id")
 		if requestID != "" {
@@ -1646,7 +1660,9 @@ handleSuccess:
 
 func (s *AntigravityGatewayService) shouldRetryUpstreamError(statusCode int) bool {
 	switch statusCode {
-	case 429, 500, 502, 503, 504, 529:
+	// 429 不在同一账户重试，直接 failover 到其他账户
+	// 原因：Antigravity 的 quota 重置时间很短（通常 < 1秒），但同一账户短时间内再次请求仍会 429
+	case 500, 502, 503, 504, 529:
 		return true
 	default:
 		return false
@@ -1686,33 +1702,44 @@ func sleepAntigravityBackoffWithContext(ctx context.Context, attempt int) bool {
 	}
 }
 
-func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, quotaScope AntigravityQuotaScope) {
+func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, quotaScope AntigravityQuotaScope, requestedModel string) {
 	// 429 使用 Gemini 格式解析（从 body 解析重置时间）
 	if statusCode == 429 {
 		resetAt := ParseGeminiRateLimitResetTime(body)
+		var blockDuration time.Duration
 		if resetAt == nil {
 			// 解析失败：Gemini 有重试时间用 5 分钟，Claude 没有用 1 分钟
 			defaultDur := 1 * time.Minute
 			if bytes.Contains(body, []byte("Please retry in")) || bytes.Contains(body, []byte("retryDelay")) {
 				defaultDur = 5 * time.Minute
 			}
+			blockDuration = defaultDur
 			ra := time.Now().Add(defaultDur)
 			log.Printf("%s status=429 rate_limited scope=%s reset_in=%v (fallback)", prefix, quotaScope, defaultDur)
-			if quotaScope == "" {
-				return
+			if quotaScope != "" {
+				if err := s.accountRepo.SetAntigravityQuotaScopeLimit(ctx, account.ID, quotaScope, ra); err != nil {
+					log.Printf("%s status=429 rate_limit_set_failed scope=%s error=%v", prefix, quotaScope, err)
+				}
 			}
-			if err := s.accountRepo.SetAntigravityQuotaScopeLimit(ctx, account.ID, quotaScope, ra); err != nil {
-				log.Printf("%s status=429 rate_limit_set_failed scope=%s error=%v", prefix, quotaScope, err)
+		} else {
+			resetTime := time.Unix(*resetAt, 0)
+			blockDuration = time.Until(resetTime) + time.Second // 添加 1 秒缓冲
+			log.Printf("%s status=429 rate_limited scope=%s reset_at=%v reset_in=%v", prefix, quotaScope, resetTime.Format("15:04:05"), time.Until(resetTime).Truncate(time.Second))
+			if quotaScope != "" {
+				if err := s.accountRepo.SetAntigravityQuotaScopeLimit(ctx, account.ID, quotaScope, resetTime); err != nil {
+					log.Printf("%s status=429 rate_limit_set_failed scope=%s error=%v", prefix, quotaScope, err)
+				}
 			}
-			return
 		}
-		resetTime := time.Unix(*resetAt, 0)
-		log.Printf("%s status=429 rate_limited scope=%s reset_at=%v reset_in=%v", prefix, quotaScope, resetTime.Format("15:04:05"), time.Until(resetTime).Truncate(time.Second))
-		if quotaScope == "" {
-			return
-		}
-		if err := s.accountRepo.SetAntigravityQuotaScopeLimit(ctx, account.ID, quotaScope, resetTime); err != nil {
-			log.Printf("%s status=429 rate_limit_set_failed scope=%s error=%v", prefix, quotaScope, err)
+
+		// 同步到内存级别的阻塞缓存（用于跨请求快速过滤）
+		if s.blockNotifier != nil && requestedModel != "" {
+			// 使用 blockNotifier 提供的精确解析（优先 Retry-After header）
+			duration := s.blockNotifier.ParseAntigravity429Duration(body, headers)
+			if duration <= 0 {
+				duration = blockDuration
+			}
+			s.blockNotifier.MarkAntigravity429Blocked(account.ID, requestedModel, duration)
 		}
 		return
 	}

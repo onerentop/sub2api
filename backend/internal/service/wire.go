@@ -181,6 +181,22 @@ func ProvideOpsScheduledReportService(
 	return svc
 }
 
+// ProvideAntigravityGatewayService creates AntigravityGatewayService and wires up 429 block notifier.
+// This ensures Antigravity 429 rate limits are synced to memory-level block cache for fast cross-request filtering.
+func ProvideAntigravityGatewayService(
+	accountRepo AccountRepository,
+	cache GatewayCache,
+	tokenProvider *AntigravityTokenProvider,
+	rateLimitService *RateLimitService,
+	httpUpstream HTTPUpstream,
+	settingService *SettingService,
+	gatewayService *GatewayService,
+) *AntigravityGatewayService {
+	svc := NewAntigravityGatewayService(accountRepo, cache, tokenProvider, rateLimitService, httpUpstream, settingService)
+	svc.SetBlockNotifier(gatewayService)
+	return svc
+}
+
 // ProvideAPIKeyAuthCacheInvalidator 提供 API Key 认证缓存失效能力
 func ProvideAPIKeyAuthCacheInvalidator(apiKeyService *APIKeyService) APIKeyAuthCacheInvalidator {
 	return apiKeyService
@@ -220,7 +236,7 @@ var ProviderSet = wire.NewSet(
 	NewGeminiTokenProvider,
 	NewGeminiMessagesCompatService,
 	NewAntigravityTokenProvider,
-	NewAntigravityGatewayService,
+	ProvideAntigravityGatewayService,
 	ProvideRateLimitService,
 	NewAccountUsageService,
 	NewAccountTestService,
