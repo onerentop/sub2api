@@ -230,7 +230,9 @@ async function handleStartOAuth() {
     state.value = response.state
     step.value = 1
   } catch (err: any) {
-    error.value = err.response?.data?.message || err.message || t('contribute.errorStarting')
+    console.error('OAuth start error:', err)
+    const errMsg = err.response?.data?.message || err.message || t('contribute.errorStarting')
+    error.value = errMsg
   } finally {
     isLoading.value = false
   }
