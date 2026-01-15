@@ -84,10 +84,17 @@ type UserInfo struct {
 }
 
 // LoadCodeAssistRequest loadCodeAssist 请求
+// 与 vscode-antigravity-cockpit 保持一致，metadata 包含三个字段
 type LoadCodeAssistRequest struct {
-	Metadata struct {
-		IDEType string `json:"ideType"`
-	} `json:"metadata"`
+	Metadata LoadCodeAssistMetadata `json:"metadata"`
+}
+
+// LoadCodeAssistMetadata loadCodeAssist 的 metadata
+// 必须与 vscode 插件的 CLOUDCODE_METADATA 完全一致
+type LoadCodeAssistMetadata struct {
+	IDEType    string `json:"ideType"`
+	Platform   string `json:"platform"`
+	PluginType string `json:"pluginType"`
 }
 
 // TierInfo 账户类型信息
@@ -311,10 +318,16 @@ func (c *Client) GetUserInfo(ctx context.Context, accessToken string) (*UserInfo
 }
 
 // LoadCodeAssist 获取账户信息，返回解析后的结构体和原始 JSON
-// 支持 URL fallback：sandbox → daily → prod
+// 支持 URL fallback：prod → sandbox
 func (c *Client) LoadCodeAssist(ctx context.Context, accessToken string) (*LoadCodeAssistResponse, map[string]any, error) {
-	reqBody := LoadCodeAssistRequest{}
-	reqBody.Metadata.IDEType = "ANTIGRAVITY"
+	// metadata 必须与 vscode-antigravity-cockpit 的 CLOUDCODE_METADATA 完全一致
+	reqBody := LoadCodeAssistRequest{
+		Metadata: LoadCodeAssistMetadata{
+			IDEType:    "ANTIGRAVITY",
+			Platform:   "PLATFORM_UNSPECIFIED",
+			PluginType: "GEMINI",
+		},
+	}
 
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
