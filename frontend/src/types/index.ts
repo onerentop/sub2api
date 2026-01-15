@@ -370,8 +370,24 @@ export interface Proxy {
   password?: string | null
   status: 'active' | 'inactive'
   account_count?: number // Number of accounts using this proxy
+  latency_ms?: number
+  latency_status?: 'success' | 'failed'
+  latency_message?: string
+  ip_address?: string
+  country?: string
+  country_code?: string
+  region?: string
+  city?: string
   created_at: string
   updated_at: string
+}
+
+export interface ProxyAccountSummary {
+  id: number
+  name: string
+  platform: AccountPlatform
+  type: AccountType
+  notes?: string | null
 }
 
 // Gemini credentials structure for OAuth and API Key authentication
@@ -434,6 +450,7 @@ export interface Account {
   concurrency: number
   current_concurrency?: number // Real-time concurrency count from Redis
   priority: number
+  rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)
   status: 'active' | 'inactive' | 'error'
   error_message: string | null
   last_used_at: string | null
@@ -463,7 +480,9 @@ export interface Account {
 export interface WindowStats {
   requests: number
   tokens: number
-  cost: number
+  cost: number // Account cost (account multiplier)
+  standard_cost?: number
+  user_cost?: number
 }
 
 export interface UsageProgress {
@@ -528,6 +547,7 @@ export interface CreateAccountRequest {
   proxy_id?: number | null
   concurrency?: number
   priority?: number
+  rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)
   group_ids?: number[]
   expires_at?: number | null
   auto_pause_on_expired?: boolean
@@ -543,6 +563,7 @@ export interface UpdateAccountRequest {
   proxy_id?: number | null
   concurrency?: number
   priority?: number
+  rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)
   schedulable?: boolean
   status?: 'active' | 'inactive'
   group_ids?: number[]
@@ -599,6 +620,7 @@ export interface UsageLog {
   total_cost: number
   actual_cost: number
   rate_multiplier: number
+  account_rate_multiplier?: number | null
 
   stream: boolean
   duration_ms: number
@@ -858,23 +880,27 @@ export interface AccountUsageHistory {
   requests: number
   tokens: number
   cost: number
-  actual_cost: number
+  actual_cost: number // Account cost (account multiplier)
+  user_cost: number // User/API key billed cost (group multiplier)
 }
 
 export interface AccountUsageSummary {
   days: number
   actual_days_used: number
-  total_cost: number
+  total_cost: number // Account cost (account multiplier)
+  total_user_cost: number
   total_standard_cost: number
   total_requests: number
   total_tokens: number
-  avg_daily_cost: number
+  avg_daily_cost: number // Account cost
+  avg_daily_user_cost: number
   avg_daily_requests: number
   avg_daily_tokens: number
   avg_duration_ms: number
   today: {
     date: string
     cost: number
+    user_cost: number
     requests: number
     tokens: number
   } | null
@@ -882,6 +908,7 @@ export interface AccountUsageSummary {
     date: string
     label: string
     cost: number
+    user_cost: number
     requests: number
   } | null
   highest_request_day: {
@@ -889,6 +916,7 @@ export interface AccountUsageSummary {
     label: string
     requests: number
     cost: number
+    user_cost: number
   } | null
 }
 

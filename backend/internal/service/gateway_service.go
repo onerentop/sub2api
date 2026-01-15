@@ -159,6 +159,7 @@ type GatewayService struct {
 	httpUpstream        HTTPUpstream
 	deferredService     *DeferredService
 	concurrencyService  *ConcurrencyService
+	claudeTokenProvider *ClaudeTokenProvider
 	account429Tracker   *Account429Tracker
 }
 
@@ -179,6 +180,7 @@ func NewGatewayService(
 	identityService *IdentityService,
 	httpUpstream HTTPUpstream,
 	deferredService *DeferredService,
+	claudeTokenProvider *ClaudeTokenProvider,
 	account429Tracker *Account429Tracker,
 ) *GatewayService {
 	return &GatewayService{
@@ -197,6 +199,7 @@ func NewGatewayService(
 		identityService:     identityService,
 		httpUpstream:        httpUpstream,
 		deferredService:     deferredService,
+		claudeTokenProvider: claudeTokenProvider,
 		account429Tracker:   account429Tracker,
 	}
 }
@@ -1094,6 +1097,16 @@ func (s *GatewayService) GetAccessToken(ctx context.Context, account *Account) (
 }
 
 func (s *GatewayService) getOAuthToken(ctx context.Context, account *Account) (string, string, error) {
+	// 对于 Anthropic OAuth 账号，使用 ClaudeTokenProvider 获取缓存的 token
+	if account.Platform == PlatformAnthropic && account.Type == AccountTypeOAuth && s.claudeTokenProvider != nil {
+		accessToken, err := s.claudeTokenProvider.GetAccessToken(ctx, account)
+		if err != nil {
+			return "", "", err
+		}
+		return accessToken, "oauth", nil
+	}
+
+	// 其他情况（Gemini 有自己的 TokenProvider，setup-token 类型等）直接从账号读取
 	accessToken := account.GetCredential("access_token")
 	if accessToken == "" {
 		return "", "", errors.New("access_token not found in credentials")
@@ -1481,6 +1494,9 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	for attempt := 1; attempt <= maxRetryAttempts; attempt++ {
 		// 构建上游请求（每次重试需要重新构建，因为请求体需要重新读取）
 		upstreamReq, err := s.buildUpstreamRequest(ctx, c, account, body, token, tokenType, reqModel)
+		// Capture upstream request body for ops retry of this attempt.
+		c.Set(OpsUpstreamRequestBodyKey, string(body))
+
 		if err != nil {
 			return nil, err
 		}
@@ -1497,6 +1513,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				AccountName:        account.Name,
 				UpstreamStatusCode: 0,
 				Kind:               "request_error",
 				Message:            safeErr,
@@ -1521,6 +1538,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 						Platform:           account.Platform,
 						AccountID:          account.ID,
+						AccountName:        account.Name,
 						UpstreamStatusCode: resp.StatusCode,
 						UpstreamRequestID:  resp.Header.Get("x-request-id"),
 						Kind:               "signature_error",
@@ -1572,6 +1590,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 								appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 									Platform:           account.Platform,
 									AccountID:          account.ID,
+									AccountName:        account.Name,
 									UpstreamStatusCode: retryResp.StatusCode,
 									UpstreamRequestID:  retryResp.Header.Get("x-request-id"),
 									Kind:               "signature_retry_thinking",
@@ -1600,6 +1619,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 										appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 											Platform:           account.Platform,
 											AccountID:          account.ID,
+											AccountName:        account.Name,
 											UpstreamStatusCode: 0,
 											Kind:               "signature_retry_tools_request_error",
 											Message:            sanitizeUpstreamErrorMessage(retryErr2.Error()),
@@ -1658,6 +1678,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 					Platform:           account.Platform,
 					AccountID:          account.ID,
+					AccountName:        account.Name,
 					UpstreamStatusCode: resp.StatusCode,
 					UpstreamRequestID:  resp.Header.Get("x-request-id"),
 					Kind:               "retry",
@@ -1706,6 +1727,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				AccountName:        account.Name,
 				UpstreamStatusCode: resp.StatusCode,
 				UpstreamRequestID:  resp.Header.Get("x-request-id"),
 				Kind:               "retry_exhausted_failover",
@@ -1772,6 +1794,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 					Platform:           account.Platform,
 					AccountID:          account.ID,
+					AccountName:        account.Name,
 					UpstreamStatusCode: resp.StatusCode,
 					UpstreamRequestID:  resp.Header.Get("x-request-id"),
 					Kind:               "failover_on_400",
@@ -2649,30 +2672,32 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if result.ImageSize != "" {
 		imageSize = &result.ImageSize
 	}
+	accountRateMultiplier := account.BillingRateMultiplier()
 	usageLog := &UsageLog{
-		UserID:              user.ID,
-		APIKeyID:            apiKey.ID,
-		AccountID:           account.ID,
-		RequestID:           result.RequestID,
-		Model:               result.Model,
-		InputTokens:         result.Usage.InputTokens,
-		OutputTokens:        result.Usage.OutputTokens,
-		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:     result.Usage.CacheReadInputTokens,
-		InputCost:           cost.InputCost,
-		OutputCost:          cost.OutputCost,
-		CacheCreationCost:   cost.CacheCreationCost,
-		CacheReadCost:       cost.CacheReadCost,
-		TotalCost:           cost.TotalCost,
-		ActualCost:          cost.ActualCost,
-		RateMultiplier:      multiplier,
-		BillingType:         billingType,
-		Stream:              result.Stream,
-		DurationMs:          &durationMs,
-		FirstTokenMs:        result.FirstTokenMs,
-		ImageCount:          result.ImageCount,
-		ImageSize:           imageSize,
-		CreatedAt:           time.Now(),
+		UserID:                user.ID,
+		APIKeyID:              apiKey.ID,
+		AccountID:             account.ID,
+		RequestID:             result.RequestID,
+		Model:                 result.Model,
+		InputTokens:           result.Usage.InputTokens,
+		OutputTokens:          result.Usage.OutputTokens,
+		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:       result.Usage.CacheReadInputTokens,
+		InputCost:             cost.InputCost,
+		OutputCost:            cost.OutputCost,
+		CacheCreationCost:     cost.CacheCreationCost,
+		CacheReadCost:         cost.CacheReadCost,
+		TotalCost:             cost.TotalCost,
+		ActualCost:            cost.ActualCost,
+		RateMultiplier:        multiplier,
+		AccountRateMultiplier: &accountRateMultiplier,
+		BillingType:           billingType,
+		Stream:                result.Stream,
+		DurationMs:            &durationMs,
+		FirstTokenMs:          result.FirstTokenMs,
+		ImageCount:            result.ImageCount,
+		ImageSize:             imageSize,
+		CreatedAt:             time.Now(),
 	}
 
 	// 添加 UserAgent

@@ -548,12 +548,19 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 		}
 		requestIDHeader = idHeader
 
+		// Capture upstream request body for ops retry of this attempt.
+		if c != nil {
+			// In this code path `body` is already the JSON sent to upstream.
+			c.Set(OpsUpstreamRequestBodyKey, string(body))
+		}
+
 		resp, err = s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
 		if err != nil {
 			safeErr := sanitizeUpstreamErrorMessage(err.Error())
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				AccountName:        account.Name,
 				UpstreamStatusCode: 0,
 				Kind:               "request_error",
 				Message:            safeErr,
@@ -591,6 +598,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 					Platform:           account.Platform,
 					AccountID:          account.ID,
+					AccountName:        account.Name,
 					UpstreamStatusCode: resp.StatusCode,
 					UpstreamRequestID:  upstreamReqID,
 					Kind:               "signature_error",
@@ -665,6 +673,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 					Platform:           account.Platform,
 					AccountID:          account.ID,
+					AccountName:        account.Name,
 					UpstreamStatusCode: resp.StatusCode,
 					UpstreamRequestID:  upstreamReqID,
 					Kind:               "retry",
@@ -714,6 +723,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				AccountName:        account.Name,
 				UpstreamStatusCode: resp.StatusCode,
 				UpstreamRequestID:  upstreamReqID,
 				Kind:               "failover",
@@ -740,6 +750,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				AccountName:        account.Name,
 				UpstreamStatusCode: resp.StatusCode,
 				UpstreamRequestID:  upstreamReqID,
 				Kind:               "failover",
@@ -975,12 +986,19 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		}
 		requestIDHeader = idHeader
 
+		// Capture upstream request body for ops retry of this attempt.
+		if c != nil {
+			// In this code path `body` is already the JSON sent to upstream.
+			c.Set(OpsUpstreamRequestBodyKey, string(body))
+		}
+
 		resp, err = s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
 		if err != nil {
 			safeErr := sanitizeUpstreamErrorMessage(err.Error())
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				AccountName:        account.Name,
 				UpstreamStatusCode: 0,
 				Kind:               "request_error",
 				Message:            safeErr,
@@ -1039,6 +1057,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 					Platform:           account.Platform,
 					AccountID:          account.ID,
+					AccountName:        account.Name,
 					UpstreamStatusCode: resp.StatusCode,
 					UpstreamRequestID:  upstreamReqID,
 					Kind:               "retry",
@@ -1123,6 +1142,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				AccountName:        account.Name,
 				UpstreamStatusCode: resp.StatusCode,
 				UpstreamRequestID:  requestID,
 				Kind:               "failover",
@@ -1146,6 +1166,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				AccountName:        account.Name,
 				UpstreamStatusCode: resp.StatusCode,
 				UpstreamRequestID:  requestID,
 				Kind:               "failover",
@@ -1171,6 +1192,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 			Platform:           account.Platform,
 			AccountID:          account.ID,
+			AccountName:        account.Name,
 			UpstreamStatusCode: resp.StatusCode,
 			UpstreamRequestID:  requestID,
 			Kind:               "http_error",
@@ -1303,6 +1325,7 @@ func (s *GeminiMessagesCompatService) writeGeminiMappedError(c *gin.Context, acc
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 		Platform:           account.Platform,
 		AccountID:          account.ID,
+		AccountName:        account.Name,
 		UpstreamStatusCode: upstreamStatus,
 		UpstreamRequestID:  upstreamRequestID,
 		Kind:               "http_error",

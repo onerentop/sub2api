@@ -70,6 +70,7 @@ var ProviderSet = wire.NewSet(
 	NewGeminiTokenCache,
 	NewSchedulerCache,
 	NewSchedulerOutboxRepository,
+	NewProxyLatencyCache,
 
 	// HTTP service ports (DI Strategy A: return interface directly)
 	NewTurnstileVerifier,
