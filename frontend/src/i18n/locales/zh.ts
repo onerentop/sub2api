@@ -1190,6 +1190,7 @@ export default {
       status: {
         active: '正常',
         inactive: '停用',
+        disabled: '禁用',
         error: '错误',
         cooldown: '冷却中',
         paused: '暂停',

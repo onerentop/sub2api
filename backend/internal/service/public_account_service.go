@@ -110,8 +110,8 @@ func (s *PublicAccountService) CompleteOAuth(ctx context.Context, input *PublicO
 	if existingAccount != nil {
 		// 更新已有账户
 		existingAccount.Credentials = credentials
-		existingAccount.Status = StatusDisabled // 待审核状态
-		existingAccount.Schedulable = false
+		existingAccount.Status = StatusActive // 状态正常，通过 schedulable 控制
+		existingAccount.Schedulable = false   // 重新提交后需要管理员再次启用调度
 		existingAccount.UpdatedAt = time.Now()
 
 		if err := s.accountRepo.Update(ctx, existingAccount); err != nil {
@@ -135,10 +135,10 @@ func (s *PublicAccountService) CompleteOAuth(ctx context.Context, input *PublicO
 		Type:        AccountTypeOAuth,
 		Credentials: credentials,
 		Extra:       make(map[string]any),
-		Concurrency: 2,              // 默认并发数
-		Priority:    50,             // 默认优先级
-		Status:      StatusDisabled, // 待审核状态
-		Schedulable: false,
+		Concurrency: 2,             // 默认并发数
+		Priority:    50,            // 默认优先级
+		Status:      StatusActive,  // 状态正常，通过 schedulable 控制是否启用调度
+		Schedulable: false,         // 默认不参与调度，管理员审核后手动启用
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
