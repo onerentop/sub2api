@@ -46,11 +46,11 @@ const (
 )
 
 // BaseURLs 定义 Antigravity API 端点，按优先级排序
-// fallback 顺序: sandbox → daily → prod
+// 顺序必须与 VSCode 插件一致：prod → sandbox（prod 优先）
+// 参考: vscode-antigravity-cockpit/src/shared/cloudcode_base.ts
 var BaseURLs = []string{
-	"https://daily-cloudcode-pa.sandbox.googleapis.com", // sandbox
-	"https://daily-cloudcode-pa.googleapis.com",         // daily
-	"https://cloudcode-pa.googleapis.com",               // prod
+	"https://cloudcode-pa.googleapis.com",               // prod（优先！配额唤醒必须用这个）
+	"https://daily-cloudcode-pa.sandbox.googleapis.com", // sandbox（fallback）
 }
 
 // BaseURL 默认 URL（保持向后兼容）
