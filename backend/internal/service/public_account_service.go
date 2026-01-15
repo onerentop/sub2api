@@ -273,7 +273,24 @@ func (s *PublicAccountService) Wake(ctx context.Context, input *PublicWakeInput)
 		sessionIDShort = sessionIDShort[:8]
 	}
 
-	// 4. 并发执行多模型唤醒（最多 4 个并发）
+	// 4. 【关键】调用 ResolveProjectId 确保账户激活
+	// 与 vscode-antigravity-cockpit 保持一致：每次 trigger 前都调用 loadCodeAssist + onboardUser
+	// 这是触发配额的必要步骤！
+	client := antigravity.NewClient(session.ProxyURL)
+	projectId, tier, err := client.ResolveProjectId(ctx, accessToken)
+	if err != nil {
+		log.Printf("[PublicWake] session=%s ResolveProjectId 失败: %v (使用缓存的 projectId)", sessionIDShort, err)
+		// 降级使用 session 中的 projectId
+		projectId = session.ProjectID
+	} else {
+		log.Printf("[PublicWake] session=%s ResolveProjectId 成功: projectId=%s, tier=%s", sessionIDShort, projectId, tier)
+		// 更新 session 中的 projectId（如果有变化）
+		if projectId != "" && projectId != session.ProjectID {
+			session.ProjectID = projectId
+		}
+	}
+
+	// 5. 并发执行多模型唤醒（最多 4 个并发）
 	const maxConcurrency = 4
 	results := make([]*WakeModelResult, len(models))
 	var wg sync.WaitGroup
@@ -292,7 +309,7 @@ func (s *PublicAccountService) Wake(ctx context.Context, input *PublicWakeInput)
 	}
 	wg.Wait()
 
-	// 5. 聚合结果
+	// 6. 聚合结果
 	return s.aggregateWakeResults(results, time.Since(startTime).Milliseconds()), nil
 }
 
