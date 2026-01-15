@@ -3063,6 +3063,16 @@ export default {
     successMessage: '您的账户已提交，等待管理员审核后即可使用。',
     contributeAnother: '继续贡献',
     errorStarting: '启动授权流程失败',
-    errorSubmitting: '提交失败，请重试'
+    errorSubmitting: '提交失败，请重试',
+    // Wake test
+    wakeTest: '立即测试',
+    wakeTestDescription: '发送测试请求以激活账户配额，确保账户正常工作。',
+    wakeNow: '立即测试',
+    waking: '测试中...',
+    wakeSuccess: '测试成功',
+    wakeFailed: '测试失败',
+    wakeModel: '模型',
+    wakeDuration: '耗时',
+    wakeError: '测试请求失败'
   }
 }

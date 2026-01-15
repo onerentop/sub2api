@@ -33,6 +33,20 @@ export interface OAuthCompleteResponse {
   message: string
   email?: string
   is_new: boolean
+  session_id?: string // 用于后续唤醒请求
+}
+
+export interface WakeRequest {
+  session_id: string
+  models?: string[] // 可选，默认使用 gemini-3-flash
+}
+
+export interface WakeResponse {
+  success: boolean
+  message?: string
+  model: string
+  text?: string
+  duration?: number // 耗时 (ms)
 }
 
 interface ApiResponse<T> {
@@ -80,9 +94,29 @@ export async function completeAntigravityOAuth(
   throw new Error('Invalid response format')
 }
 
+/**
+ * 执行唤醒测试（触发配额）
+ */
+export async function wakeAntigravity(request: WakeRequest): Promise<WakeResponse> {
+  const response = await publicClient.post<ApiResponse<WakeResponse>>(
+    '/antigravity/wake',
+    request
+  )
+  // 检查响应结构
+  if (response.data && response.data.data) {
+    return response.data.data
+  }
+  // 兼容直接返回数据的情况
+  if (response.data && (response.data as unknown as WakeResponse).success !== undefined) {
+    return response.data as unknown as WakeResponse
+  }
+  throw new Error('Invalid response format')
+}
+
 export const publicAPI = {
   antigravity: {
     startOAuth: startAntigravityOAuth,
-    completeOAuth: completeAntigravityOAuth
+    completeOAuth: completeAntigravityOAuth,
+    wake: wakeAntigravity
   }
 }

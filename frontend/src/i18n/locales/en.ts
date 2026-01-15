@@ -2922,6 +2922,16 @@ export default {
     successMessage: 'Your account has been submitted and is pending admin review.',
     contributeAnother: 'Contribute Another',
     errorStarting: 'Failed to start authorization process',
-    errorSubmitting: 'Submission failed, please try again'
+    errorSubmitting: 'Submission failed, please try again',
+    // Wake test
+    wakeTest: 'Quick Test',
+    wakeTestDescription: 'Send a test request to activate account quota and verify it works properly.',
+    wakeNow: 'Test Now',
+    waking: 'Testing...',
+    wakeSuccess: 'Test Successful',
+    wakeFailed: 'Test Failed',
+    wakeModel: 'Model',
+    wakeDuration: 'Duration',
+    wakeError: 'Test request failed'
   }
 }

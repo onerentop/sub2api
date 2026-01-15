@@ -151,6 +151,54 @@
           </p>
         </div>
 
+        <!-- Wake Test Section -->
+        <div v-if="result?.session_id" class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-800">
+          <h4 class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('contribute.wakeTest') }}
+          </h4>
+          <p class="mb-3 text-xs text-gray-500 dark:text-dark-400">
+            {{ t('contribute.wakeTestDescription') }}
+          </p>
+
+          <!-- Wake Result -->
+          <div v-if="wakeResult" class="mb-3 rounded-lg p-3" :class="wakeResult.success ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'">
+            <div class="flex items-start">
+              <Icon
+                :name="wakeResult.success ? 'check' : 'exclamationCircle'"
+                size="sm"
+                :class="wakeResult.success ? 'text-green-500' : 'text-red-500'"
+              />
+              <div class="ml-2 flex-1 text-left">
+                <p class="text-sm font-medium" :class="wakeResult.success ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'">
+                  {{ wakeResult.success ? t('contribute.wakeSuccess') : t('contribute.wakeFailed') }}
+                </p>
+                <p v-if="wakeResult.model" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                  {{ t('contribute.wakeModel') }}: {{ wakeResult.model }}
+                </p>
+                <p v-if="wakeResult.duration != null" class="text-xs text-gray-500 dark:text-dark-400">
+                  {{ t('contribute.wakeDuration') }}: {{ wakeResult.duration }}ms
+                </p>
+                <p v-if="wakeResult.text" class="mt-2 rounded bg-white p-2 text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300">
+                  {{ wakeResult.text }}
+                </p>
+                <p v-if="!wakeResult.success && wakeResult.message" class="mt-1 text-xs text-red-600 dark:text-red-400">
+                  {{ wakeResult.message }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            @click="handleWakeTest"
+            :disabled="isWaking"
+            class="btn btn-secondary w-full"
+          >
+            <Icon v-if="isWaking" name="refresh" size="sm" class="mr-2 animate-spin" />
+            <Icon v-else name="play" size="sm" class="mr-2" />
+            {{ isWaking ? t('contribute.waking') : t('contribute.wakeNow') }}
+          </button>
+        </div>
+
         <button
           @click="resetForm"
           class="btn btn-primary"
@@ -189,7 +237,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AuthLayout from '@/components/layout/AuthLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { startAntigravityOAuth, completeAntigravityOAuth, type OAuthCompleteResponse } from '@/api/public'
+import { startAntigravityOAuth, completeAntigravityOAuth, wakeAntigravity, type OAuthCompleteResponse, type WakeResponse } from '@/api/public'
 
 const { t } = useI18n()
 
@@ -202,6 +250,10 @@ const sessionId = ref('')
 const state = ref('')
 const callbackUrl = ref('')
 const result = ref<OAuthCompleteResponse | null>(null)
+
+// Wake test state
+const isWaking = ref(false)
+const wakeResult = ref<WakeResponse | null>(null)
 
 const steps = [
   { label: 'Start' },
@@ -264,6 +316,7 @@ async function handleSubmitCode() {
     const code = extractCodeFromUrl(callbackUrl.value.trim())
     if (!code) {
       error.value = t('contribute.invalidCode')
+      isLoading.value = false
       return
     }
 
@@ -290,5 +343,33 @@ function resetForm() {
   callbackUrl.value = ''
   result.value = null
   error.value = ''
+  // Reset wake state
+  isWaking.value = false
+  wakeResult.value = null
+}
+
+// Wake test handler
+async function handleWakeTest() {
+  if (!result.value?.session_id) {
+    return
+  }
+
+  isWaking.value = true
+  wakeResult.value = null
+
+  try {
+    const response = await wakeAntigravity({
+      session_id: result.value.session_id
+    })
+    wakeResult.value = response
+  } catch (err: any) {
+    wakeResult.value = {
+      success: false,
+      message: err.response?.data?.message || err.message || t('contribute.wakeError'),
+      model: ''
+    }
+  } finally {
+    isWaking.value = false
+  }
 }
 </script>
