@@ -77,6 +77,15 @@ const routes: RouteRecordRaw[] = [
       title: 'LinuxDo OAuth Callback'
     }
   },
+  {
+    path: '/contribute',
+    name: 'Contribute',
+    component: () => import('@/views/public/ContributeView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Contribute Account'
+    }
+  },
 
   // ==================== User Routes ====================
   {

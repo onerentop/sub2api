@@ -2901,5 +2901,26 @@ export default {
         description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Click to confirm and create your API key.</p><div style="padding: 8px 12px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>⚠️ Important:</b><ul style="margin: 8px 0 0 16px;"><li>Copy the key (sk-xxx) immediately after creation</li><li>Key is only shown once, need to regenerate if lost</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>🚀 How to Use:</b><br/>Configure the key in any OpenAI-compatible client (like ChatBox, OpenCat, etc.) and start using!</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">👉 Click "Create" button</p></div>'
       }
     }
+  },
+
+  // Contribute Account
+  contribute: {
+    title: 'Contribute Account',
+    description: 'Contribute your Google account to support the platform',
+    step1Info: 'Click the button below to start the Google authorization process. After authorization, you need to copy the authorization code from the callback URL.',
+    step2Info: 'Please complete Google login in the new window, then paste the complete URL from the browser address bar into the input box below.',
+    startAuth: 'Start Google Authorization',
+    authUrlLabel: 'Authorization URL',
+    callbackUrlLabel: 'Callback URL or Authorization Code',
+    callbackUrlPlaceholder: 'Paste the complete callback URL (http://localhost:8085/callback?code=...) or paste the authorization code directly',
+    callbackUrlHint: 'After authorization, the browser will redirect to localhost:8085, please copy the complete URL from the address bar',
+    openInNewTab: 'Open in new tab',
+    submit: 'Submit',
+    invalidCode: 'Unable to extract a valid authorization code from the input',
+    successTitle: 'Submitted Successfully!',
+    successMessage: 'Your account has been submitted and is pending admin review.',
+    contributeAnother: 'Contribute Another',
+    errorStarting: 'Failed to start authorization process',
+    errorSubmitting: 'Submission failed, please try again'
   }
 }

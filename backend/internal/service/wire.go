@@ -250,4 +250,5 @@ var ProviderSet = wire.NewSet(
 	NewUsageCache,
 	NewAnnouncementService,
 	NewAccount429Tracker,
+	NewPublicAccountService,
 )

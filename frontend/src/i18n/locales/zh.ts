@@ -3042,5 +3042,26 @@ export default {
         description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">点击确认创建您的 API 密钥。</p><div style="padding: 8px 12px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>⚠️ 重要：</b><ul style="margin: 8px 0 0 16px;"><li>创建后请立即复制密钥（sk-xxx）</li><li>密钥只显示一次，丢失需重新生成</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>🚀 如何使用：</b><br/>将密钥配置到支持 OpenAI 接口的任何客户端（如 ChatBox、OpenCat 等），即可开始使用！</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">👉 点击"创建"按钮</p></div>'
       }
     }
+  },
+
+  // Contribute Account
+  contribute: {
+    title: '贡献账户',
+    description: '贡献您的 Google 账户以支持平台运营',
+    step1Info: '点击下方按钮开始 Google 授权流程。授权完成后，您需要复制回调地址中的授权码。',
+    step2Info: '请在新窗口中完成 Google 登录授权，然后将浏览器地址栏中的完整 URL 粘贴到下方输入框。',
+    startAuth: '开始 Google 授权',
+    authUrlLabel: '授权链接',
+    callbackUrlLabel: '回调地址或授权码',
+    callbackUrlPlaceholder: '粘贴完整的回调 URL（http://localhost:8085/callback?code=...）或直接粘贴授权码',
+    callbackUrlHint: '完成授权后，浏览器会跳转到 localhost:8085，请复制完整的地址栏 URL',
+    openInNewTab: '在新标签页打开',
+    submit: '提交',
+    invalidCode: '无法从输入中提取有效的授权码',
+    successTitle: '提交成功！',
+    successMessage: '您的账户已提交，等待管理员审核后即可使用。',
+    contributeAnother: '继续贡献',
+    errorStarting: '启动授权流程失败',
+    errorSubmitting: '提交失败，请重试'
   }
 }
