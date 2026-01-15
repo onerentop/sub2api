@@ -3073,6 +3073,7 @@ export default {
     wakeFailed: '测试失败',
     wakeModel: '模型',
     wakeDuration: '耗时',
-    wakeError: '测试请求失败'
+    wakeError: '测试请求失败',
+    modelResults: '各模型测试结果'
   }
 }

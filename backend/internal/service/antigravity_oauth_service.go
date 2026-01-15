@@ -141,18 +141,17 @@ func (s *AntigravityOAuthService) ExchangeCode(ctx context.Context, input *Antig
 		result.Email = userInfo.Email
 	}
 
-	// 获取 project_id（部分账户类型可能没有）
-	loadResp, _, err := client.LoadCodeAssist(ctx, tokenResp.AccessToken)
+	// 获取 project_id：使用 ResolveProjectId（先 loadCodeAssist，没有则 onboardUser 激活）
+	// 这是从 vscode-antigravity-cockpit 移植的核心逻辑
+	projectId, tier, err := client.ResolveProjectId(ctx, tokenResp.AccessToken)
 	if err != nil {
-		fmt.Printf("[AntigravityOAuth] 警告: 获取 project_id 失败: %v\n", err)
-	} else if loadResp != nil && loadResp.CloudAICompanionProject != "" {
-		result.ProjectID = loadResp.CloudAICompanionProject
-	}
-
-	// 兜底：随机生成 project_id
-	if result.ProjectID == "" {
+		fmt.Printf("[AntigravityOAuth] 警告: ResolveProjectId 失败: %v\n", err)
+		// 兜底：随机生成 project_id（只有激活失败时才走这里）
 		result.ProjectID = antigravity.GenerateMockProjectID()
 		fmt.Printf("[AntigravityOAuth] 使用随机生成的 project_id: %s\n", result.ProjectID)
+	} else {
+		result.ProjectID = projectId
+		fmt.Printf("[AntigravityOAuth] 获取 project_id 成功: %s (tier=%s)\n", projectId, tier)
 	}
 
 	return result, nil
@@ -206,18 +205,17 @@ func (s *AntigravityOAuthService) ExchangeCodeAndKeepSession(ctx context.Context
 		result.Email = userInfo.Email
 	}
 
-	// 获取 project_id（部分账户类型可能没有）
-	loadResp, _, err := client.LoadCodeAssist(ctx, tokenResp.AccessToken)
+	// 获取 project_id：使用 ResolveProjectId（先 loadCodeAssist，没有则 onboardUser 激活）
+	// 这是从 vscode-antigravity-cockpit 移植的核心逻辑
+	projectId, tier, err := client.ResolveProjectId(ctx, tokenResp.AccessToken)
 	if err != nil {
-		fmt.Printf("[AntigravityOAuth] 警告: 获取 project_id 失败: %v\n", err)
-	} else if loadResp != nil && loadResp.CloudAICompanionProject != "" {
-		result.ProjectID = loadResp.CloudAICompanionProject
-	}
-
-	// 兜底：随机生成 project_id
-	if result.ProjectID == "" {
+		fmt.Printf("[AntigravityOAuth] 警告: ResolveProjectId 失败: %v\n", err)
+		// 兜底：随机生成 project_id（只有激活失败时才走这里）
 		result.ProjectID = antigravity.GenerateMockProjectID()
 		fmt.Printf("[AntigravityOAuth] 使用随机生成的 project_id: %s\n", result.ProjectID)
+	} else {
+		result.ProjectID = projectId
+		fmt.Printf("[AntigravityOAuth] 获取 project_id 成功: %s (tier=%s)\n", projectId, tier)
 	}
 
 	// 更新 session：存储 token 信息，延长有效期

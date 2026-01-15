@@ -161,28 +161,69 @@
           </p>
 
           <!-- Wake Result -->
-          <div v-if="wakeResult" class="mb-3 rounded-lg p-3" :class="wakeResult.success ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'">
-            <div class="flex items-start">
-              <Icon
-                :name="wakeResult.success ? 'check' : 'exclamationCircle'"
-                size="sm"
-                :class="wakeResult.success ? 'text-green-500' : 'text-red-500'"
-              />
-              <div class="ml-2 flex-1 text-left">
-                <p class="text-sm font-medium" :class="wakeResult.success ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'">
-                  {{ wakeResult.success ? t('contribute.wakeSuccess') : t('contribute.wakeFailed') }}
+          <div v-if="wakeResult" class="mb-3 space-y-2">
+            <!-- Overall Status -->
+            <div class="rounded-lg p-3" :class="wakeResult.success ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'">
+              <div class="flex items-start">
+                <Icon
+                  :name="wakeResult.success ? 'check' : 'exclamationCircle'"
+                  size="sm"
+                  :class="wakeResult.success ? 'text-green-500' : 'text-red-500'"
+                />
+                <div class="ml-2 flex-1 text-left">
+                  <p class="text-sm font-medium" :class="wakeResult.success ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'">
+                    {{ wakeResult.success ? t('contribute.wakeSuccess') : t('contribute.wakeFailed') }}
+                  </p>
+                  <p v-if="wakeResult.model" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                    {{ t('contribute.wakeModel') }}: {{ wakeResult.model }}
+                  </p>
+                  <p v-if="wakeResult.duration != null" class="text-xs text-gray-500 dark:text-dark-400">
+                    {{ t('contribute.wakeDuration') }}: {{ wakeResult.duration }}ms
+                  </p>
+                  <!-- Token Statistics -->
+                  <p v-if="wakeResult.total_tokens" class="text-xs text-gray-500 dark:text-dark-400">
+                    Tokens: {{ wakeResult.prompt_tokens ?? 0 }} → {{ wakeResult.completion_tokens ?? 0 }} ({{ wakeResult.total_tokens }})
+                  </p>
+                  <p v-if="wakeResult.text" class="mt-2 rounded bg-white p-2 text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300">
+                    {{ wakeResult.text }}
+                  </p>
+                  <p v-if="!wakeResult.success && wakeResult.message" class="mt-1 text-xs text-red-600 dark:text-red-400">
+                    {{ wakeResult.message }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Multi-Model Results -->
+            <div v-if="wakeResult.results && wakeResult.results.length > 0" class="space-y-2">
+              <p class="text-xs font-medium text-gray-600 dark:text-gray-400">{{ t('contribute.modelResults') }}:</p>
+              <div
+                v-for="(modelResult, idx) in wakeResult.results"
+                :key="idx"
+                class="rounded border p-2 text-left"
+                :class="modelResult.success
+                  ? 'border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-900/10'
+                  : 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10'"
+              >
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium" :class="modelResult.success ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'">
+                    {{ modelResult.model }}
+                  </span>
+                  <span class="text-xs text-gray-500 dark:text-dark-400">
+                    {{ modelResult.duration != null ? modelResult.duration + 'ms' : '' }}
+                  </span>
+                </div>
+                <div v-if="modelResult.total_tokens" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                  Tokens: {{ modelResult.prompt_tokens ?? 0 }} → {{ modelResult.completion_tokens ?? 0 }} ({{ modelResult.total_tokens }})
+                </div>
+                <div v-if="modelResult.trace_id" class="mt-1 text-xs text-gray-400 dark:text-dark-500 font-mono truncate">
+                  TraceId: {{ modelResult.trace_id }}
+                </div>
+                <p v-if="modelResult.text" class="mt-1 rounded bg-white p-1.5 text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300 line-clamp-2">
+                  {{ modelResult.text }}
                 </p>
-                <p v-if="wakeResult.model" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-                  {{ t('contribute.wakeModel') }}: {{ wakeResult.model }}
-                </p>
-                <p v-if="wakeResult.duration != null" class="text-xs text-gray-500 dark:text-dark-400">
-                  {{ t('contribute.wakeDuration') }}: {{ wakeResult.duration }}ms
-                </p>
-                <p v-if="wakeResult.text" class="mt-2 rounded bg-white p-2 text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300">
-                  {{ wakeResult.text }}
-                </p>
-                <p v-if="!wakeResult.success && wakeResult.message" class="mt-1 text-xs text-red-600 dark:text-red-400">
-                  {{ wakeResult.message }}
+                <p v-if="!modelResult.success && modelResult.message" class="mt-1 text-xs text-red-600 dark:text-red-400">
+                  {{ modelResult.message }}
                 </p>
               </div>
             </div>

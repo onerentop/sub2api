@@ -2932,6 +2932,7 @@ export default {
     wakeFailed: 'Test Failed',
     wakeModel: 'Model',
     wakeDuration: 'Duration',
-    wakeError: 'Test request failed'
+    wakeError: 'Test request failed',
+    modelResults: 'Model Test Results'
   }
 }

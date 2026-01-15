@@ -39,6 +39,21 @@ export interface OAuthCompleteResponse {
 export interface WakeRequest {
   session_id: string
   models?: string[] // 可选，默认使用 gemini-3-flash
+  custom_prompt?: string // 自定义提示词
+  max_output_tokens?: number // 最大输出 token 数
+}
+
+// 单个模型的唤醒结果
+export interface WakeModelResult {
+  model: string
+  success: boolean
+  message?: string
+  text?: string
+  duration?: number // 耗时 (ms)
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
+  trace_id?: string
 }
 
 export interface WakeResponse {
@@ -47,6 +62,12 @@ export interface WakeResponse {
   model: string
   text?: string
   duration?: number // 耗时 (ms)
+  // 多模型结果
+  results?: WakeModelResult[]
+  // Token 统计（聚合）
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
 }
 
 interface ApiResponse<T> {

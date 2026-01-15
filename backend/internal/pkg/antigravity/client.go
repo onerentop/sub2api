@@ -472,3 +472,201 @@ func (c *Client) FetchAvailableModels(ctx context.Context, accessToken, projectI
 
 	return nil, nil, lastErr
 }
+
+// ==================== OnboardUser API (账号激活) ====================
+// 以下是从 vscode-antigravity-cockpit 移植的账号激活逻辑
+// 新 OAuth 账号必须调用 onboardUser 才能正常使用 Antigravity 模型
+
+// OnboardMetadata 激活请求的元数据
+type OnboardMetadata struct {
+	IDEType    string `json:"ideType"`
+	Platform   string `json:"platform"`
+	PluginType string `json:"pluginType"`
+}
+
+// OnboardUserRequest onboardUser 请求
+type OnboardUserRequest struct {
+	TierID   string          `json:"tierId"`
+	Metadata OnboardMetadata `json:"metadata"`
+}
+
+// OnboardUserResponseData onboardUser 响应中的 response 字段
+type OnboardUserResponseData struct {
+	CloudAICompanionProject string `json:"cloudaicompanionProject"`
+}
+
+// OnboardUserResponse onboardUser 响应
+type OnboardUserResponse struct {
+	Done     bool                     `json:"done"`
+	Response *OnboardUserResponseData `json:"response,omitempty"`
+}
+
+// onboardUser 激活参数
+const (
+	OnboardMaxAttempts = 5               // 最大轮询次数
+	OnboardDelayMS     = 2 * time.Second // 轮询间隔
+)
+
+// OnboardUser 激活新 OAuth 账号
+// 新账号首次使用需要调用此 API 进行激活，否则无法使用 Antigravity 模型
+// tierId: 账户级别 (free-tier, g1-pro-tier, g1-ultra-tier)
+// 返回激活后的 projectId，失败返回空字符串
+func (c *Client) OnboardUser(ctx context.Context, accessToken, tierId string) (string, error) {
+	reqBody := OnboardUserRequest{
+		TierID: tierId,
+		Metadata: OnboardMetadata{
+			IDEType:    "ANTIGRAVITY",
+			Platform:   "PLATFORM_UNSPECIFIED",
+			PluginType: "GEMINI",
+		},
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("序列化请求失败: %w", err)
+	}
+
+	// 获取可用的 URL 列表
+	availableURLs := DefaultURLAvailability.GetAvailableURLs()
+	if len(availableURLs) == 0 {
+		availableURLs = BaseURLs
+	}
+
+	// 轮询尝试激活（最多5次，每次间隔2秒）
+	for attempt := 1; attempt <= OnboardMaxAttempts; attempt++ {
+		var lastErr error
+		var done bool
+		var projectId string
+
+		for urlIdx, baseURL := range availableURLs {
+			apiURL := baseURL + "/v1internal:onboardUser"
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, strings.NewReader(string(bodyBytes)))
+			if err != nil {
+				lastErr = fmt.Errorf("创建请求失败: %w", err)
+				continue
+			}
+			req.Header.Set("Authorization", "Bearer "+accessToken)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("User-Agent", UserAgent)
+
+			resp, err := c.httpClient.Do(req)
+			if err != nil {
+				lastErr = fmt.Errorf("onboardUser 请求失败: %w", err)
+				if shouldFallbackToNextURL(err, 0) && urlIdx < len(availableURLs)-1 {
+					DefaultURLAvailability.MarkUnavailable(baseURL)
+					log.Printf("[antigravity] onboardUser URL fallback: %s -> %s", baseURL, availableURLs[urlIdx+1])
+					continue
+				}
+				break
+			}
+
+			respBodyBytes, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if err != nil {
+				lastErr = fmt.Errorf("读取响应失败: %w", err)
+				break
+			}
+
+			// 检查是否需要 URL 降级
+			if shouldFallbackToNextURL(nil, resp.StatusCode) && urlIdx < len(availableURLs)-1 {
+				DefaultURLAvailability.MarkUnavailable(baseURL)
+				log.Printf("[antigravity] onboardUser URL fallback (HTTP %d): %s -> %s", resp.StatusCode, baseURL, availableURLs[urlIdx+1])
+				continue
+			}
+
+			if resp.StatusCode != http.StatusOK {
+				lastErr = fmt.Errorf("onboardUser 失败 (HTTP %d): %s", resp.StatusCode, string(respBodyBytes))
+				break
+			}
+
+			var onboardResp OnboardUserResponse
+			if err := json.Unmarshal(respBodyBytes, &onboardResp); err != nil {
+				lastErr = fmt.Errorf("响应解析失败: %w", err)
+				break
+			}
+
+			done = onboardResp.Done
+			if done && onboardResp.Response != nil {
+				projectId = extractProjectIdFromPath(onboardResp.Response.CloudAICompanionProject)
+			}
+			break // 请求成功，跳出 URL 循环
+		}
+
+		// 如果激活完成，返回 projectId
+		if done {
+			log.Printf("[antigravity] onboardUser 激活成功 (attempt %d/%d), projectId: %s", attempt, OnboardMaxAttempts, projectId)
+			return projectId, nil
+		}
+
+		// 未完成且还有重试机会，等待后继续
+		if attempt < OnboardMaxAttempts {
+			log.Printf("[antigravity] onboardUser 激活中 (attempt %d/%d), 等待 %v 后重试...", attempt, OnboardMaxAttempts, OnboardDelayMS)
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(OnboardDelayMS):
+			}
+		} else if lastErr != nil {
+			return "", lastErr
+		}
+	}
+
+	return "", fmt.Errorf("onboardUser 激活超时（%d 次尝试均未完成）", OnboardMaxAttempts)
+}
+
+// extractProjectIdFromPath 从 cloudaicompanionProject 路径中提取 projectId
+// 格式: "projects/{projectId}/locations/global/..." 或直接返回字符串
+func extractProjectIdFromPath(path string) string {
+	if path == "" {
+		return ""
+	}
+	// 尝试解析 projects/{id}/... 格式
+	const prefix = "projects/"
+	if idx := strings.Index(path, prefix); idx >= 0 {
+		rest := path[idx+len(prefix):]
+		if slashIdx := strings.Index(rest, "/"); slashIdx > 0 {
+			return rest[:slashIdx]
+		}
+		return rest
+	}
+	return path
+}
+
+// ResolveProjectId 获取账号的 projectId，如果没有则自动激活
+// 这是 vscode-antigravity-cockpit 的核心逻辑：先 loadCodeAssist 获取，没有就 onboardUser 激活
+func (c *Client) ResolveProjectId(ctx context.Context, accessToken string) (projectId string, tier string, err error) {
+	// 1. 先尝试 loadCodeAssist 获取现有 projectId
+	loadResp, _, err := c.LoadCodeAssist(ctx, accessToken)
+	if err != nil {
+		return "", "", fmt.Errorf("loadCodeAssist 失败: %w", err)
+	}
+
+	// 获取 tier 信息
+	tier = loadResp.GetTier()
+	if tier == "" {
+		tier = "free-tier" // 默认 free-tier
+	}
+
+	// 提取 projectId
+	projectId = extractProjectIdFromPath(loadResp.CloudAICompanionProject)
+
+	// 2. 如果已有 projectId，直接返回
+	if projectId != "" {
+		log.Printf("[antigravity] ResolveProjectId: 已有 projectId=%s, tier=%s", projectId, tier)
+		return projectId, tier, nil
+	}
+
+	// 3. 没有 projectId，需要激活
+	log.Printf("[antigravity] ResolveProjectId: 没有 projectId，开始激活流程 (tier=%s)...", tier)
+	projectId, err = c.OnboardUser(ctx, accessToken, tier)
+	if err != nil {
+		return "", tier, fmt.Errorf("onboardUser 激活失败: %w", err)
+	}
+
+	if projectId == "" {
+		return "", tier, fmt.Errorf("onboardUser 完成但未返回 projectId")
+	}
+
+	log.Printf("[antigravity] ResolveProjectId: 激活成功, projectId=%s", projectId)
+	return projectId, tier, nil
+}

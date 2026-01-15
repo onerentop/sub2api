@@ -61,8 +61,10 @@ func (h *PublicAntigravityOAuthHandler) Complete(c *gin.Context) {
 
 // WakeRequest 唤醒请求体
 type WakeRequest struct {
-	SessionID string   `json:"session_id" binding:"required"`
-	Models    []string `json:"models,omitempty"`
+	SessionID       string   `json:"session_id" binding:"required"`
+	Models          []string `json:"models,omitempty"`
+	CustomPrompt    string   `json:"custom_prompt,omitempty"`
+	MaxOutputTokens int      `json:"max_output_tokens,omitempty"`
 }
 
 // Wake 执行唤醒请求（发送测试消息触发配额）
@@ -75,8 +77,10 @@ func (h *PublicAntigravityOAuthHandler) Wake(c *gin.Context) {
 	}
 
 	result, err := h.publicAccountService.Wake(c.Request.Context(), &service.PublicWakeInput{
-		SessionID: req.SessionID,
-		Models:    req.Models,
+		SessionID:       req.SessionID,
+		Models:          req.Models,
+		CustomPrompt:    req.CustomPrompt,
+		MaxOutputTokens: req.MaxOutputTokens,
 	})
 	if err != nil {
 		response.BadRequest(c, err.Error())
