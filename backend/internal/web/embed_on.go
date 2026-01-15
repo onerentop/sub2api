@@ -81,6 +81,7 @@ func (s *FrontendServer) Middleware() gin.HandlerFunc {
 			strings.HasPrefix(path, "/v1/") ||
 			strings.HasPrefix(path, "/v1beta/") ||
 			strings.HasPrefix(path, "/antigravity/") ||
+			strings.HasPrefix(path, "/public/") ||
 			strings.HasPrefix(path, "/setup/") ||
 			path == "/health" ||
 			path == "/responses" {
@@ -189,6 +190,7 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 			strings.HasPrefix(path, "/v1/") ||
 			strings.HasPrefix(path, "/v1beta/") ||
 			strings.HasPrefix(path, "/antigravity/") ||
+			strings.HasPrefix(path, "/public/") ||
 			strings.HasPrefix(path, "/setup/") ||
 			path == "/health" ||
 			path == "/responses" {
