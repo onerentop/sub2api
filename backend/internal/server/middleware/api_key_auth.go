@@ -97,6 +97,12 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 
+		// 检查分组状态
+		if apiKey.Group != nil && apiKey.Group.Status != service.StatusActive {
+			AbortWithError(c, 403, "GROUP_INACTIVE", "The group associated with this API key is inactive")
+			return
+		}
+
 		if cfg.RunMode == config.RunModeSimple {
 			// 简易模式：跳过余额和订阅检查，但仍需设置必要的上下文
 			c.Set(string(ContextKeyAPIKey), apiKey)
