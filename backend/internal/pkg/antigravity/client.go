@@ -511,8 +511,42 @@ type OnboardUserRequest struct {
 }
 
 // OnboardUserResponseData onboardUser 响应中的 response 字段
+// 注意：cloudaicompanionProject 有时返回 string，有时返回 object {"id": "projects/xxx"}
 type OnboardUserResponseData struct {
-	CloudAICompanionProject string `json:"cloudaicompanionProject"`
+	CloudAICompanionProjectRaw json.RawMessage `json:"cloudaicompanionProject"`
+}
+
+// GetCloudAICompanionProject 获取 cloudaicompanionProject 值
+// 处理两种情况：string 直接返回，object 返回其 "id" 字段
+func (r *OnboardUserResponseData) GetCloudAICompanionProject() string {
+	if r == nil || len(r.CloudAICompanionProjectRaw) == 0 {
+		return ""
+	}
+
+	raw := r.CloudAICompanionProjectRaw
+
+	// 尝试解析为 string
+	var strVal string
+	if err := json.Unmarshal(raw, &strVal); err == nil {
+		return strVal
+	}
+
+	// 尝试解析为 object {"id": "xxx", ...}
+	var objVal struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(raw, &objVal); err == nil {
+		if objVal.ID != "" {
+			return objVal.ID
+		}
+		if objVal.Name != "" {
+			return objVal.Name
+		}
+	}
+
+	// 都失败了，返回原始字符串（去掉引号）
+	return strings.Trim(string(raw), "\"")
 }
 
 // OnboardUserResponse onboardUser 响应
@@ -607,7 +641,7 @@ func (c *Client) OnboardUser(ctx context.Context, accessToken, tierId string) (s
 
 			done = onboardResp.Done
 			if done && onboardResp.Response != nil {
-				projectId = extractProjectIdFromPath(onboardResp.Response.CloudAICompanionProject)
+				projectId = extractProjectIdFromPath(onboardResp.Response.GetCloudAICompanionProject())
 			}
 			break // 请求成功，跳出 URL 循环
 		}
