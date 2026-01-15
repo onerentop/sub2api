@@ -58,3 +58,30 @@ func (h *PublicAntigravityOAuthHandler) Complete(c *gin.Context) {
 
 	response.Success(c, result)
 }
+
+// WakeRequest 唤醒请求体
+type WakeRequest struct {
+	SessionID string   `json:"session_id" binding:"required"`
+	Models    []string `json:"models,omitempty"`
+}
+
+// Wake 执行唤醒请求（发送测试消息触发配额）
+// POST /public/antigravity/wake
+func (h *PublicAntigravityOAuthHandler) Wake(c *gin.Context) {
+	var req WakeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数无效: "+err.Error())
+		return
+	}
+
+	result, err := h.publicAccountService.Wake(c.Request.Context(), &service.PublicWakeInput{
+		SessionID: req.SessionID,
+		Models:    req.Models,
+	})
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, result)
+}

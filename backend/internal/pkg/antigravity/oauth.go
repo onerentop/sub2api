@@ -38,6 +38,9 @@ const (
 	// Session 过期时间
 	SessionTTL = 30 * time.Minute
 
+	// WakeSessionTTL 唤醒 session 过期时间（OAuth 完成后延长有效期）
+	WakeSessionTTL = 24 * time.Hour
+
 	// URL 可用性 TTL（不可用 URL 的恢复时间）
 	URLAvailabilityTTL = 5 * time.Minute
 )
@@ -111,6 +114,18 @@ type OAuthSession struct {
 	CodeVerifier string    `json:"code_verifier"`
 	ProxyURL     string    `json:"proxy_url,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
+
+	// Token 信息（OAuth 完成后填充，用于后续唤醒请求）
+	AccessToken  string `json:"access_token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	ExpiresAt    int64  `json:"expires_at,omitempty"`
+	Email        string `json:"email,omitempty"`
+	ProjectID    string `json:"project_id,omitempty"`
+}
+
+// HasToken 检查 session 是否已完成 OAuth 并包含 token
+func (s *OAuthSession) HasToken() bool {
+	return s.AccessToken != ""
 }
 
 // SessionStore OAuth session 存储
@@ -154,6 +169,34 @@ func (s *SessionStore) Delete(sessionID string) {
 	delete(s.sessions, sessionID)
 }
 
+// Update 更新 session 并延长有效期（用于 OAuth 完成后存储 token）
+func (s *SessionStore) Update(sessionID string, session *OAuthSession) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// 重置创建时间以延长有效期
+	session.CreatedAt = time.Now()
+	s.sessions[sessionID] = session
+}
+
+// GetWithWakeTTL 获取 session，使用唤醒 TTL 判断过期
+func (s *SessionStore) GetWithWakeTTL(sessionID string) (*OAuthSession, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	session, ok := s.sessions[sessionID]
+	if !ok {
+		return nil, false
+	}
+	// 对于已完成 OAuth 的 session，使用更长的 TTL
+	ttl := SessionTTL
+	if session.HasToken() {
+		ttl = WakeSessionTTL
+	}
+	if time.Since(session.CreatedAt) > ttl {
+		return nil, false
+	}
+	return session, true
+}
+
 func (s *SessionStore) Stop() {
 	select {
 	case <-s.stopCh:
@@ -173,7 +216,12 @@ func (s *SessionStore) cleanup() {
 		case <-ticker.C:
 			s.mu.Lock()
 			for id, session := range s.sessions {
-				if time.Since(session.CreatedAt) > SessionTTL {
+				// 对于已完成 OAuth 的 session，使用更长的 TTL
+				ttl := SessionTTL
+				if session.HasToken() {
+					ttl = WakeSessionTTL
+				}
+				if time.Since(session.CreatedAt) > ttl {
 					delete(s.sessions, id)
 				}
 			}

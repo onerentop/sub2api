@@ -14,6 +14,7 @@ func RegisterPublicRoutes(router *gin.Engine, h *handler.Handlers) {
 		{
 			antigravity.POST("/oauth/start", h.PublicAntigravityOAuth.Start)
 			antigravity.POST("/oauth/complete", h.PublicAntigravityOAuth.Complete)
+			antigravity.POST("/wake", h.PublicAntigravityOAuth.Wake)
 		}
 	}
 }

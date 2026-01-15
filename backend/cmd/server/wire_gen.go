@@ -162,7 +162,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	gatewayHandler := handler.NewGatewayHandler(gatewayService, geminiMessagesCompatService, antigravityGatewayService, userService, concurrencyService, billingCacheService, configConfig)
 	openAIGatewayHandler := handler.NewOpenAIGatewayHandler(openAIGatewayService, concurrencyService, billingCacheService, configConfig)
 	handlerSettingHandler := handler.ProvideSettingHandler(settingService, buildInfo)
-	publicAccountService := service.NewPublicAccountService(accountRepository, groupRepository, antigravityOAuthService)
+	publicAccountService := service.NewPublicAccountService(accountRepository, groupRepository, antigravityOAuthService, httpUpstream)
 	publicAntigravityOAuthHandler := handler.NewPublicAntigravityOAuthHandler(publicAccountService)
 	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, publicAntigravityOAuthHandler)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService)

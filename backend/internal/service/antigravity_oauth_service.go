@@ -158,6 +158,109 @@ func (s *AntigravityOAuthService) ExchangeCode(ctx context.Context, input *Antig
 	return result, nil
 }
 
+// ExchangeCodeAndKeepSession 用 authorization code 交换 token，但保留 session 用于后续唤醒请求
+// 这个方法用于 public OAuth 流程，session 会在 24 小时后自动过期
+func (s *AntigravityOAuthService) ExchangeCodeAndKeepSession(ctx context.Context, input *AntigravityExchangeCodeInput) (*AntigravityTokenInfo, error) {
+	session, ok := s.sessionStore.Get(input.SessionID)
+	if !ok {
+		return nil, fmt.Errorf("session 不存在或已过期")
+	}
+
+	if strings.TrimSpace(input.State) == "" || input.State != session.State {
+		return nil, fmt.Errorf("state 无效")
+	}
+
+	// 确定代理 URL
+	proxyURL := session.ProxyURL
+	if input.ProxyID != nil {
+		proxy, err := s.proxyRepo.GetByID(ctx, *input.ProxyID)
+		if err == nil && proxy != nil {
+			proxyURL = proxy.URL()
+		}
+	}
+
+	client := antigravity.NewClient(proxyURL)
+
+	// 交换 token
+	tokenResp, err := client.ExchangeCode(ctx, input.Code, session.CodeVerifier)
+	if err != nil {
+		return nil, fmt.Errorf("token 交换失败: %w", err)
+	}
+
+	// 计算过期时间（减去 5 分钟安全窗口）
+	expiresAt := time.Now().Unix() + tokenResp.ExpiresIn - 300
+
+	result := &AntigravityTokenInfo{
+		AccessToken:  tokenResp.AccessToken,
+		RefreshToken: tokenResp.RefreshToken,
+		ExpiresIn:    tokenResp.ExpiresIn,
+		ExpiresAt:    expiresAt,
+		TokenType:    tokenResp.TokenType,
+	}
+
+	// 获取用户信息
+	userInfo, err := client.GetUserInfo(ctx, tokenResp.AccessToken)
+	if err != nil {
+		fmt.Printf("[AntigravityOAuth] 警告: 获取用户信息失败: %v\n", err)
+	} else {
+		result.Email = userInfo.Email
+	}
+
+	// 获取 project_id（部分账户类型可能没有）
+	loadResp, _, err := client.LoadCodeAssist(ctx, tokenResp.AccessToken)
+	if err != nil {
+		fmt.Printf("[AntigravityOAuth] 警告: 获取 project_id 失败: %v\n", err)
+	} else if loadResp != nil && loadResp.CloudAICompanionProject != "" {
+		result.ProjectID = loadResp.CloudAICompanionProject
+	}
+
+	// 兜底：随机生成 project_id
+	if result.ProjectID == "" {
+		result.ProjectID = antigravity.GenerateMockProjectID()
+		fmt.Printf("[AntigravityOAuth] 使用随机生成的 project_id: %s\n", result.ProjectID)
+	}
+
+	// 更新 session：存储 token 信息，延长有效期
+	session.AccessToken = tokenResp.AccessToken
+	session.RefreshToken = tokenResp.RefreshToken
+	session.ExpiresAt = expiresAt
+	session.Email = result.Email
+	session.ProjectID = result.ProjectID
+	s.sessionStore.Update(input.SessionID, session)
+
+	return result, nil
+}
+
+// GetSessionForWake 获取用于唤醒的 session（使用唤醒 TTL）
+func (s *AntigravityOAuthService) GetSessionForWake(sessionID string) (*antigravity.OAuthSession, error) {
+	session, ok := s.sessionStore.GetWithWakeTTL(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session 不存在或已过期")
+	}
+	if !session.HasToken() {
+		return nil, fmt.Errorf("session 尚未完成 OAuth 授权")
+	}
+	return session, nil
+}
+
+// UpdateSessionToken 更新 session 中的 token 信息（用于 token 刷新后更新）
+func (s *AntigravityOAuthService) UpdateSessionToken(sessionID string, tokenInfo *AntigravityTokenInfo) {
+	session, ok := s.sessionStore.GetWithWakeTTL(sessionID)
+	if !ok || session == nil {
+		return
+	}
+
+	// 更新 token 信息
+	session.AccessToken = tokenInfo.AccessToken
+	if tokenInfo.RefreshToken != "" {
+		session.RefreshToken = tokenInfo.RefreshToken
+	}
+	session.ExpiresAt = tokenInfo.ExpiresAt
+
+	// 保存更新（不重置 CreatedAt，保持原有过期时间）
+	s.sessionStore.Set(sessionID, session)
+}
+
 // RefreshToken 刷新 token
 func (s *AntigravityOAuthService) RefreshToken(ctx context.Context, refreshToken, proxyURL string) (*AntigravityTokenInfo, error) {
 	var lastErr error
