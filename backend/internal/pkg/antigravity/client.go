@@ -135,12 +135,19 @@ type IneligibleTier struct {
 	ReasonMessage string `json:"reasonMessage,omitempty"`
 }
 
+// AllowedTier 允许的层级信息（用于 onboardUser 选择）
+type AllowedTier struct {
+	ID        string `json:"id,omitempty"`
+	IsDefault bool   `json:"isDefault,omitempty"`
+}
+
 // LoadCodeAssistResponse loadCodeAssist 响应
 type LoadCodeAssistResponse struct {
 	CloudAICompanionProject string            `json:"cloudaicompanionProject"`
 	CurrentTier             *TierInfo         `json:"currentTier,omitempty"`
 	PaidTier                *TierInfo         `json:"paidTier,omitempty"`
 	IneligibleTiers         []*IneligibleTier `json:"ineligibleTiers,omitempty"`
+	AllowedTiers            []*AllowedTier    `json:"allowedTiers,omitempty"` // 用于选择 onboardUser 的 tier
 }
 
 // GetTier 获取账户类型
@@ -654,7 +661,7 @@ func (c *Client) ResolveProjectId(ctx context.Context, accessToken string) (proj
 		return "", "", fmt.Errorf("loadCodeAssist 失败: %w", err)
 	}
 
-	// 获取 tier 信息
+	// 获取 tier 信息（用于返回值）
 	tier = loadResp.GetTier()
 	if tier == "" {
 		tier = "free-tier" // 默认 free-tier
@@ -670,8 +677,17 @@ func (c *Client) ResolveProjectId(ctx context.Context, accessToken string) (proj
 	}
 
 	// 3. 没有 projectId，需要激活
-	log.Printf("[antigravity] ResolveProjectId: 没有 projectId，开始激活流程 (tier=%s)...", tier)
-	projectId, err = c.OnboardUser(ctx, accessToken, tier)
+	// 与 vscode-antigravity-cockpit 保持一致：从 allowedTiers 选择 onboard tier
+	onboardTier := pickOnboardTier(loadResp.AllowedTiers)
+	if onboardTier == "" {
+		onboardTier = tier // fallback 到 currentTier/paidTier
+	}
+	if onboardTier == "" {
+		return "", tier, fmt.Errorf("无法确定 onboard tier")
+	}
+
+	log.Printf("[antigravity] ResolveProjectId: 没有 projectId，开始激活流程 (onboardTier=%s, tier=%s)...", onboardTier, tier)
+	projectId, err = c.OnboardUser(ctx, accessToken, onboardTier)
 	if err != nil {
 		return "", tier, fmt.Errorf("onboardUser 激活失败: %w", err)
 	}
@@ -682,4 +698,29 @@ func (c *Client) ResolveProjectId(ctx context.Context, accessToken string) (proj
 
 	log.Printf("[antigravity] ResolveProjectId: 激活成功, projectId=%s", projectId)
 	return projectId, tier, nil
+}
+
+// pickOnboardTier 从 allowedTiers 选择用于 onboardUser 的 tier
+// 与 vscode-antigravity-cockpit/src/shared/cloudcode_client.ts pickOnboardTier 保持一致
+func pickOnboardTier(allowedTiers []*AllowedTier) string {
+	if len(allowedTiers) == 0 {
+		return ""
+	}
+
+	// 1. 优先选择 isDefault 为 true 的 tier
+	for _, tier := range allowedTiers {
+		if tier != nil && tier.IsDefault && tier.ID != "" {
+			return tier.ID
+		}
+	}
+
+	// 2. 否则选择第一个有 ID 的 tier
+	for _, tier := range allowedTiers {
+		if tier != nil && tier.ID != "" {
+			return tier.ID
+		}
+	}
+
+	// 3. 如果有 allowedTiers 但都没有 ID，返回 LEGACY
+	return "LEGACY"
 }
