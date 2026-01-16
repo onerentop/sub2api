@@ -1032,44 +1032,44 @@ func sanitizeThinkingBlocks(req *antigravity.ClaudeRequest) {
 					cleaned = true
 				}
 
-				// 2. Flatten to text if it's a history message (not the last one)
+				// 2. Mark for removal if it's a history message (not the last one)
+				// CLIProxyAPI approach: drop unsigned thinking blocks entirely instead of converting to text
+				// Converting to text breaks Claude's requirement that assistant messages start with thinking blocks
 				if msgIdx < lastMsgIdx {
-					log.Printf("[Antigravity] Flattening history thinking block to text at messages[%d].content[%d]", msgIdx, blockIdx)
-
-					// Extract thinking content
-					var textContent string
-					if t, ok := blocks[blockIdx]["thinking"].(string); ok {
-						textContent = t
-					} else {
-						// Fallback for non-string content (marshal it)
-						if b, err := json.Marshal(blocks[blockIdx]["thinking"]); err == nil {
-							textContent = string(b)
-						}
-					}
-
-					// Convert to text block
-					blocks[blockIdx]["type"] = "text"
-					blocks[blockIdx]["text"] = textContent
-					delete(blocks[blockIdx], "thinking")
-					delete(blocks[blockIdx], "signature")
-					delete(blocks[blockIdx], "cache_control") // Ensure it's gone
+					log.Printf("[Antigravity] Marking history thinking block for removal at messages[%d].content[%d]", msgIdx, blockIdx)
+					blocks[blockIdx]["__remove__"] = true
 					cleaned = true
 				}
 			}
 		}
 
-		// Marshal back if modified
+		// Marshal back if modified (after filtering removed blocks)
 		if cleaned {
-			if marshaled, err := json.Marshal(blocks); err == nil {
+			// Filter out blocks marked for removal
+			filteredBlocks := make([]map[string]any, 0, len(blocks))
+			for _, block := range blocks {
+				if _, shouldRemove := block["__remove__"]; !shouldRemove {
+					filteredBlocks = append(filteredBlocks, block)
+				}
+			}
+			// If all blocks removed, add a placeholder
+			if len(filteredBlocks) == 0 {
+				filteredBlocks = append(filteredBlocks, map[string]any{
+					"type": "text",
+					"text": "(thinking content removed)",
+				})
+			}
+			if marshaled, err := json.Marshal(filteredBlocks); err == nil {
 				req.Messages[msgIdx].Content = marshaled
 			}
 		}
 	}
 }
 
-// stripThinkingFromClaudeRequest converts thinking blocks to text blocks in a Claude Messages request.
-// This preserves the thinking content while avoiding signature validation errors.
-// Note: redacted_thinking blocks are removed because they cannot be converted to text.
+// stripThinkingFromClaudeRequest removes thinking blocks from a Claude Messages request.
+// CLIProxyAPI approach: drop thinking blocks entirely instead of converting to text.
+// Converting to text breaks Claude's requirement that assistant messages start with thinking blocks.
+// Note: redacted_thinking blocks are also removed because they cannot be converted.
 // It also disables top-level `thinking` to avoid upstream structural constraints for thinking mode.
 func stripThinkingFromClaudeRequest(req *antigravity.ClaudeRequest) (bool, error) {
 	if req == nil {
@@ -1094,7 +1094,7 @@ func stripThinkingFromClaudeRequest(req *antigravity.ClaudeRequest) (bool, error
 			continue
 		}
 
-		// Otherwise treat as an array of blocks and convert thinking blocks to text.
+		// Otherwise treat as an array of blocks and remove thinking blocks entirely
 		var blocks []map[string]any
 		if err := json.Unmarshal(raw, &blocks); err != nil {
 			continue
@@ -1106,24 +1106,13 @@ func stripThinkingFromClaudeRequest(req *antigravity.ClaudeRequest) (bool, error
 			t, _ := block["type"].(string)
 			switch t {
 			case "thinking":
-				thinkingText, _ := block["thinking"].(string)
-				if thinkingText != "" {
-					filtered = append(filtered, map[string]any{
-						"type": "text",
-						"text": thinkingText,
-					})
-				}
+				// CLIProxyAPI approach: drop thinking blocks entirely
 				modifiedAny = true
 			case "redacted_thinking":
 				modifiedAny = true
 			case "":
-				if thinkingText, hasThinking := block["thinking"].(string); hasThinking {
-					if thinkingText != "" {
-						filtered = append(filtered, map[string]any{
-							"type": "text",
-							"text": thinkingText,
-						})
-					}
+				if _, hasThinking := block["thinking"].(string); hasThinking {
+					// CLIProxyAPI approach: drop thinking blocks entirely
 					modifiedAny = true
 				} else {
 					filtered = append(filtered, block)
@@ -1192,14 +1181,7 @@ func stripSignatureSensitiveBlocksFromClaudeRequest(req *antigravity.ClaudeReque
 			t, _ := block["type"].(string)
 			switch t {
 			case "thinking":
-				// Convert thinking to text, skip if empty
-				thinkingText, _ := block["thinking"].(string)
-				if thinkingText != "" {
-					filtered = append(filtered, map[string]any{
-						"type": "text",
-						"text": thinkingText,
-					})
-				}
+				// CLIProxyAPI approach: drop thinking blocks entirely
 				modifiedAny = true
 			case "redacted_thinking":
 				// Remove redacted_thinking (cannot convert encrypted content)
@@ -1249,13 +1231,8 @@ func stripSignatureSensitiveBlocksFromClaudeRequest(req *antigravity.ClaudeReque
 				modifiedAny = true
 			case "":
 				// Handle untyped block with "thinking" field
-				if thinkingText, hasThinking := block["thinking"].(string); hasThinking {
-					if thinkingText != "" {
-						filtered = append(filtered, map[string]any{
-							"type": "text",
-							"text": thinkingText,
-						})
-					}
+				if _, hasThinking := block["thinking"].(string); hasThinking {
+					// CLIProxyAPI approach: drop thinking blocks entirely
 					modifiedAny = true
 				} else {
 					filtered = append(filtered, block)
