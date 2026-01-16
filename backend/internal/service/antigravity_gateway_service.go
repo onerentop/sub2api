@@ -1706,19 +1706,26 @@ func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, pre
 		isQuotaExhausted := bytes.Contains(body, []byte("QUOTA_EXHAUSTED"))
 		isGenericResourceExhausted := bytes.Contains(body, []byte("RESOURCE_EXHAUSTED")) && !isQuotaExhausted && !isModelCapacityExhausted
 
-		// MODEL_CAPACITY_EXHAUSTED: 服务器繁忙，同样的账号过几秒再试可能就成功
+		// MODEL_CAPACITY_EXHAUSTED: 服务器繁忙，用短冷却时间（10秒）避免同账号被反复选中
 		if isModelCapacityExhausted {
-			log.Printf("%s status=429 server_capacity_exhausted (not recorded to tracker)", prefix)
+			shortCooldown := 10 * time.Second
+			if s.model429Tracker != nil {
+				s.model429Tracker.Record429(account.ID, model, time.Now().Add(shortCooldown))
+			}
+			log.Printf("%s status=429 server_capacity_exhausted cooldown=%v", prefix, shortCooldown)
 			return
 		}
 
-		// 通用 RESOURCE_EXHAUSTED（无详细信息）：可能是服务器问题，不阻止账号
-		// 但如果有 quotaResetDelay，说明是真正的配额问题，需要记录
+		// 通用 RESOURCE_EXHAUSTED（无详细信息）：用短冷却时间（5秒）避免反复选中
 		if isGenericResourceExhausted {
 			resetAt := ParseGeminiRateLimitResetTime(body)
 			if resetAt == nil {
-				// 没有重置时间的通用错误，跳过记录
-				log.Printf("%s status=429 generic_resource_exhausted (not recorded to tracker)", prefix)
+				// 没有重置时间的通用错误，用短冷却时间
+				shortCooldown := 5 * time.Second
+				if s.model429Tracker != nil {
+					s.model429Tracker.Record429(account.ID, model, time.Now().Add(shortCooldown))
+				}
+				log.Printf("%s status=429 generic_resource_exhausted cooldown=%v", prefix, shortCooldown)
 				return
 			}
 			// 有重置时间，按正常流程处理
