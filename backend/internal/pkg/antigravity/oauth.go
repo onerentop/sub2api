@@ -32,8 +32,9 @@ const (
 		"https://www.googleapis.com/auth/cclog " +
 		"https://www.googleapis.com/auth/experimentsandconfigs"
 
-	// User-Agent（与 vscode-antigravity-cockpit 保持一致）
-	UserAgent = "antigravity"
+	// User-Agent（与 CLIProxyAPI/Antigravity CLI 保持一致）
+	// 格式：antigravity/{version} {os}/{arch}
+	UserAgent = "antigravity/1.104.0 linux/amd64"
 
 	// Session 过期时间
 	SessionTTL = 30 * time.Minute
