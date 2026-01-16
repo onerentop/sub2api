@@ -143,6 +143,17 @@ func (e *UpstreamFailoverError) Error() string {
 	return fmt.Sprintf("upstream error: %d (failover)", e.StatusCode)
 }
 
+// AllAccountsCoolingDownError indicates all available accounts are in 429 cooldown
+type AllAccountsCoolingDownError struct {
+	EarliestRetry time.Time // Earliest time when any account will be available
+	Model         string    // The model that was requested
+}
+
+func (e *AllAccountsCoolingDownError) Error() string {
+	return fmt.Sprintf("all accounts cooling down for model %s, retry after %s",
+		e.Model, e.EarliestRetry.Format(time.RFC3339))
+}
+
 // GatewayService handles API gateway operations
 type GatewayService struct {
 	accountRepo         AccountRepository
@@ -562,6 +573,26 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	if len(candidates) == 0 {
 		log.Printf("[Account Selection LoadAware] No candidates: total=%d excluded=%d notSchedulable=%d model429Blocked=%d platformNotAllowed=%d modelBlacklisted=%d modelNotSupported=%d platform=%s model=%s",
 			len(accounts), excludedCount, notSchedulable, model429Blocked, platformNotAllowed, modelBlacklisted, modelNotSupported, platform, requestedModel)
+
+		// Check if accounts are cooling down - if so, return cooldown error with earliest retry time
+		if s.model429Tracker != nil && len(accounts) > 0 && requestedModel != "" {
+			accountIDs := make([]int64, 0, len(accounts))
+			for i := range accounts {
+				// Only include accounts that were filtered out by 429 or excludedIDs (not permanently unavailable)
+				if _, excluded := excludedIDs[accounts[i].ID]; excluded || !s.model429Tracker.IsAccountAvailableForModel(accounts[i].ID, requestedModel) {
+					accountIDs = append(accountIDs, accounts[i].ID)
+				}
+			}
+			if len(accountIDs) > 0 {
+				if earliestRetry := s.model429Tracker.GetEarliestRetryTime(accountIDs, requestedModel); earliestRetry != nil {
+					return nil, &AllAccountsCoolingDownError{
+						EarliestRetry: *earliestRetry,
+						Model:         requestedModel,
+					}
+				}
+			}
+		}
+
 		return nil, errors.New("no available accounts")
 	}
 
@@ -965,6 +996,26 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 	if len(candidates) == 0 {
 		log.Printf("[Account Selection] No candidates: total=%d excluded=%d notSchedulable=%d model429Blocked=%d modelBlacklisted=%d modelNotSupported=%d platform=%s model=%s",
 			len(accounts), excludedCount, notSchedulable, model429Blocked, modelBlacklisted, modelNotSupported, platform, requestedModel)
+
+		// Check if accounts are cooling down - if so, return cooldown error with earliest retry time
+		if s.model429Tracker != nil && len(accounts) > 0 && requestedModel != "" {
+			accountIDs := make([]int64, 0, len(accounts))
+			for i := range accounts {
+				// Only include accounts that were filtered out by 429 or excludedIDs (not permanently unavailable)
+				if _, excluded := excludedIDs[accounts[i].ID]; excluded || !s.model429Tracker.IsAccountAvailableForModel(accounts[i].ID, requestedModel) {
+					accountIDs = append(accountIDs, accounts[i].ID)
+				}
+			}
+			if len(accountIDs) > 0 {
+				if earliestRetry := s.model429Tracker.GetEarliestRetryTime(accountIDs, requestedModel); earliestRetry != nil {
+					return nil, &AllAccountsCoolingDownError{
+						EarliestRetry: *earliestRetry,
+						Model:         requestedModel,
+					}
+				}
+			}
+		}
+
 		if requestedModel != "" {
 			return nil, fmt.Errorf("no available accounts supporting model: %s", requestedModel)
 		}
@@ -1059,6 +1110,26 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 	if len(candidates) == 0 {
 		log.Printf("[Account Selection Mixed] No candidates: total=%d excluded=%d notSchedulable=%d model429Blocked=%d notMixedScheduling=%d modelBlacklisted=%d modelNotSupported=%d platform=%s model=%s",
 			len(accounts), excludedCount, notSchedulable, model429Blocked, notMixedScheduling, modelBlacklisted, modelNotSupported, nativePlatform, requestedModel)
+
+		// Check if accounts are cooling down - if so, return cooldown error with earliest retry time
+		if s.model429Tracker != nil && len(accounts) > 0 && requestedModel != "" {
+			accountIDs := make([]int64, 0, len(accounts))
+			for i := range accounts {
+				// Only include accounts that were filtered out by 429 or excludedIDs (not permanently unavailable)
+				if _, excluded := excludedIDs[accounts[i].ID]; excluded || !s.model429Tracker.IsAccountAvailableForModel(accounts[i].ID, requestedModel) {
+					accountIDs = append(accountIDs, accounts[i].ID)
+				}
+			}
+			if len(accountIDs) > 0 {
+				if earliestRetry := s.model429Tracker.GetEarliestRetryTime(accountIDs, requestedModel); earliestRetry != nil {
+					return nil, &AllAccountsCoolingDownError{
+						EarliestRetry: *earliestRetry,
+						Model:         requestedModel,
+					}
+				}
+			}
+		}
+
 		if requestedModel != "" {
 			return nil, fmt.Errorf("no available accounts supporting model: %s", requestedModel)
 		}

@@ -815,7 +815,9 @@ urlFallbackLoop:
 		if resp.StatusCode >= 400 {
 			s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope, originalModel)
 
-			if s.shouldFailoverUpstreamError(resp.StatusCode) {
+			// 决定是否触发账号切换（所有 429 都触发切换，由 Handler 层处理冷却等待）
+			shouldFailover := s.shouldFailoverUpstreamError(resp.StatusCode)
+			if shouldFailover {
 				upstreamMsg := strings.TrimSpace(extractAntigravityErrorMessage(respBody))
 				upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 				logBody := s.settingService != nil && s.settingService.cfg != nil && s.settingService.cfg.Gateway.LogUpstreamErrorBody
@@ -1561,7 +1563,9 @@ urlFallbackLoop:
 		// Always record upstream context for Ops error logs, even when we will failover.
 		setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
 
-		if s.shouldFailoverUpstreamError(resp.StatusCode) {
+		// 决定是否触发账号切换（所有 429 都触发切换，由 Handler 层处理冷却等待）
+		shouldFailover := s.shouldFailoverUpstreamError(resp.StatusCode)
+		if shouldFailover {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,

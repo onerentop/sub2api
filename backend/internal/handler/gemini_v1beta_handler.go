@@ -3,9 +3,11 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -220,14 +222,34 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	if sessionHash != "" {
 		sessionKey = "gemini:" + sessionHash
 	}
-	const maxAccountSwitches = 3
-	switchCount := 0
+	const maxCooldownWait = 60 * time.Second
 	failedAccountIDs := make(map[int64]struct{})
 	lastFailoverStatus := 0
 
 	for {
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, modelName, failedAccountIDs)
 		if err != nil {
+			// Check for cooldown error - wait if within threshold
+			var cooldownErr *service.AllAccountsCoolingDownError
+			if errors.As(err, &cooldownErr) {
+				waitTime := time.Until(cooldownErr.EarliestRetry)
+				if waitTime > 0 && waitTime <= maxCooldownWait {
+					log.Printf("All accounts cooling down for model %s, waiting %v", cooldownErr.Model, waitTime)
+					select {
+					case <-time.After(waitTime):
+						// Clear failed accounts and retry all
+						failedAccountIDs = make(map[int64]struct{})
+						continue
+					case <-c.Request.Context().Done():
+						// Client disconnected or timeout
+						return
+					}
+				}
+				// Wait time too long, return 429 to client
+				handleGeminiCooldownError(c, cooldownErr)
+				return
+			}
+			// No accounts available at all
 			if len(failedAccountIDs) == 0 {
 				googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
 				return
@@ -300,14 +322,8 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				failedAccountIDs[account.ID] = struct{}{}
-				if switchCount >= maxAccountSwitches {
-					lastFailoverStatus = failoverErr.StatusCode
-					handleGeminiFailoverExhausted(c, lastFailoverStatus)
-					return
-				}
 				lastFailoverStatus = failoverErr.StatusCode
-				switchCount++
-				log.Printf("Gemini account %d: upstream error %d, switching account %d/%d", account.ID, failoverErr.StatusCode, switchCount, maxAccountSwitches)
+				log.Printf("Gemini account %d: upstream error %d, trying next account", account.ID, failoverErr.StatusCode)
 				continue
 			}
 			// ForwardNative already wrote the response
@@ -361,6 +377,17 @@ func parseGeminiModelAction(rest string) (model string, action string, err error
 func handleGeminiFailoverExhausted(c *gin.Context, statusCode int) {
 	status, message := mapGeminiUpstreamError(statusCode)
 	googleError(c, status, message)
+}
+
+// handleGeminiCooldownError handles the case when all accounts are in 429 cooldown
+func handleGeminiCooldownError(c *gin.Context, err *service.AllAccountsCoolingDownError) {
+	retryAfter := int(time.Until(err.EarliestRetry).Seconds())
+	if retryAfter < 1 {
+		retryAfter = 1
+	}
+	c.Header("Retry-After", strconv.Itoa(retryAfter))
+	googleError(c, http.StatusTooManyRequests,
+		fmt.Sprintf("All accounts cooling down for model %s, retry after %d seconds", err.Model, retryAfter))
 }
 
 func mapGeminiUpstreamError(statusCode int) (int, string) {

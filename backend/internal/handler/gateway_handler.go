@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -179,14 +180,34 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	}
 
 	if platform == service.PlatformGemini {
-		const maxAccountSwitches = 3
-		switchCount := 0
+		const maxCooldownWait = 60 * time.Second
 		failedAccountIDs := make(map[int64]struct{})
 		lastFailoverStatus := 0
 
 		for {
 			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, reqModel, failedAccountIDs)
 			if err != nil {
+				// Check for cooldown error - wait if within threshold
+				var cooldownErr *service.AllAccountsCoolingDownError
+				if errors.As(err, &cooldownErr) {
+					waitTime := time.Until(cooldownErr.EarliestRetry)
+					if waitTime > 0 && waitTime <= maxCooldownWait {
+						log.Printf("All accounts cooling down for model %s, waiting %v", cooldownErr.Model, waitTime)
+						select {
+						case <-time.After(waitTime):
+							// Clear failed accounts and retry all
+							failedAccountIDs = make(map[int64]struct{})
+							continue
+						case <-c.Request.Context().Done():
+							// Client disconnected or timeout
+							return
+						}
+					}
+					// Wait time too long, return 429 to client
+					h.handleCooldownError(c, cooldownErr, streamStarted)
+					return
+				}
+				// No accounts available at all
 				if len(failedAccountIDs) == 0 {
 					h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
 					return
@@ -276,12 +297,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if errors.As(err, &failoverErr) {
 					failedAccountIDs[account.ID] = struct{}{}
 					lastFailoverStatus = failoverErr.StatusCode
-					if switchCount >= maxAccountSwitches {
-						h.handleFailoverExhausted(c, lastFailoverStatus, streamStarted)
-						return
-					}
-					switchCount++
-					log.Printf("Account %d: upstream error %d, switching account %d/%d", account.ID, failoverErr.StatusCode, switchCount, maxAccountSwitches)
+					log.Printf("Account %d: upstream error %d, trying next account", account.ID, failoverErr.StatusCode)
 					continue
 				}
 				// 错误响应已在Forward中处理，这里只记录日志
@@ -313,8 +329,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		}
 	}
 
-	const maxAccountSwitches = 10
-	switchCount := 0
+	const maxCooldownWait = 60 * time.Second
 	failedAccountIDs := make(map[int64]struct{})
 	lastFailoverStatus := 0
 
@@ -322,6 +337,27 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		// 选择支持该模型的账号
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, reqModel, failedAccountIDs)
 		if err != nil {
+			// Check for cooldown error - wait if within threshold
+			var cooldownErr *service.AllAccountsCoolingDownError
+			if errors.As(err, &cooldownErr) {
+				waitTime := time.Until(cooldownErr.EarliestRetry)
+				if waitTime > 0 && waitTime <= maxCooldownWait {
+					log.Printf("All accounts cooling down for model %s, waiting %v", cooldownErr.Model, waitTime)
+					select {
+					case <-time.After(waitTime):
+						// Clear failed accounts and retry all
+						failedAccountIDs = make(map[int64]struct{})
+						continue
+					case <-c.Request.Context().Done():
+						// Client disconnected or timeout
+						return
+					}
+				}
+				// Wait time too long, return 429 to client
+				h.handleCooldownError(c, cooldownErr, streamStarted)
+				return
+			}
+			// No accounts available at all
 			if len(failedAccountIDs) == 0 {
 				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
 				return
@@ -409,12 +445,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			if errors.As(err, &failoverErr) {
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverStatus = failoverErr.StatusCode
-				if switchCount >= maxAccountSwitches {
-					h.handleFailoverExhausted(c, lastFailoverStatus, streamStarted)
-					return
-				}
-				switchCount++
-				log.Printf("Account %d: upstream error %d, switching account %d/%d", account.ID, failoverErr.StatusCode, switchCount, maxAccountSwitches)
+				log.Printf("Account %d: upstream error %d, trying next account", account.ID, failoverErr.StatusCode)
 				continue
 			}
 			// 错误响应已在Forward中处理，这里只记录日志
@@ -672,6 +703,18 @@ func (h *GatewayHandler) errorResponse(c *gin.Context, status int, errType, mess
 			"message": message,
 		},
 	})
+}
+
+// handleCooldownError handles the case when all accounts are in 429 cooldown
+// Returns a 429 response with Retry-After header
+func (h *GatewayHandler) handleCooldownError(c *gin.Context, err *service.AllAccountsCoolingDownError, streamStarted bool) {
+	retryAfter := int(time.Until(err.EarliestRetry).Seconds())
+	if retryAfter < 1 {
+		retryAfter = 1
+	}
+	c.Header("Retry-After", strconv.Itoa(retryAfter))
+	h.handleStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error",
+		fmt.Sprintf("All accounts cooling down for model %s, retry after %d seconds", err.Model, retryAfter), streamStarted)
 }
 
 // CountTokens handles token counting endpoint
