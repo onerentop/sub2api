@@ -1697,72 +1697,36 @@ func sleepAntigravityBackoffWithContext(ctx context.Context, attempt int) bool {
 }
 
 func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, quotaScope AntigravityQuotaScope, model string) {
-	// 429 使用 Gemini 格式解析（从 body 解析重置时间）
+	// 429 统一处理：所有 429 都记录到 tracker，不区分类型（CLIProxyAPI 策略）
 	if statusCode == 429 {
-		// 检查是否是服务器端容量问题（不应该记录到 429 tracker）
-		// 1. MODEL_CAPACITY_EXHAUSTED - 明确的服务器容量不足
-		// 2. 通用 RESOURCE_EXHAUSTED 但没有 QUOTA_EXHAUSTED - 也可能是服务器问题
-		isModelCapacityExhausted := bytes.Contains(body, []byte("MODEL_CAPACITY_EXHAUSTED"))
-		isQuotaExhausted := bytes.Contains(body, []byte("QUOTA_EXHAUSTED"))
-		isGenericResourceExhausted := bytes.Contains(body, []byte("RESOURCE_EXHAUSTED")) && !isQuotaExhausted && !isModelCapacityExhausted
-
-		// MODEL_CAPACITY_EXHAUSTED: 服务器繁忙，用短冷却时间（10秒）避免同账号被反复选中
-		if isModelCapacityExhausted {
-			shortCooldown := 10 * time.Second
-			if s.model429Tracker != nil {
-				s.model429Tracker.Record429(account.ID, model, time.Now().Add(shortCooldown))
-			}
-			log.Printf("%s status=429 server_capacity_exhausted cooldown=%v", prefix, shortCooldown)
-			return
-		}
-
-		// 通用 RESOURCE_EXHAUSTED（无详细信息）：用短冷却时间（5秒）避免反复选中
-		if isGenericResourceExhausted {
-			resetAt := ParseGeminiRateLimitResetTime(body)
-			if resetAt == nil {
-				// 没有重置时间的通用错误，用短冷却时间
-				shortCooldown := 5 * time.Second
-				if s.model429Tracker != nil {
-					s.model429Tracker.Record429(account.ID, model, time.Now().Add(shortCooldown))
-				}
-				log.Printf("%s status=429 generic_resource_exhausted cooldown=%v", prefix, shortCooldown)
-				return
-			}
-			// 有重置时间，按正常流程处理
-		}
-
+		// 尝试解析上游 RetryAfter
 		resetAt := ParseGeminiRateLimitResetTime(body)
-		if resetAt == nil {
-			// 解析失败：Gemini 有重试时间用 5 分钟，Claude 没有用 1 分钟
-			defaultDur := 1 * time.Minute
-			if bytes.Contains(body, []byte("Please retry in")) || bytes.Contains(body, []byte("retryDelay")) {
-				defaultDur = 5 * time.Minute
-			}
-			ra := time.Now().Add(defaultDur)
-			// Immediately record to in-memory tracker for fast filtering (model-level)
-			if s.model429Tracker != nil {
-				s.model429Tracker.Record429(account.ID, model, ra)
-			}
-			log.Printf("%s status=429 rate_limited scope=%s reset_in=%v (fallback)", prefix, quotaScope, defaultDur)
-			if quotaScope == "" {
-				return
-			}
-			if err := s.accountRepo.SetAntigravityQuotaScopeLimit(ctx, account.ID, quotaScope, ra); err != nil {
-				log.Printf("%s status=429 rate_limit_set_failed scope=%s error=%v", prefix, quotaScope, err)
-			}
-			return
+
+		var cooldownTime time.Time
+		if resetAt != nil {
+			// 有上游重置时间，直接使用
+			cooldownTime = time.Unix(*resetAt, 0)
 		}
-		resetTime := time.Unix(*resetAt, 0)
-		// Immediately record to in-memory tracker for fast filtering (model-level)
+		// 没有重置时间时 cooldownTime 为零值，tracker.Record429 会使用指数退避
+
+		// 记录到 tracker
 		if s.model429Tracker != nil {
-			s.model429Tracker.Record429(account.ID, model, resetTime)
+			s.model429Tracker.Record429(account.ID, model, cooldownTime)
 		}
-		log.Printf("%s status=429 rate_limited scope=%s reset_at=%v reset_in=%v", prefix, quotaScope, resetTime.Format("15:04:05"), time.Until(resetTime).Truncate(time.Second))
-		if quotaScope == "" {
-			return
+
+		// 日志
+		if cooldownTime.IsZero() {
+			log.Printf("%s status=429 model=%s cooldown=exponential_backoff", prefix, model)
+		} else {
+			log.Printf("%s status=429 model=%s cooldown_until=%v cooldown_in=%v",
+				prefix, model, cooldownTime.Format("15:04:05"), time.Until(cooldownTime).Truncate(time.Second))
 		}
-		if err := s.accountRepo.SetAntigravityQuotaScopeLimit(ctx, account.ID, quotaScope, resetTime); err != nil {
-			log.Printf("%s status=429 rate_limit_set_failed scope=%s error=%v", prefix, quotaScope, err)
+
+		// 更新 quota scope（如果有）
+		if quotaScope != "" && !cooldownTime.IsZero() {
+			if err := s.accountRepo.SetAntigravityQuotaScopeLimit(ctx, account.ID, quotaScope, cooldownTime); err != nil {
+				log.Printf("%s status=429 quota_scope_set_failed scope=%s error=%v", prefix, quotaScope, err)
+			}
 		}
 		return
 	}
