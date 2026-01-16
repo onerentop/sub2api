@@ -300,14 +300,13 @@ func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDu
 				Text:    block.Thinking,
 				Thought: true,
 			}
-			// 保留原有 signature（Claude 模型需要有效的 signature）
+			// 参考 CLIProxyAPI: thinking block 的 signature 处理
 			if block.Signature != "" {
+				// 有效 signature，保留 thinking block
 				part.ThoughtSignature = block.Signature
 			} else if !allowDummyThought {
-				// Claude 模型需要有效 signature；在缺失时降级为普通文本，并在上层禁用 thinking mode。
-				if strings.TrimSpace(block.Thinking) != "" {
-					parts = append(parts, GeminiPart{Text: block.Thinking})
-				}
+				// Claude 模型没有有效 signature：直接丢弃（参考 CLIProxyAPI TypeScript plugin 方式）
+				// 不转换为普通文本，因为这会破坏 Claude 要求 assistant 消息以 thinking block 开头的规则
 				strippedThinking = true
 				continue
 			} else {
