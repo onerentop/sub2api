@@ -1695,6 +1695,14 @@ func sleepAntigravityBackoffWithContext(ctx context.Context, attempt int) bool {
 func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, quotaScope AntigravityQuotaScope, model string) {
 	// 429 使用 Gemini 格式解析（从 body 解析重置时间）
 	if statusCode == 429 {
+		// MODEL_CAPACITY_EXHAUSTED 是服务器端容量问题，不是账号配额问题
+		// 不应该记录到 429 tracker，因为同样的账号过几秒再试可能就成功了
+		isServerCapacityError := bytes.Contains(body, []byte("MODEL_CAPACITY_EXHAUSTED"))
+		if isServerCapacityError {
+			log.Printf("%s status=429 server_capacity_exhausted (not recorded to tracker)", prefix)
+			return
+		}
+
 		resetAt := ParseGeminiRateLimitResetTime(body)
 		if resetAt == nil {
 			// 解析失败：Gemini 有重试时间用 5 分钟，Claude 没有用 1 分钟
