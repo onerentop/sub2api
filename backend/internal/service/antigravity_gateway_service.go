@@ -715,6 +715,8 @@ urlFallbackLoop:
 			if logBody {
 				upstreamDetail = truncateString(string(respBody), maxBytes)
 			}
+			// DEBUG: Print full 400 error details for investigation
+			log.Printf("[Antigravity] Account %d: 400 signature error details - message=%q, body=%s", account.ID, upstreamMsg, upstreamDetail)
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
