@@ -93,19 +93,12 @@ func (u *URLAvailability) IsAvailable(url string) bool {
 }
 
 // GetAvailableURLs 返回可用的 URL 列表（保持优先级顺序）
+// 注意：参考 CLIProxyAPI，每个请求都独立尝试所有 URL，不再过滤不可用的 URL
+// 这样可以避免所有 URL 被标记为不可用后无法恢复的问题
 func (u *URLAvailability) GetAvailableURLs() []string {
-	u.mu.RLock()
-	defer u.mu.RUnlock()
-
-	now := time.Now()
-	result := make([]string, 0, len(BaseURLs))
-	for _, url := range BaseURLs {
-		expiry, exists := u.unavailable[url]
-		if !exists || now.After(expiry) {
-			result = append(result, url)
-		}
-	}
-	return result
+	// 直接返回所有 URL，不进行可用性过滤
+	// CLIProxyAPI 的做法是每个请求都独立尝试所有 URL
+	return BaseURLs
 }
 
 // OAuthSession 保存 OAuth 授权流程的临时状态
