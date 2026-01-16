@@ -1060,8 +1060,7 @@ func sanitizeThinkingBlocks(req *antigravity.ClaudeRequest) {
 		}
 	}
 
-	// Clean message content blocks and flatten history
-	lastMsgIdx := len(req.Messages) - 1
+	// Clean message content blocks (only cache_control cleanup now)
 	for msgIdx := range req.Messages {
 		raw := req.Messages[msgIdx].Content
 		if len(raw) == 0 {
