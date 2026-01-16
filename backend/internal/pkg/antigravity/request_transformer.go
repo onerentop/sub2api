@@ -340,12 +340,15 @@ func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDu
 				},
 			}
 			// tool_use 的 signature 处理：
-			// - Gemini 模型：使用 dummy signature（跳过 thought_signature 校验）
-			// - Claude 模型：透传上游返回的真实 signature（Vertex/Google 需要完整签名链路）
-			if allowDummyThought {
-				part.ThoughtSignature = dummyThoughtSignature
-			} else if block.Signature != "" && block.Signature != dummyThoughtSignature {
+			// 参考 CLIProxyAPI: 无论 Claude 还是 Gemini 模型，如果没有有效 signature，
+			// 都使用 skip_thought_signature_validator 来绕过验证。
+			// 这是因为 Antigravity API 在多数场景下接受这个 sentinel 值。
+			if block.Signature != "" && block.Signature != dummyThoughtSignature {
+				// 优先使用真实 signature
 				part.ThoughtSignature = block.Signature
+			} else {
+				// 没有有效 signature 时使用 skip sentinel（适用于 Claude 和 Gemini）
+				part.ThoughtSignature = dummyThoughtSignature
 			}
 			parts = append(parts, part)
 
