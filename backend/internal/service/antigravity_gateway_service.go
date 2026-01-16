@@ -1695,12 +1695,29 @@ func sleepAntigravityBackoffWithContext(ctx context.Context, attempt int) bool {
 func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, quotaScope AntigravityQuotaScope, model string) {
 	// 429 使用 Gemini 格式解析（从 body 解析重置时间）
 	if statusCode == 429 {
-		// MODEL_CAPACITY_EXHAUSTED 是服务器端容量问题，不是账号配额问题
-		// 不应该记录到 429 tracker，因为同样的账号过几秒再试可能就成功了
-		isServerCapacityError := bytes.Contains(body, []byte("MODEL_CAPACITY_EXHAUSTED"))
-		if isServerCapacityError {
+		// 检查是否是服务器端容量问题（不应该记录到 429 tracker）
+		// 1. MODEL_CAPACITY_EXHAUSTED - 明确的服务器容量不足
+		// 2. 通用 RESOURCE_EXHAUSTED 但没有 QUOTA_EXHAUSTED - 也可能是服务器问题
+		isModelCapacityExhausted := bytes.Contains(body, []byte("MODEL_CAPACITY_EXHAUSTED"))
+		isQuotaExhausted := bytes.Contains(body, []byte("QUOTA_EXHAUSTED"))
+		isGenericResourceExhausted := bytes.Contains(body, []byte("RESOURCE_EXHAUSTED")) && !isQuotaExhausted && !isModelCapacityExhausted
+
+		// MODEL_CAPACITY_EXHAUSTED: 服务器繁忙，同样的账号过几秒再试可能就成功
+		if isModelCapacityExhausted {
 			log.Printf("%s status=429 server_capacity_exhausted (not recorded to tracker)", prefix)
 			return
+		}
+
+		// 通用 RESOURCE_EXHAUSTED（无详细信息）：可能是服务器问题，不阻止账号
+		// 但如果有 quotaResetDelay，说明是真正的配额问题，需要记录
+		if isGenericResourceExhausted {
+			resetAt := ParseGeminiRateLimitResetTime(body)
+			if resetAt == nil {
+				// 没有重置时间的通用错误，跳过记录
+				log.Printf("%s status=429 generic_resource_exhausted (not recorded to tracker)", prefix)
+				return
+			}
+			// 有重置时间，按正常流程处理
 		}
 
 		resetAt := ParseGeminiRateLimitResetTime(body)
