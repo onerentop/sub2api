@@ -267,6 +267,16 @@ func buildContents(messages []ClaudeMessage, toolIDToName map[string]string, isT
 // 参考: https://ai.google.dev/gemini-api/docs/thought-signatures
 const dummyThoughtSignature = "skip_thought_signature_validator"
 
+// minValidSignatureLen 是 signature 被认为有效的最小长度
+// 参考 CLIProxyAPI: signature 长度必须 >= 50 才被认为有效
+const minValidSignatureLen = 50
+
+// isValidSignature 检查 signature 是否有效（非空且足够长）
+// 参考 CLIProxyAPI 的 HasValidSignature 函数
+func isValidSignature(signature string) bool {
+	return signature != "" && len(signature) >= minValidSignatureLen
+}
+
 // buildParts 构建消息的 parts
 // allowDummyThought: 只有 Gemini 模型支持 dummy thought signature
 func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDummyThought bool) ([]GeminiPart, bool, error) {
@@ -300,8 +310,9 @@ func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDu
 				Text:    block.Thinking,
 				Thought: true,
 			}
-			// 参考 CLIProxyAPI: thinking block 的 signature 处理
-			if block.Signature != "" {
+			// 参考 CLIProxyAPI: thinking block 的 signature 必须有效（长度 >= 50）
+			// 无效的 signature 会导致上游 400 错误
+			if isValidSignature(block.Signature) {
 				// 有效 signature，保留 thinking block
 				part.ThoughtSignature = block.Signature
 			} else if !allowDummyThought {
@@ -339,11 +350,11 @@ func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDu
 				},
 			}
 			// tool_use 的 signature 处理：
-			// 参考 CLIProxyAPI: 无论 Claude 还是 Gemini 模型，如果没有有效 signature，
+			// 参考 CLIProxyAPI: 无论 Claude 还是 Gemini 模型，如果没有有效 signature（长度 >= 50），
 			// 都使用 skip_thought_signature_validator 来绕过验证。
-			// 这是因为 Antigravity API 在多数场景下接受这个 sentinel 值。
-			if block.Signature != "" && block.Signature != dummyThoughtSignature {
-				// 优先使用真实 signature
+			// 无效的 signature（长度 < 50）也应该用 skip sentinel 替代，否则上游会返回 400。
+			if isValidSignature(block.Signature) {
+				// 优先使用真实有效的 signature
 				part.ThoughtSignature = block.Signature
 			} else {
 				// 没有有效 signature 时使用 skip sentinel（适用于 Claude 和 Gemini）
