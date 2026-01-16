@@ -94,7 +94,8 @@ type OpenAIGatewayService struct {
 	httpUpstream        HTTPUpstream
 	deferredService     *DeferredService
 	openAITokenProvider *OpenAITokenProvider
-	account429Tracker   *Account429Tracker
+	model429Tracker     *Model429Tracker
+	roundRobinSelector  *RoundRobinSelector
 }
 
 // NewOpenAIGatewayService creates a new OpenAIGatewayService
@@ -113,7 +114,8 @@ func NewOpenAIGatewayService(
 	httpUpstream HTTPUpstream,
 	deferredService *DeferredService,
 	openAITokenProvider *OpenAITokenProvider,
-	account429Tracker *Account429Tracker,
+	model429Tracker *Model429Tracker,
+	roundRobinSelector *RoundRobinSelector,
 ) *OpenAIGatewayService {
 	return &OpenAIGatewayService{
 		accountRepo:         accountRepo,
@@ -130,7 +132,8 @@ func NewOpenAIGatewayService(
 		httpUpstream:        httpUpstream,
 		deferredService:     deferredService,
 		openAITokenProvider: openAITokenProvider,
-		account429Tracker:   account429Tracker,
+		model429Tracker:     model429Tracker,
+		roundRobinSelector:  roundRobinSelector,
 	}
 }
 
@@ -170,7 +173,9 @@ func (s *OpenAIGatewayService) SelectAccountForModelWithExclusions(ctx context.C
 		if err == nil && accountID > 0 {
 			if _, excluded := excludedIDs[accountID]; !excluded {
 				account, err := s.getSchedulableAccount(ctx, accountID)
-				if err == nil && account.IsSchedulable() && account.IsOpenAI() && (requestedModel == "" || account.IsModelSupported(requestedModel)) {
+				// 粘性会话也需要检查 429 状态
+				model429Available := s.model429Tracker == nil || s.model429Tracker.IsAccountAvailableForModel(accountID, requestedModel)
+				if err == nil && model429Available && account.IsSchedulable() && account.IsOpenAI() && (requestedModel == "" || account.IsModelSupported(requestedModel)) {
 					// Refresh sticky session TTL
 					_ = s.cache.RefreshSessionTTL(ctx, derefGroupID(groupID), "openai:"+sessionHash, openaiStickySessionTTL)
 					return account, nil
@@ -185,8 +190,8 @@ func (s *OpenAIGatewayService) SelectAccountForModelWithExclusions(ctx context.C
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}
 
-	// 3. Select by priority + LRU
-	var selected *Account
+	// 3. Collect valid candidates with model429 filtering
+	var candidates []*Account
 	for i := range accounts {
 		acc := &accounts[i]
 		if _, excluded := excludedIDs[acc.ID]; excluded {
@@ -197,42 +202,29 @@ func (s *OpenAIGatewayService) SelectAccountForModelWithExclusions(ctx context.C
 		if !acc.IsSchedulable() {
 			continue
 		}
+		// Fast in-memory 429 check to avoid selecting rate-limited accounts
+		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
+			continue
+		}
 		// Check model support
 		if requestedModel != "" && !acc.IsModelSupported(requestedModel) {
 			continue
 		}
-		if selected == nil {
-			selected = acc
-			continue
-		}
-		// Lower priority value means higher priority
-		if acc.Priority < selected.Priority {
-			selected = acc
-		} else if acc.Priority == selected.Priority {
-			switch {
-			case acc.LastUsedAt == nil && selected.LastUsedAt != nil:
-				selected = acc
-			case acc.LastUsedAt != nil && selected.LastUsedAt == nil:
-				// keep selected (never used is preferred)
-			case acc.LastUsedAt == nil && selected.LastUsedAt == nil:
-				// keep selected (both never used)
-			default:
-				// Same priority, select least recently used
-				if acc.LastUsedAt.Before(*selected.LastUsedAt) {
-					selected = acc
-				}
-			}
-		}
+		candidates = append(candidates, acc)
 	}
 
-	if selected == nil {
+	if len(candidates) == 0 {
 		if requestedModel != "" {
 			return nil, fmt.Errorf("no available OpenAI accounts supporting model: %s", requestedModel)
 		}
 		return nil, errors.New("no available OpenAI accounts")
 	}
 
-	// 4. Set sticky session
+	// 4. Round-robin selection
+	idx := s.roundRobinSelector.Select(groupID, PlatformOpenAI, requestedModel, len(candidates))
+	selected := candidates[idx]
+
+	// 5. Set sticky session
 	if sessionHash != "" {
 		_ = s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), "openai:"+sessionHash, selected.ID, openaiStickySessionTTL)
 	}
@@ -308,7 +300,9 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		accountID, err := s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), "openai:"+sessionHash)
 		if err == nil && accountID > 0 && !isExcluded(accountID) {
 			account, err := s.getSchedulableAccount(ctx, accountID)
-			if err == nil && account.IsSchedulable() && account.IsOpenAI() &&
+			// 粘性会话也需要检查 429 状态，避免选中已被限流的账户
+			model429Available := s.model429Tracker == nil || s.model429Tracker.IsAccountAvailableForModel(accountID, requestedModel)
+			if err == nil && model429Available && account.IsSchedulable() && account.IsOpenAI() &&
 				(requestedModel == "" || account.IsModelSupported(requestedModel)) {
 				result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
 				if err == nil && result.Acquired {
@@ -347,6 +341,10 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		// re-check schedulability here so recently rate-limited/overloaded accounts
 		// are not selected again before the bucket is rebuilt.
 		if !acc.IsSchedulable() {
+			continue
+		}
+		// Fast in-memory 429 check to avoid selecting rate-limited accounts
+		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
 			continue
 		}
 		if requestedModel != "" && !acc.IsModelSupported(requestedModel) {
@@ -391,10 +389,6 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		}
 		var available []accountWithLoad
 		for _, acc := range candidates {
-			// Fast in-memory 429 check to avoid selecting rate-limited accounts
-			if s.account429Tracker != nil && !s.account429Tracker.IsAccountAvailable(acc.ID) {
-				continue
-			}
 			loadInfo := loadMap[acc.ID]
 			if loadInfo == nil {
 				loadInfo = &AccountLoadInfo{AccountID: acc.ID}
@@ -547,9 +541,20 @@ func (s *OpenAIGatewayService) shouldFailoverUpstreamError(statusCode int) bool 
 	}
 }
 
-func (s *OpenAIGatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account) {
+func (s *OpenAIGatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account, model string) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
+
+	// Fast in-memory 429 tracking for model-level backoff
+	if resp.StatusCode == 429 && s.model429Tracker != nil {
+		var upstreamResetAt time.Time
+		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
+			if secs, err := strconv.Atoi(retryAfter); err == nil {
+				upstreamResetAt = time.Now().Add(time.Duration(secs) * time.Second)
+			}
+		}
+		s.model429Tracker.Record429(account.ID, model, upstreamResetAt)
+	}
 }
 
 // Forward forwards request to OpenAI API
@@ -740,10 +745,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				Detail:             upstreamDetail,
 			})
 
-			s.handleFailoverSideEffects(ctx, resp, account)
+			s.handleFailoverSideEffects(ctx, resp, account, originalModel)
 			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode}
 		}
-		return s.handleErrorResponse(ctx, resp, c, account)
+		return s.handleErrorResponse(ctx, resp, c, account, originalModel)
 	}
 
 	// Handle normal response
@@ -768,6 +773,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if snapshot := extractCodexUsageHeaders(resp.Header); snapshot != nil {
 			s.updateCodexUsageSnapshot(ctx, account.ID, snapshot)
 		}
+	}
+
+	// 成功请求，重置该账户-模型的 429 backoff
+	if s.model429Tracker != nil {
+		s.model429Tracker.MarkAvailable(account.ID, originalModel)
 	}
 
 	return &OpenAIForwardResult{
@@ -859,7 +869,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	return req, nil
 }
 
-func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account) (*OpenAIForwardResult, error) {
+func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, model string) (*OpenAIForwardResult, error) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
@@ -914,6 +924,18 @@ func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *ht
 	if s.rateLimitService != nil {
 		shouldDisable = s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
 	}
+
+	// Fast in-memory 429 tracking for model-level backoff
+	if resp.StatusCode == 429 && s.model429Tracker != nil {
+		var upstreamResetAt time.Time
+		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
+			if secs, err := strconv.Atoi(retryAfter); err == nil {
+				upstreamResetAt = time.Now().Add(time.Duration(secs) * time.Second)
+			}
+		}
+		s.model429Tracker.Record429(account.ID, model, upstreamResetAt)
+	}
+
 	kind := "http_error"
 	if shouldDisable {
 		kind = "failover"

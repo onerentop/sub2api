@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -160,7 +161,8 @@ type GatewayService struct {
 	deferredService     *DeferredService
 	concurrencyService  *ConcurrencyService
 	claudeTokenProvider *ClaudeTokenProvider
-	account429Tracker   *Account429Tracker
+	model429Tracker     *Model429Tracker
+	roundRobinSelector  *RoundRobinSelector
 }
 
 // NewGatewayService creates a new GatewayService
@@ -181,7 +183,8 @@ func NewGatewayService(
 	httpUpstream HTTPUpstream,
 	deferredService *DeferredService,
 	claudeTokenProvider *ClaudeTokenProvider,
-	account429Tracker *Account429Tracker,
+	model429Tracker *Model429Tracker,
+	roundRobinSelector *RoundRobinSelector,
 ) *GatewayService {
 	return &GatewayService{
 		accountRepo:         accountRepo,
@@ -200,7 +203,8 @@ func NewGatewayService(
 		httpUpstream:        httpUpstream,
 		deferredService:     deferredService,
 		claudeTokenProvider: claudeTokenProvider,
-		account429Tracker:   account429Tracker,
+		model429Tracker:     model429Tracker,
+		roundRobinSelector:  roundRobinSelector,
 	}
 }
 
@@ -480,7 +484,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 				accountByID[accounts[i].ID] = &accounts[i]
 			}
 			account, ok := accountByID[accountID]
-			if ok && s.isAccountInGroup(account, groupID) &&
+			// 粘性会话也需要检查 429 状态，避免选中已被限流的账户
+			model429Available := s.model429Tracker == nil || s.model429Tracker.IsAccountAvailableForModel(accountID, requestedModel)
+			if ok && model429Available && s.isAccountInGroup(account, groupID) &&
 				s.isAccountAllowedForPlatform(account, platform, useMixed) &&
 				account.IsSchedulableForModel(requestedModel) &&
 				(requestedModel == "" || s.isModelSupportedByAccount(account, requestedModel)) {
@@ -524,7 +530,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			continue
 		}
 		// Fast in-memory 429 check to avoid selecting rate-limited accounts
-		if s.account429Tracker != nil && !s.account429Tracker.IsAccountAvailable(acc.ID) {
+		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
 			continue
 		}
 		if !s.isAccountAllowedForPlatform(acc, platform, useMixed) {
@@ -874,7 +880,6 @@ func sortAccountsByPriorityAndLastUsed(accounts []*Account, preferOAuth bool) {
 
 // selectAccountForModelWithPlatform 选择单平台账户（完全隔离）
 func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, platform string) (*Account, error) {
-	preferOAuth := platform == PlatformGemini
 	// 1. 查询粘性会话
 	if sessionHash != "" && s.cache != nil {
 		accountID, err := s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
@@ -902,8 +907,8 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}
 
-	// 3. 按优先级+最久未用选择（考虑模型支持）
-	var selected *Account
+	// 3. 收集有效候选账户
+	var candidates []*Account
 	for i := range accounts {
 		acc := &accounts[i]
 		if _, excluded := excludedIDs[acc.ID]; excluded {
@@ -915,7 +920,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 			continue
 		}
 		// Fast in-memory 429 check to avoid selecting rate-limited accounts
-		if s.account429Tracker != nil && !s.account429Tracker.IsAccountAvailable(acc.ID) {
+		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
 			continue
 		}
 		if !acc.IsSchedulableForModel(requestedModel) {
@@ -924,36 +929,18 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
 			continue
 		}
-		if selected == nil {
-			selected = acc
-			continue
-		}
-		if acc.Priority < selected.Priority {
-			selected = acc
-		} else if acc.Priority == selected.Priority {
-			switch {
-			case acc.LastUsedAt == nil && selected.LastUsedAt != nil:
-				selected = acc
-			case acc.LastUsedAt != nil && selected.LastUsedAt == nil:
-				// keep selected (never used is preferred)
-			case acc.LastUsedAt == nil && selected.LastUsedAt == nil:
-				if preferOAuth && acc.Type != selected.Type && acc.Type == AccountTypeOAuth {
-					selected = acc
-				}
-			default:
-				if acc.LastUsedAt.Before(*selected.LastUsedAt) {
-					selected = acc
-				}
-			}
-		}
+		candidates = append(candidates, acc)
 	}
 
-	if selected == nil {
+	// 4. 轮询选择
+	if len(candidates) == 0 {
 		if requestedModel != "" {
 			return nil, fmt.Errorf("no available accounts supporting model: %s", requestedModel)
 		}
 		return nil, errors.New("no available accounts")
 	}
+	idx := s.roundRobinSelector.Select(groupID, platform, requestedModel, len(candidates))
+	selected := candidates[idx]
 
 	// 4. 建立粘性绑定
 	if sessionHash != "" && s.cache != nil {
@@ -968,8 +955,6 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 // selectAccountWithMixedScheduling 选择账户（支持混合调度）
 // 查询原生平台账户 + 启用 mixed_scheduling 的 antigravity 账户
 func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, nativePlatform string) (*Account, error) {
-	preferOAuth := nativePlatform == PlatformGemini
-
 	// 1. 查询粘性会话
 	if sessionHash != "" && s.cache != nil {
 		accountID, err := s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
@@ -995,8 +980,8 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}
 
-	// 3. 按优先级+最久未用选择（考虑模型支持和混合调度）
-	var selected *Account
+	// 3. 收集有效候选账户（考虑混合调度）
+	var candidates []*Account
 	for i := range accounts {
 		acc := &accounts[i]
 		if _, excluded := excludedIDs[acc.ID]; excluded {
@@ -1008,7 +993,7 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 			continue
 		}
 		// Fast in-memory 429 check to avoid selecting rate-limited accounts
-		if s.account429Tracker != nil && !s.account429Tracker.IsAccountAvailable(acc.ID) {
+		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
 			continue
 		}
 		// 过滤：原生平台直接通过，antigravity 需要启用混合调度
@@ -1021,36 +1006,18 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
 			continue
 		}
-		if selected == nil {
-			selected = acc
-			continue
-		}
-		if acc.Priority < selected.Priority {
-			selected = acc
-		} else if acc.Priority == selected.Priority {
-			switch {
-			case acc.LastUsedAt == nil && selected.LastUsedAt != nil:
-				selected = acc
-			case acc.LastUsedAt != nil && selected.LastUsedAt == nil:
-				// keep selected (never used is preferred)
-			case acc.LastUsedAt == nil && selected.LastUsedAt == nil:
-				if preferOAuth && acc.Platform == PlatformGemini && selected.Platform == PlatformGemini && acc.Type != selected.Type && acc.Type == AccountTypeOAuth {
-					selected = acc
-				}
-			default:
-				if acc.LastUsedAt.Before(*selected.LastUsedAt) {
-					selected = acc
-				}
-			}
-		}
+		candidates = append(candidates, acc)
 	}
 
-	if selected == nil {
+	// 4. 轮询选择
+	if len(candidates) == 0 {
 		if requestedModel != "" {
 			return nil, fmt.Errorf("no available accounts supporting model: %s", requestedModel)
 		}
 		return nil, errors.New("no available accounts")
 	}
+	idx := s.roundRobinSelector.Select(groupID, nativePlatform, requestedModel, len(candidates))
+	selected := candidates[idx]
 
 	// 4. 建立粘性绑定
 	if sessionHash != "" && s.cache != nil {
@@ -1750,7 +1717,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		_ = resp.Body.Close()
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
-		s.handleFailoverSideEffects(ctx, resp, account)
+		s.handleFailoverSideEffects(ctx, resp, account, originalModel)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 			Platform:           account.Platform,
 			AccountID:          account.ID,
@@ -1775,7 +1742,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 			if readErr != nil {
 				// ReadAll failed, fall back to normal error handling without consuming the stream
-				return s.handleErrorResponse(ctx, resp, c, account)
+				return s.handleErrorResponse(ctx, resp, c, account, originalModel)
 			}
 			_ = resp.Body.Close()
 			resp.Body = io.NopCloser(bytes.NewReader(respBody))
@@ -1811,11 +1778,11 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				} else {
 					log.Printf("Account %d: 400 error, attempting failover", account.ID)
 				}
-				s.handleFailoverSideEffects(ctx, resp, account)
+				s.handleFailoverSideEffects(ctx, resp, account, originalModel)
 				return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode}
 			}
 		}
-		return s.handleErrorResponse(ctx, resp, c, account)
+		return s.handleErrorResponse(ctx, resp, c, account, originalModel)
 	}
 
 	// 处理正常响应
@@ -1840,6 +1807,11 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// 成功请求，重置该账户-模型的 429 backoff
+	if s.model429Tracker != nil {
+		s.model429Tracker.MarkAvailable(account.ID, originalModel)
 	}
 
 	return &ForwardResult{
@@ -2097,7 +2069,7 @@ func extractUpstreamErrorMessage(body []byte) string {
 	return gjson.GetBytes(body, "message").String()
 }
 
-func (s *GatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account) (*ForwardResult, error) {
+func (s *GatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, model string) (*ForwardResult, error) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
@@ -2128,6 +2100,18 @@ func (s *GatewayService) handleErrorResponse(ctx context.Context, resp *http.Res
 	if s.rateLimitService != nil {
 		shouldDisable = s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
 	}
+
+	// Fast in-memory 429 tracking for model-level backoff
+	if resp.StatusCode == 429 && s.model429Tracker != nil {
+		var upstreamResetAt time.Time
+		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
+			if secs, err := strconv.Atoi(retryAfter); err == nil {
+				upstreamResetAt = time.Now().Add(time.Duration(secs) * time.Second)
+			}
+		}
+		s.model429Tracker.Record429(account.ID, model, upstreamResetAt)
+	}
+
 	if shouldDisable {
 		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode}
 	}
@@ -2214,9 +2198,20 @@ func (s *GatewayService) handleRetryExhaustedSideEffects(ctx context.Context, re
 	}
 }
 
-func (s *GatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account) {
+func (s *GatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account, model string) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
+
+	// Fast in-memory 429 tracking for model-level backoff
+	if resp.StatusCode == 429 && s.model429Tracker != nil {
+		var upstreamResetAt time.Time
+		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
+			if secs, err := strconv.Atoi(retryAfter); err == nil {
+				upstreamResetAt = time.Now().Add(time.Duration(secs) * time.Second)
+			}
+		}
+		s.model429Tracker.Record429(account.ID, model, upstreamResetAt)
+	}
 }
 
 // handleRetryExhaustedError 处理重试耗尽后的错误

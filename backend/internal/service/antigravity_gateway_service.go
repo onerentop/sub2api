@@ -107,12 +107,12 @@ var antigravityPrefixMapping = []struct {
 
 // AntigravityGatewayService 处理 Antigravity 平台的 API 转发
 type AntigravityGatewayService struct {
-	accountRepo       AccountRepository
-	tokenProvider     *AntigravityTokenProvider
-	rateLimitService  *RateLimitService
-	httpUpstream      HTTPUpstream
-	settingService    *SettingService
-	account429Tracker *Account429Tracker
+	accountRepo      AccountRepository
+	tokenProvider    *AntigravityTokenProvider
+	rateLimitService *RateLimitService
+	httpUpstream     HTTPUpstream
+	settingService   *SettingService
+	model429Tracker  *Model429Tracker
 }
 
 func NewAntigravityGatewayService(
@@ -122,15 +122,15 @@ func NewAntigravityGatewayService(
 	rateLimitService *RateLimitService,
 	httpUpstream HTTPUpstream,
 	settingService *SettingService,
-	account429Tracker *Account429Tracker,
+	model429Tracker *Model429Tracker,
 ) *AntigravityGatewayService {
 	return &AntigravityGatewayService{
-		accountRepo:       accountRepo,
-		tokenProvider:     tokenProvider,
-		rateLimitService:  rateLimitService,
-		httpUpstream:      httpUpstream,
-		settingService:    settingService,
-		account429Tracker: account429Tracker,
+		accountRepo:      accountRepo,
+		tokenProvider:    tokenProvider,
+		rateLimitService: rateLimitService,
+		httpUpstream:     httpUpstream,
+		settingService:   settingService,
+		model429Tracker:  model429Tracker,
 	}
 }
 
@@ -670,7 +670,7 @@ urlFallbackLoop:
 				}
 				// 所有重试都失败，标记限流状态
 				if resp.StatusCode == 429 {
-					s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope)
+					s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope, originalModel)
 				}
 				// 最后一次尝试也失败
 				resp = &http.Response{
@@ -813,7 +813,7 @@ urlFallbackLoop:
 
 		// 处理错误响应（重试后仍失败或不触发重试）
 		if resp.StatusCode >= 400 {
-			s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope)
+			s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope, originalModel)
 
 			if s.shouldFailoverUpstreamError(resp.StatusCode) {
 				upstreamMsg := strings.TrimSpace(extractAntigravityErrorMessage(respBody))
@@ -869,6 +869,11 @@ urlFallbackLoop:
 		}
 		usage = streamRes.usage
 		firstTokenMs = streamRes.firstTokenMs
+	}
+
+	// 成功请求，重置该账户-模型的 429 backoff
+	if s.model429Tracker != nil {
+		s.model429Tracker.MarkAvailable(account.ID, originalModel)
 	}
 
 	return &ForwardResult{
@@ -1474,7 +1479,7 @@ urlFallbackLoop:
 				}
 				// 所有重试都失败，标记限流状态
 				if resp.StatusCode == 429 {
-					s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope)
+					s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope, originalModel)
 				}
 				resp = &http.Response{
 					StatusCode: resp.StatusCode,
@@ -1528,7 +1533,7 @@ urlFallbackLoop:
 			goto handleSuccess
 		}
 
-		s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope)
+		s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, quotaScope, originalModel)
 
 		requestID := resp.Header.Get("x-request-id")
 		if requestID != "" {
@@ -1628,6 +1633,11 @@ handleSuccess:
 		imageCount = 1
 	}
 
+	// 成功请求，重置该账户-模型的 429 backoff
+	if s.model429Tracker != nil {
+		s.model429Tracker.MarkAvailable(account.ID, originalModel)
+	}
+
 	return &ForwardResult{
 		RequestID:    requestID,
 		Usage:        *usage,
@@ -1682,7 +1692,7 @@ func sleepAntigravityBackoffWithContext(ctx context.Context, attempt int) bool {
 	}
 }
 
-func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, quotaScope AntigravityQuotaScope) {
+func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, quotaScope AntigravityQuotaScope, model string) {
 	// 429 使用 Gemini 格式解析（从 body 解析重置时间）
 	if statusCode == 429 {
 		resetAt := ParseGeminiRateLimitResetTime(body)
@@ -1693,9 +1703,9 @@ func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, pre
 				defaultDur = 5 * time.Minute
 			}
 			ra := time.Now().Add(defaultDur)
-			// Immediately record to in-memory tracker for fast filtering
-			if s.account429Tracker != nil {
-				s.account429Tracker.Record429(account.ID, ra, string(quotaScope))
+			// Immediately record to in-memory tracker for fast filtering (model-level)
+			if s.model429Tracker != nil {
+				s.model429Tracker.Record429(account.ID, model, ra)
 			}
 			log.Printf("%s status=429 rate_limited scope=%s reset_in=%v (fallback)", prefix, quotaScope, defaultDur)
 			if quotaScope == "" {
@@ -1707,9 +1717,9 @@ func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, pre
 			return
 		}
 		resetTime := time.Unix(*resetAt, 0)
-		// Immediately record to in-memory tracker for fast filtering
-		if s.account429Tracker != nil {
-			s.account429Tracker.Record429(account.ID, resetTime, string(quotaScope))
+		// Immediately record to in-memory tracker for fast filtering (model-level)
+		if s.model429Tracker != nil {
+			s.model429Tracker.Record429(account.ID, model, resetTime)
 		}
 		log.Printf("%s status=429 rate_limited scope=%s reset_at=%v reset_in=%v", prefix, quotaScope, resetTime.Format("15:04:05"), time.Until(resetTime).Truncate(time.Second))
 		if quotaScope == "" {

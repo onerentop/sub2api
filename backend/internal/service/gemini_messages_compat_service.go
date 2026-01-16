@@ -46,7 +46,8 @@ type GeminiMessagesCompatService struct {
 	httpUpstream              HTTPUpstream
 	antigravityGatewayService *AntigravityGatewayService
 	cfg                       *config.Config
-	account429Tracker         *Account429Tracker
+	model429Tracker           *Model429Tracker
+	roundRobinSelector        *RoundRobinSelector
 }
 
 func NewGeminiMessagesCompatService(
@@ -59,7 +60,8 @@ func NewGeminiMessagesCompatService(
 	httpUpstream HTTPUpstream,
 	antigravityGatewayService *AntigravityGatewayService,
 	cfg *config.Config,
-	account429Tracker *Account429Tracker,
+	model429Tracker *Model429Tracker,
+	roundRobinSelector *RoundRobinSelector,
 ) *GeminiMessagesCompatService {
 	return &GeminiMessagesCompatService{
 		accountRepo:               accountRepo,
@@ -71,7 +73,8 @@ func NewGeminiMessagesCompatService(
 		httpUpstream:              httpUpstream,
 		antigravityGatewayService: antigravityGatewayService,
 		cfg:                       cfg,
-		account429Tracker:         account429Tracker,
+		model429Tracker:           model429Tracker,
+		roundRobinSelector:        roundRobinSelector,
 	}
 }
 
@@ -119,8 +122,10 @@ func (s *GeminiMessagesCompatService) SelectAccountForModelWithExclusions(ctx co
 		if err == nil && accountID > 0 {
 			if _, excluded := excludedIDs[accountID]; !excluded {
 				account, err := s.getSchedulableAccount(ctx, accountID)
+				// 粘性会话也需要检查 429 状态
+				model429Available := s.model429Tracker == nil || s.model429Tracker.IsAccountAvailableForModel(accountID, requestedModel)
 				// 检查账号是否有效：原生平台直接匹配，antigravity 需要启用混合调度
-				if err == nil && account.IsSchedulableForModel(requestedModel) && (requestedModel == "" || s.isModelSupportedByAccount(account, requestedModel)) {
+				if err == nil && model429Available && account.IsSchedulableForModel(requestedModel) && (requestedModel == "" || s.isModelSupportedByAccount(account, requestedModel)) {
 					valid := false
 					if account.Platform == platform {
 						valid = true
@@ -161,7 +166,8 @@ func (s *GeminiMessagesCompatService) SelectAccountForModelWithExclusions(ctx co
 		}
 	}
 
-	var selected *Account
+	// Collect valid candidates with model429 filtering
+	var candidates []*Account
 	for i := range accounts {
 		acc := &accounts[i]
 		if _, excluded := excludedIDs[acc.ID]; excluded {
@@ -173,6 +179,10 @@ func (s *GeminiMessagesCompatService) SelectAccountForModelWithExclusions(ctx co
 			continue
 		}
 		if !acc.IsSchedulableForModel(requestedModel) {
+			continue
+		}
+		// Fast in-memory 429 check to avoid selecting rate-limited accounts
+		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
 			continue
 		}
 		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
@@ -187,37 +197,19 @@ func (s *GeminiMessagesCompatService) SelectAccountForModelWithExclusions(ctx co
 				continue
 			}
 		}
-		if selected == nil {
-			selected = acc
-			continue
-		}
-		if acc.Priority < selected.Priority {
-			selected = acc
-		} else if acc.Priority == selected.Priority {
-			switch {
-			case acc.LastUsedAt == nil && selected.LastUsedAt != nil:
-				selected = acc
-			case acc.LastUsedAt != nil && selected.LastUsedAt == nil:
-				// keep selected (never used is preferred)
-			case acc.LastUsedAt == nil && selected.LastUsedAt == nil:
-				// Prefer OAuth accounts when both are unused (more compatible for Code Assist flows).
-				if acc.Type == AccountTypeOAuth && selected.Type != AccountTypeOAuth {
-					selected = acc
-				}
-			default:
-				if acc.LastUsedAt.Before(*selected.LastUsedAt) {
-					selected = acc
-				}
-			}
-		}
+		candidates = append(candidates, acc)
 	}
 
-	if selected == nil {
+	if len(candidates) == 0 {
 		if requestedModel != "" {
 			return nil, fmt.Errorf("no available Gemini accounts supporting model: %s", requestedModel)
 		}
 		return nil, errors.New("no available Gemini accounts")
 	}
+
+	// Round-robin selection
+	idx := s.roundRobinSelector.Select(groupID, platform, requestedModel, len(candidates))
+	selected := candidates[idx]
 
 	if sessionHash != "" {
 		_ = s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), cacheKey, selected.ID, geminiStickySessionTTL)
@@ -653,7 +645,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 			}
 			if resp.StatusCode == 429 {
 				// Mark as rate-limited early so concurrent requests avoid this account.
-				s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
+				s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody, originalModel)
 			}
 			if attempt < geminiMaxRetries {
 				upstreamReqID := resp.Header.Get(requestIDHeader)
@@ -704,7 +696,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 		if s.rateLimitService != nil {
 			tempMatched = s.rateLimitService.HandleTempUnschedulable(ctx, account, resp.StatusCode, respBody)
 		}
-		s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
+		s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody, originalModel)
 		if tempMatched {
 			upstreamReqID := resp.Header.Get(requestIDHeader)
 			if upstreamReqID == "" {
@@ -801,6 +793,11 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 				return nil, err
 			}
 		}
+	}
+
+	// 成功请求，重置该账户-模型的 429 backoff
+	if s.model429Tracker != nil {
+		s.model429Tracker.MarkAvailable(account.ID, originalModel)
 	}
 
 	return &ForwardResult{
@@ -1037,7 +1034,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 				break
 			}
 			if resp.StatusCode == 429 {
-				s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
+				s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody, originalModel)
 			}
 			if attempt < geminiMaxRetries {
 				upstreamReqID := resp.Header.Get(requestIDHeader)
@@ -1110,7 +1107,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		if s.rateLimitService != nil {
 			tempMatched = s.rateLimitService.HandleTempUnschedulable(ctx, account, resp.StatusCode, respBody)
 		}
-		s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
+		s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody, originalModel)
 
 		// Best-effort fallback for OAuth tokens missing AI Studio scopes when calling countTokens.
 		// This avoids Gemini SDKs failing hard during preflight token counting.
@@ -1241,6 +1238,11 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 
 	if usage == nil {
 		usage = &ClaudeUsage{}
+	}
+
+	// 成功请求，重置该账户-模型的 429 backoff
+	if s.model429Tracker != nil {
+		s.model429Tracker.MarkAvailable(account.ID, originalModel)
 	}
 
 	return &ForwardResult{
@@ -2317,7 +2319,7 @@ func asInt(v any) (int, bool) {
 	}
 }
 
-func (s *GeminiMessagesCompatService) handleGeminiUpstreamError(ctx context.Context, account *Account, statusCode int, headers http.Header, body []byte) {
+func (s *GeminiMessagesCompatService) handleGeminiUpstreamError(ctx context.Context, account *Account, statusCode int, headers http.Header, body []byte, model string) {
 	if s.rateLimitService != nil && (statusCode == 401 || statusCode == 403 || statusCode == 529) {
 		s.rateLimitService.HandleUpstreamError(ctx, account, statusCode, headers, body)
 		return
@@ -2355,8 +2357,8 @@ func (s *GeminiMessagesCompatService) handleGeminiUpstreamError(ctx context.Cont
 			}
 		}
 		// Immediately record to in-memory tracker for fast filtering
-		if s.account429Tracker != nil {
-			s.account429Tracker.Record429(account.ID, ra, "")
+		if s.model429Tracker != nil {
+			s.model429Tracker.Record429(account.ID, model, ra)
 		}
 		_ = s.accountRepo.SetRateLimited(ctx, account.ID, ra)
 		return
@@ -2365,8 +2367,8 @@ func (s *GeminiMessagesCompatService) handleGeminiUpstreamError(ctx context.Cont
 	// 使用解析到的重置时间
 	resetTime := time.Unix(*resetAt, 0)
 	// Immediately record to in-memory tracker for fast filtering
-	if s.account429Tracker != nil {
-		s.account429Tracker.Record429(account.ID, resetTime, "")
+	if s.model429Tracker != nil {
+		s.model429Tracker.Record429(account.ID, model, resetTime)
 	}
 	_ = s.accountRepo.SetRateLimited(ctx, account.ID, resetTime)
 	log.Printf("[Gemini 429] Account %d rate limited until %v (oauth_type=%s, tier=%s)",

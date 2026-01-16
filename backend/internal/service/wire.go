@@ -256,6 +256,7 @@ var ProviderSet = wire.NewSet(
 	NewUserAttributeService,
 	NewUsageCache,
 	NewAnnouncementService,
-	NewAccount429Tracker,
+	NewModel429Tracker,
+	NewRoundRobinSelector,
 	NewPublicAccountService,
 )
