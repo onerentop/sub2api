@@ -84,22 +84,24 @@ func (t *Model429Tracker) Record429(accountID int64, model string, upstreamReset
 		accountStates[model] = state
 	}
 
-	// Calculate cooldown with exponential backoff
-	cooldown, newLevel := nextQuotaCooldown(state.BackoffLevel)
-
-	// Use upstream reset time if valid and later than our calculated cooldown
 	now := time.Now()
-	calculatedRetry := now.Add(cooldown)
 
-	var nextRetry time.Time
-	if !upstreamResetAt.IsZero() && upstreamResetAt.After(calculatedRetry) {
-		nextRetry = upstreamResetAt
-	} else {
-		nextRetry = calculatedRetry
+	// If upstream provided a valid reset time, use it directly (no backoff)
+	// This handles temporary rate limits (RATE_LIMIT_EXCEEDED) which have short reset times
+	if !upstreamResetAt.IsZero() && upstreamResetAt.After(now) {
+		state.Unavailable = true
+		state.NextRetryAfter = upstreamResetAt
+		// Don't increase backoff level for upstream-specified resets
+		// as they are authoritative and not our fallback
+		state.RecordedAt = now
+		return
 	}
 
+	// No valid upstream reset time - use exponential backoff
+	// This handles cases where we can't parse the upstream response
+	cooldown, newLevel := nextQuotaCooldown(state.BackoffLevel)
 	state.Unavailable = true
-	state.NextRetryAfter = nextRetry
+	state.NextRetryAfter = now.Add(cooldown)
 	state.BackoffLevel = newLevel
 	state.RecordedAt = now
 }
