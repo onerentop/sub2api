@@ -46,6 +46,8 @@ type TransformOptions struct {
 	// IdentityPatch 可选：自定义注入到 systemInstruction 开头的身份防护提示词；
 	// 为空时使用默认模板（包含 [IDENTITY_PATCH] 及 SYSTEM_PROMPT_BEGIN 标记）。
 	IdentityPatch string
+	// SessionID 用于 signature 缓存的 session 标识（基于第一个 user 消息的 hash）
+	SessionID string
 }
 
 func DefaultTransformOptions() TransformOptions {
@@ -71,8 +73,8 @@ func TransformClaudeToGeminiWithOptions(claudeReq *ClaudeRequest, projectID, map
 	// Claude 模型通过 Vertex/Google API 需要有效的 thought signatures
 	allowDummyThought := strings.HasPrefix(mappedModel, "gemini-")
 
-	// 1. 构建 contents
-	contents, strippedThinking, err := buildContents(claudeReq.Messages, toolIDToName, isThinkingEnabled, allowDummyThought)
+	// 1. 构建 contents（传入 sessionID 用于 signature 缓存查找）
+	contents, strippedThinking, err := buildContents(claudeReq.Messages, toolIDToName, isThinkingEnabled, allowDummyThought, opts.SessionID)
 	if err != nil {
 		return nil, fmt.Errorf("build contents: %w", err)
 	}
@@ -211,7 +213,7 @@ func buildSystemInstruction(system json.RawMessage, modelName string, opts Trans
 }
 
 // buildContents 构建 contents
-func buildContents(messages []ClaudeMessage, toolIDToName map[string]string, isThinkingEnabled, allowDummyThought bool) ([]GeminiContent, bool, error) {
+func buildContents(messages []ClaudeMessage, toolIDToName map[string]string, isThinkingEnabled, allowDummyThought bool, sessionID string) ([]GeminiContent, bool, error) {
 	var contents []GeminiContent
 	strippedThinking := false
 
@@ -221,7 +223,7 @@ func buildContents(messages []ClaudeMessage, toolIDToName map[string]string, isT
 			role = "model"
 		}
 
-		parts, strippedThisMsg, err := buildParts(msg.Content, toolIDToName, allowDummyThought)
+		parts, strippedThisMsg, err := buildParts(msg.Content, toolIDToName, allowDummyThought, sessionID)
 		if err != nil {
 			return nil, false, fmt.Errorf("build parts for message %d: %w", i, err)
 		}
@@ -267,21 +269,15 @@ func buildContents(messages []ClaudeMessage, toolIDToName map[string]string, isT
 // 参考: https://ai.google.dev/gemini-api/docs/thought-signatures
 const dummyThoughtSignature = "skip_thought_signature_validator"
 
-// minValidSignatureLen 是 signature 被认为有效的最小长度
-// 参考 CLIProxyAPI: signature 长度必须 >= 50 才被认为有效
-const minValidSignatureLen = 50
-
-// isValidSignature 检查 signature 是否有效（非空且足够长）
-// 参考 CLIProxyAPI 的 HasValidSignature 函数
-func isValidSignature(signature string) bool {
-	return signature != "" && len(signature) >= minValidSignatureLen
-}
-
 // buildParts 构建消息的 parts
 // allowDummyThought: 只有 Gemini 模型支持 dummy thought signature
-func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDummyThought bool) ([]GeminiPart, bool, error) {
+// sessionID: 用于从缓存查找有效的 signature
+func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDummyThought bool, sessionID string) ([]GeminiPart, bool, error) {
 	var parts []GeminiPart
 	strippedThinking := false
+
+	// CLIProxyAPI: 跟踪当前消息中有效的 thinking signature，用于后续 tool_use
+	var currentMessageThinkingSignature string
 
 	// 尝试解析为字符串
 	var textContent string
@@ -310,12 +306,27 @@ func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDu
 				Text:    block.Thinking,
 				Thought: true,
 			}
-			// 参考 CLIProxyAPI: thinking block 的 signature 必须有效（长度 >= 50）
-			// 无效的 signature 会导致上游 400 错误
-			if isValidSignature(block.Signature) {
+
+			// 参考 CLIProxyAPI: 优先从缓存获取 signature，其次使用客户端提供的
+			signature := ""
+			if sessionID != "" && block.Thinking != "" {
+				if cachedSig := GetCachedSignature(sessionID, block.Thinking); cachedSig != "" {
+					signature = cachedSig
+					log.Printf("[Antigravity] Using cached signature for thinking block")
+				}
+			}
+			// 缓存没有，检查客户端提供的 signature
+			if signature == "" && HasValidSignature(block.Signature) {
+				signature = block.Signature
+				log.Printf("[Antigravity] Using client-provided signature for thinking block")
+			}
+
+			if HasValidSignature(signature) {
 				// 有效 signature，保留 thinking block
-				log.Printf("[Antigravity] thinking block with valid signature (len=%d)", len(block.Signature))
-				part.ThoughtSignature = block.Signature
+				log.Printf("[Antigravity] thinking block with valid signature (len=%d)", len(signature))
+				part.ThoughtSignature = signature
+				// CLIProxyAPI: 存储有效 signature，供后续 tool_use 使用
+				currentMessageThinkingSignature = signature
 			} else if !allowDummyThought {
 				// Claude 模型没有有效 signature：直接丢弃（参考 CLIProxyAPI TypeScript plugin 方式）
 				// 不转换为普通文本，因为这会破坏 Claude 要求 assistant 消息以 thinking block 开头的规则
@@ -352,11 +363,14 @@ func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDu
 				},
 			}
 			// tool_use 的 signature 处理：
-			// 参考 CLIProxyAPI: 无论 Claude 还是 Gemini 模型，如果没有有效 signature（长度 >= 50），
-			// 都使用 skip_thought_signature_validator 来绕过验证。
-			// 无效的 signature（长度 < 50）也应该用 skip sentinel 替代，否则上游会返回 400。
-			if isValidSignature(block.Signature) {
-				// 优先使用真实有效的 signature
+			// 参考 CLIProxyAPI: 优先使用当前消息中 thinking block 的有效 signature
+			// 其次使用 tool_use 自身的 signature
+			// 最后使用 skip_thought_signature_validator 来绕过验证
+			if HasValidSignature(currentMessageThinkingSignature) {
+				// 优先使用当前消息中的 thinking signature（CLIProxyAPI 方式）
+				part.ThoughtSignature = currentMessageThinkingSignature
+			} else if HasValidSignature(block.Signature) {
+				// 使用 tool_use 自身的有效 signature
 				part.ThoughtSignature = block.Signature
 			} else {
 				// 没有有效 signature 时使用 skip sentinel（适用于 Claude 和 Gemini）

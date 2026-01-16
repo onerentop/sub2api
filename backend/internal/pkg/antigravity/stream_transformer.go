@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -28,6 +29,10 @@ type StreamingProcessor struct {
 	trailingSignature string
 	originalModel     string
 
+	// Signature caching support
+	sessionID           string        // Session ID for signature caching
+	currentThinkingText bytes.Buffer  // Accumulates thinking text for caching
+
 	// 累计 usage
 	inputTokens     int
 	outputTokens    int
@@ -39,6 +44,15 @@ func NewStreamingProcessor(originalModel string) *StreamingProcessor {
 	return &StreamingProcessor{
 		blockType:     BlockTypeNone,
 		originalModel: originalModel,
+	}
+}
+
+// NewStreamingProcessorWithSession 创建带 session ID 的流式响应处理器（用于 signature 缓存）
+func NewStreamingProcessorWithSession(originalModel, sessionID string) *StreamingProcessor {
+	return &StreamingProcessor{
+		blockType:     BlockTypeNone,
+		originalModel: originalModel,
+		sessionID:     sessionID,
 	}
 }
 
@@ -213,6 +227,8 @@ func (p *StreamingProcessor) processThinking(text, signature string) []byte {
 
 	// 开始或继续 thinking 块
 	if p.blockType != BlockTypeThinking {
+		// 开始新的 thinking 块，清空之前的累积文本
+		p.currentThinkingText.Reset()
 		_, _ = result.Write(p.startBlock(BlockTypeThinking, map[string]any{
 			"type":     "thinking",
 			"thinking": "",
@@ -223,11 +239,19 @@ func (p *StreamingProcessor) processThinking(text, signature string) []byte {
 		_, _ = result.Write(p.emitDelta("thinking_delta", map[string]any{
 			"thinking": text,
 		}))
+		// 累积 thinking 文本用于缓存 signature
+		p.currentThinkingText.WriteString(text)
 	}
 
-	// 暂存签名
+	// 暂存签名，并缓存到 signature cache
 	if signature != "" {
 		p.pendingSignature = signature
+		// 缓存 signature（只有 sessionID 存在且 thinking 文本不为空时才缓存）
+		if p.sessionID != "" && p.currentThinkingText.Len() > 0 && HasValidSignature(signature) {
+			CacheSignature(p.sessionID, p.currentThinkingText.String(), signature)
+			log.Printf("[Antigravity] Cached signature for thinking block (sessionID=%s, textLen=%d)", p.sessionID, p.currentThinkingText.Len())
+			p.currentThinkingText.Reset()
+		}
 	}
 
 	return result.Bytes()

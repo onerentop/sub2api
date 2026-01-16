@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -529,10 +531,19 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 	// Sanitize thinking blocks (clean cache_control and flatten history thinking)
 	sanitizeThinkingBlocks(&claudeReq)
 
+	// 生成 signature 缓存用的 session ID（基于第一个 user 消息的 hash）
+	signatureCacheSessionID := deriveSignatureSessionID(&claudeReq)
+
+	// 存储到 gin.Context 供响应处理时使用
+	if c != nil {
+		c.Set("signatureCacheSessionID", signatureCacheSessionID)
+	}
+
 	// 获取转换选项
 	// Antigravity 上游要求必须包含身份提示词，否则会返回 429
 	transformOpts := s.getClaudeTransformOptions(ctx)
 	transformOpts.EnableIdentityPatch = true // 强制启用，Antigravity 上游必需
+	transformOpts.SessionID = signatureCacheSessionID
 
 	// 转换 Claude 请求为 Gemini 格式
 	geminiBody, err := antigravity.TransformClaudeToGeminiWithOptions(&claudeReq, projectID, mappedModel, transformOpts)
@@ -738,7 +749,9 @@ urlFallbackLoop:
 
 				log.Printf("Antigravity account %d: detected signature-related 400, retrying once (%s)", account.ID, stage.name)
 
-				retryGeminiBody, txErr := antigravity.TransformClaudeToGeminiWithOptions(&retryClaudeReq, projectID, mappedModel, s.getClaudeTransformOptions(ctx))
+				retryOpts := s.getClaudeTransformOptions(ctx)
+				retryOpts.SessionID = signatureCacheSessionID
+				retryGeminiBody, txErr := antigravity.TransformClaudeToGeminiWithOptions(&retryClaudeReq, projectID, mappedModel, retryOpts)
 				if txErr != nil {
 					continue
 				}
@@ -976,6 +989,44 @@ func removeCacheControlFromAny(v any) bool {
 	}
 
 	return cleaned
+}
+
+// deriveSignatureSessionID generates a stable session ID for signature caching
+// based on the hash of the first user message content.
+func deriveSignatureSessionID(req *antigravity.ClaudeRequest) string {
+	if req == nil || len(req.Messages) == 0 {
+		return ""
+	}
+
+	for _, msg := range req.Messages {
+		if msg.Role != "user" {
+			continue
+		}
+
+		// Try to get text from content
+		var textContent string
+
+		// Try string content first
+		if err := json.Unmarshal(msg.Content, &textContent); err == nil && textContent != "" {
+			h := sha256.Sum256([]byte(textContent))
+			return hex.EncodeToString(h[:16])
+		}
+
+		// Try array content
+		var blocks []map[string]any
+		if err := json.Unmarshal(msg.Content, &blocks); err == nil {
+			for _, block := range blocks {
+				if t, ok := block["type"].(string); ok && t == "text" {
+					if txt, ok := block["text"].(string); ok && txt != "" {
+						h := sha256.Sum256([]byte(txt))
+						return hex.EncodeToString(h[:16])
+					}
+				}
+			}
+		}
+	}
+
+	return ""
 }
 
 // sanitizeThinkingBlocks cleans cache_control and flattens history thinking blocks
@@ -2302,7 +2353,14 @@ func (s *AntigravityGatewayService) handleClaudeStreamingResponse(c *gin.Context
 		return nil, errors.New("streaming not supported")
 	}
 
-	processor := antigravity.NewStreamingProcessor(originalModel)
+	// 获取 signature 缓存 session ID（用于缓存上游返回的 signature）
+	signatureCacheSessionID := ""
+	if sid, exists := c.Get("signatureCacheSessionID"); exists {
+		signatureCacheSessionID, _ = sid.(string)
+	}
+
+	// 使用带 session ID 的处理器（启用 signature 缓存）
+	processor := antigravity.NewStreamingProcessorWithSession(originalModel, signatureCacheSessionID)
 	var firstTokenMs *int
 	// 使用 Scanner 并限制单行大小，避免 ReadString 无上限导致 OOM
 	scanner := bufio.NewScanner(resp.Body)
