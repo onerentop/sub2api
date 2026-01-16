@@ -12,9 +12,12 @@
           />
           <AccountTableActions
             :loading="loading"
+            :exporting="exporting"
             @refresh="load"
             @sync="showSync = true"
             @create="showCreate = true"
+            @export="handleExport"
+            @import="showImport = true"
           />
         </div>
       </template>
@@ -120,6 +123,7 @@
     <SyncFromCrsModal :show="showSync" @close="showSync = false" @synced="reload" />
     <BulkEditAccountModal :show="showBulkEdit" :account-ids="selIds" :proxies="proxies" :groups="groups" @close="showBulkEdit = false" @updated="handleBulkUpdated" />
     <TempUnschedStatusModal :show="showTempUnsched" :account="tempUnschedAcc" @close="showTempUnsched = false" @reset="handleTempUnschedReset" />
+    <ImportAccountModal :show="showImport" @close="showImport = false" @imported="handleImported" />
     <ConfirmDialog :show="showDeleteDialog" :title="t('admin.accounts.deleteAccount')" :message="t('admin.accounts.deleteConfirm', { name: deletingAcc?.name })" :confirm-text="t('common.delete')" :cancel-text="t('common.cancel')" :danger="true" @confirm="confirmDelete" @cancel="showDeleteDialog = false" />
   </AppLayout>
 </template>
@@ -136,7 +140,7 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import { CreateAccountModal, EditAccountModal, BulkEditAccountModal, SyncFromCrsModal, TempUnschedStatusModal } from '@/components/account'
+import { CreateAccountModal, EditAccountModal, BulkEditAccountModal, SyncFromCrsModal, TempUnschedStatusModal, ImportAccountModal } from '@/components/account'
 import AccountTableActions from '@/components/admin/account/AccountTableActions.vue'
 import AccountTableFilters from '@/components/admin/account/AccountTableFilters.vue'
 import AccountBulkActionsBar from '@/components/admin/account/AccountBulkActionsBar.vue'
@@ -168,6 +172,8 @@ const showDeleteDialog = ref(false)
 const showReAuth = ref(false)
 const showTest = ref(false)
 const showStats = ref(false)
+const showImport = ref(false)
+const exporting = ref(false)
 const edAcc = ref<Account | null>(null)
 const tempUnschedAcc = ref<Account | null>(null)
 const deletingAcc = ref<Account | null>(null)
@@ -407,6 +413,43 @@ const formatExpiresAt = (value: number | null) => {
 const isExpired = (value: number | null) => {
   if (!value) return false
   return value * 1000 <= Date.now()
+}
+
+// Export accounts functionality - downloads ZIP file with individual JSON files
+const handleExport = async () => {
+  exporting.value = true
+  try {
+    // Export all OAuth accounts or selected accounts if any
+    const params = selIds.value.length > 0 ? { account_ids: selIds.value } : {}
+    const result = await adminAPI.accounts.exportAccounts(params)
+
+    if (result.exportCount === 0) {
+      appStore.showError(t('admin.accounts.noOAuthAccounts'))
+      return
+    }
+
+    // Download ZIP file
+    const url = URL.createObjectURL(result.blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `sub2api-accounts-${Date.now()}.zip`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    appStore.showSuccess(t('admin.accounts.exportSuccess', { count: result.exportCount }))
+  } catch (error) {
+    console.error('Failed to export accounts:', error)
+    appStore.showError(t('admin.accounts.exportFailed'))
+  } finally {
+    exporting.value = false
+  }
+}
+
+const handleImported = () => {
+  showImport.value = false
+  reload()
 }
 
 // 滚动时关闭菜单

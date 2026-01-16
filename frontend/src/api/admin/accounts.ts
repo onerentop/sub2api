@@ -347,6 +347,87 @@ export async function syncFromCrs(params: {
   return data
 }
 
+/**
+ * Export accounts in CLIProxyAPI format as ZIP file
+ * Each account is exported as an individual JSON file within the ZIP
+ * @param params - Export parameters
+ * @returns ZIP blob and metadata from headers
+ */
+export async function exportAccounts(params?: {
+  account_ids?: number[]
+  platforms?: string[]
+}): Promise<{
+  blob: Blob
+  exportCount: number
+  skippedCount: number
+}> {
+  const response = await apiClient.post('/admin/accounts/export', params || {}, {
+    responseType: 'blob'
+  })
+
+  // Extract counts from response headers
+  const exportCount = parseInt(response.headers['x-export-count'] || '0', 10)
+  const skippedCount = parseInt(response.headers['x-skipped-count'] || '0', 10)
+
+  return {
+    blob: response.data as Blob,
+    exportCount,
+    skippedCount
+  }
+}
+
+/**
+ * Import accounts from CLIProxyAPI format
+ * @param params - Import parameters
+ * @returns Import results
+ */
+export async function importAccounts(params: {
+  accounts: CLIProxyAuth[]
+  group_ids?: number[]
+  skip_existing?: boolean
+}): Promise<{
+  created: number
+  updated: number
+  skipped: number
+  failed: number
+  results: ImportResult[]
+}> {
+  const { data } = await apiClient.post<{
+    created: number
+    updated: number
+    skipped: number
+    failed: number
+    results: ImportResult[]
+  }>('/admin/accounts/import', params)
+  return data
+}
+
+/**
+ * CLIProxyAuth represents authentication data in CLIProxyAPI format
+ */
+export interface CLIProxyAuth {
+  type: string
+  access_token?: string
+  refresh_token?: string
+  id_token?: string
+  email?: string
+  project_id?: string
+  expired?: string
+  last_refresh?: string
+  expires_in?: number
+  timestamp?: number
+}
+
+/**
+ * ImportResult represents the result of importing a single account
+ */
+export interface ImportResult {
+  email?: string
+  type: string
+  action: 'created' | 'updated' | 'skipped' | 'failed'
+  error?: string
+}
+
 export const accountsAPI = {
   list,
   getById,
@@ -370,7 +451,9 @@ export const accountsAPI = {
   batchCreate,
   batchUpdateCredentials,
   bulkUpdate,
-  syncFromCrs
+  syncFromCrs,
+  exportAccounts,
+  importAccounts
 }
 
 export default accountsAPI

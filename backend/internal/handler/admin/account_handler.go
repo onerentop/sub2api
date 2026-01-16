@@ -2,7 +2,12 @@
 package admin
 
 import (
+	"archive/zip"
+	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -1304,4 +1309,363 @@ func (h *AccountHandler) BatchRefreshTier(c *gin.Context) {
 	}
 
 	response.Success(c, results)
+}
+
+// Export handles exporting accounts in CLIProxyAPI format as ZIP file
+// POST /api/v1/admin/accounts/export
+func (h *AccountHandler) Export(c *gin.Context) {
+	var req dto.ExportAccountsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		// Allow empty body - export all OAuth accounts
+		req = dto.ExportAccountsRequest{}
+	}
+
+	exported, skipped := h.getExportableAccounts(c, req)
+	if exported == nil {
+		return // error already handled
+	}
+
+	if len(exported) == 0 {
+		response.BadRequest(c, "No OAuth accounts to export")
+		return
+	}
+
+	// Create ZIP file in memory
+	buf := new(bytes.Buffer)
+	zipWriter := zip.NewWriter(buf)
+
+	emailCount := make(map[string]int)
+	for _, auth := range exported {
+		// Generate unique filename: {email}-{platform}.json or {platform}-{index}.json
+		var filename string
+		if auth.Email != "" {
+			// Sanitize email for filename
+			safeEmail := strings.ReplaceAll(auth.Email, "@", "_at_")
+			safeEmail = strings.ReplaceAll(safeEmail, ".", "_")
+			baseKey := safeEmail + "-" + auth.Type
+			emailCount[baseKey]++
+			if emailCount[baseKey] > 1 {
+				filename = fmt.Sprintf("%s-%d.json", baseKey, emailCount[baseKey])
+			} else {
+				filename = baseKey + ".json"
+			}
+		} else {
+			filename = fmt.Sprintf("%s-%d.json", auth.Type, emailCount[auth.Type]+1)
+			emailCount[auth.Type]++
+		}
+
+		// Marshal single auth object (not array)
+		data, err := json.MarshalIndent(auth, "", "  ")
+		if err != nil {
+			continue
+		}
+
+		// Add file to ZIP
+		w, err := zipWriter.Create(filename)
+		if err != nil {
+			continue
+		}
+		_, _ = w.Write(data)
+	}
+
+	if err := zipWriter.Close(); err != nil {
+		response.InternalError(c, "Failed to create ZIP file")
+		return
+	}
+
+	// Send ZIP file as response
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"sub2api-accounts-%d.zip\"", time.Now().Unix()))
+	c.Header("X-Export-Count", strconv.Itoa(len(exported)))
+	c.Header("X-Skipped-Count", strconv.Itoa(skipped))
+	c.Data(http.StatusOK, "application/zip", buf.Bytes())
+}
+
+// getExportableAccounts fetches and filters accounts for export
+func (h *AccountHandler) getExportableAccounts(c *gin.Context, req dto.ExportAccountsRequest) ([]dto.CLIProxyAuth, int) {
+	ctx := c.Request.Context()
+	var accounts []service.Account
+
+	if len(req.AccountIDs) > 0 {
+		// Export specific accounts
+		fetched, fetchErr := h.adminService.GetAccountsByIDs(ctx, req.AccountIDs)
+		if fetchErr != nil {
+			response.ErrorFrom(c, fetchErr)
+			return nil, 0
+		}
+		for _, acc := range fetched {
+			if acc != nil {
+				accounts = append(accounts, *acc)
+			}
+		}
+	} else {
+		// Export all OAuth accounts
+		allAccounts, _, listErr := h.adminService.ListAccounts(ctx, 1, 10000, "", "oauth", "", "")
+		if listErr != nil {
+			response.ErrorFrom(c, listErr)
+			return nil, 0
+		}
+		accounts = allAccounts
+	}
+
+	// Filter by platforms if specified
+	platformFilter := make(map[string]bool)
+	if len(req.Platforms) > 0 {
+		for _, p := range req.Platforms {
+			platformFilter[strings.ToLower(p)] = true
+		}
+	}
+
+	// Only export OAuth accounts from supported platforms
+	supportedPlatforms := map[string]bool{
+		service.PlatformAnthropic:   true,
+		service.PlatformGemini:      true,
+		service.PlatformAntigravity: true,
+	}
+
+	var exported []dto.CLIProxyAuth
+	skipped := 0
+
+	for _, acc := range accounts {
+		// Skip non-OAuth accounts
+		if !acc.IsOAuth() {
+			skipped++
+			continue
+		}
+
+		// Skip unsupported platforms
+		if !supportedPlatforms[acc.Platform] {
+			skipped++
+			continue
+		}
+
+		// Apply platform filter if specified
+		if len(platformFilter) > 0 && !platformFilter[strings.ToLower(acc.Platform)] {
+			skipped++
+			continue
+		}
+
+		// Convert to CLIProxyAPI format
+		auth := convertAccountToCLIProxyAuth(&acc)
+		exported = append(exported, auth)
+	}
+
+	return exported, skipped
+}
+
+// Import handles importing accounts from CLIProxyAPI format
+// POST /api/v1/admin/accounts/import
+func (h *AccountHandler) Import(c *gin.Context) {
+	var req dto.ImportAccountsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	ctx := c.Request.Context()
+	results := make([]dto.ImportResult, 0, len(req.Accounts))
+	created, updated, skipped, failed := 0, 0, 0, 0
+
+	for _, auth := range req.Accounts {
+		result := dto.ImportResult{
+			Email: auth.Email,
+			Type:  auth.Type,
+		}
+
+		// Validate required fields
+		if auth.Type == "" {
+			result.Action = "failed"
+			result.Error = "missing type field"
+			failed++
+			results = append(results, result)
+			continue
+		}
+
+		// Map CLIProxyAPI type to Sub2API platform
+		platform := mapCLIProxyTypeToPlatform(auth.Type)
+		if platform == "" {
+			result.Action = "failed"
+			result.Error = "unsupported type: " + auth.Type
+			failed++
+			results = append(results, result)
+			continue
+		}
+
+		// Check for existing account by email + platform
+		var existingAccount *service.Account
+		if auth.Email != "" {
+			existing, _, _ := h.adminService.ListAccounts(ctx, 1, 1, platform, "oauth", "", auth.Email)
+			if len(existing) > 0 {
+				existingAccount = &existing[0]
+			}
+		}
+
+		if existingAccount != nil {
+			if req.SkipExisting {
+				result.Action = "skipped"
+				skipped++
+				results = append(results, result)
+				continue
+			}
+
+			// Update existing account
+			credentials := buildCredentialsFromCLIProxyAuth(&auth)
+			extra := buildExtraFromCLIProxyAuth(&auth)
+
+			_, updateErr := h.adminService.UpdateAccount(ctx, existingAccount.ID, &service.UpdateAccountInput{
+				Credentials: credentials,
+				Extra:       extra,
+			})
+			if updateErr != nil {
+				result.Action = "failed"
+				result.Error = updateErr.Error()
+				failed++
+			} else {
+				result.Action = "updated"
+				updated++
+			}
+			results = append(results, result)
+			continue
+		}
+
+		// Create new account
+		name := auth.Email
+		if name == "" {
+			name = auth.Type + "-imported"
+		}
+
+		credentials := buildCredentialsFromCLIProxyAuth(&auth)
+		extra := buildExtraFromCLIProxyAuth(&auth)
+
+		_, createErr := h.adminService.CreateAccount(ctx, &service.CreateAccountInput{
+			Name:        name,
+			Platform:    platform,
+			Type:        service.AccountTypeOAuth,
+			Credentials: credentials,
+			Extra:       extra,
+			Concurrency: 3,
+			Priority:    50,
+			GroupIDs:    req.GroupIDs,
+		})
+		if createErr != nil {
+			result.Action = "failed"
+			result.Error = createErr.Error()
+			failed++
+		} else {
+			result.Action = "created"
+			created++
+		}
+		results = append(results, result)
+	}
+
+	response.Success(c, dto.ImportAccountsResponse{
+		Created: created,
+		Updated: updated,
+		Skipped: skipped,
+		Failed:  failed,
+		Results: results,
+	})
+}
+
+// convertAccountToCLIProxyAuth converts a Sub2API account to CLIProxyAPI format
+func convertAccountToCLIProxyAuth(acc *service.Account) dto.CLIProxyAuth {
+	auth := dto.CLIProxyAuth{
+		Type: acc.Platform,
+	}
+
+	// Extract tokens from credentials
+	if acc.Credentials != nil {
+		if v, ok := acc.Credentials["access_token"].(string); ok {
+			auth.AccessToken = v
+		}
+		if v, ok := acc.Credentials["refresh_token"].(string); ok {
+			auth.RefreshToken = v
+		}
+		if v, ok := acc.Credentials["id_token"].(string); ok {
+			auth.IDToken = v
+		}
+		if v, ok := acc.Credentials["email"].(string); ok {
+			auth.Email = v
+		}
+		if v, ok := acc.Credentials["expires_at"].(string); ok {
+			auth.Expired = v
+		}
+		if v, ok := acc.Credentials["expires_in"].(float64); ok {
+			auth.ExpiresIn = int64(v)
+		}
+		if v, ok := acc.Credentials["expires_in"].(string); ok {
+			if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+				auth.ExpiresIn = parsed
+			}
+		}
+	}
+
+	// Extract extra fields
+	if acc.Extra != nil {
+		if v, ok := acc.Extra["email"].(string); ok && auth.Email == "" {
+			auth.Email = v
+		}
+		if v, ok := acc.Extra["project_id"].(string); ok {
+			auth.ProjectID = v
+		}
+	}
+
+	// Set timestamp
+	auth.Timestamp = time.Now().UnixMilli()
+
+	return auth
+}
+
+// mapCLIProxyTypeToPlatform maps CLIProxyAPI type to Sub2API platform
+func mapCLIProxyTypeToPlatform(cliType string) string {
+	switch strings.ToLower(cliType) {
+	case "claude", "anthropic":
+		return service.PlatformAnthropic
+	case "gemini", "gemini-cli":
+		return service.PlatformGemini
+	case "antigravity":
+		return service.PlatformAntigravity
+	default:
+		return ""
+	}
+}
+
+// buildCredentialsFromCLIProxyAuth builds credentials map from CLIProxyAPI auth
+func buildCredentialsFromCLIProxyAuth(auth *dto.CLIProxyAuth) map[string]any {
+	creds := make(map[string]any)
+
+	if auth.AccessToken != "" {
+		creds["access_token"] = auth.AccessToken
+	}
+	if auth.RefreshToken != "" {
+		creds["refresh_token"] = auth.RefreshToken
+	}
+	if auth.IDToken != "" {
+		creds["id_token"] = auth.IDToken
+	}
+	if auth.Email != "" {
+		creds["email"] = auth.Email
+	}
+	if auth.Expired != "" {
+		creds["expires_at"] = auth.Expired
+	}
+	if auth.ExpiresIn > 0 {
+		creds["expires_in"] = strconv.FormatInt(auth.ExpiresIn, 10)
+	}
+
+	return creds
+}
+
+// buildExtraFromCLIProxyAuth builds extra map from CLIProxyAPI auth
+func buildExtraFromCLIProxyAuth(auth *dto.CLIProxyAuth) map[string]any {
+	extra := make(map[string]any)
+
+	if auth.Email != "" {
+		extra["email"] = auth.Email
+	}
+	if auth.ProjectID != "" {
+		extra["project_id"] = auth.ProjectID
+	}
+
+	return extra
 }
