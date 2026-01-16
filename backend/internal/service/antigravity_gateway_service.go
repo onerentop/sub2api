@@ -1031,9 +1031,10 @@ func deriveSignatureSessionID(req *antigravity.ClaudeRequest) string {
 	return ""
 }
 
-// sanitizeThinkingBlocks cleans cache_control and flattens history thinking blocks
-// Thinking blocks do NOT support cache_control field (Anthropic API/Vertex AI requirement)
-// Additionally, history thinking blocks are flattened to text to avoid upstream validation errors
+// sanitizeThinkingBlocks cleans cache_control from thinking blocks.
+// Thinking blocks do NOT support cache_control field (Anthropic API/Vertex AI requirement).
+// NOTE: This function no longer removes history thinking blocks - that's handled by
+// buildParts in request_transformer.go which correctly checks signature cache first.
 func sanitizeThinkingBlocks(req *antigravity.ClaudeRequest) {
 	if req == nil {
 		return
@@ -1085,34 +1086,18 @@ func sanitizeThinkingBlocks(req *antigravity.ClaudeRequest) {
 					cleaned = true
 				}
 
-				// 2. Mark for removal if it's a history message (not the last one)
-				// CLIProxyAPI approach: drop unsigned thinking blocks entirely instead of converting to text
-				// Converting to text breaks Claude's requirement that assistant messages start with thinking blocks
-				if msgIdx < lastMsgIdx {
-					log.Printf("[Antigravity] Marking history thinking block for removal at messages[%d].content[%d]", msgIdx, blockIdx)
-					blocks[blockIdx]["__remove__"] = true
-					cleaned = true
-				}
+				// NOTE: Do NOT remove history thinking blocks here!
+				// The buildParts function in request_transformer.go handles this correctly:
+				// - It tries to get signature from cache first
+				// - Falls back to client-provided signature
+				// - Only drops thinking blocks without valid signature
+				// Removing them here would prevent buildParts from using cached signatures
 			}
 		}
 
-		// Marshal back if modified (after filtering removed blocks)
+		// Marshal back if modified (only cache_control cleanup now)
 		if cleaned {
-			// Filter out blocks marked for removal
-			filteredBlocks := make([]map[string]any, 0, len(blocks))
-			for _, block := range blocks {
-				if _, shouldRemove := block["__remove__"]; !shouldRemove {
-					filteredBlocks = append(filteredBlocks, block)
-				}
-			}
-			// If all blocks removed, add a placeholder
-			if len(filteredBlocks) == 0 {
-				filteredBlocks = append(filteredBlocks, map[string]any{
-					"type": "text",
-					"text": "(thinking content removed)",
-				})
-			}
-			if marshaled, err := json.Marshal(filteredBlocks); err == nil {
+			if marshaled, err := json.Marshal(blocks); err == nil {
 				req.Messages[msgIdx].Content = marshaled
 			}
 		}
