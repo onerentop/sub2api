@@ -115,6 +115,7 @@ type AntigravityGatewayService struct {
 	httpUpstream     HTTPUpstream
 	settingService   *SettingService
 	model429Tracker  *Model429Tracker
+	deferredService  *DeferredService
 }
 
 func NewAntigravityGatewayService(
@@ -125,6 +126,7 @@ func NewAntigravityGatewayService(
 	httpUpstream HTTPUpstream,
 	settingService *SettingService,
 	model429Tracker *Model429Tracker,
+	deferredService *DeferredService,
 ) *AntigravityGatewayService {
 	return &AntigravityGatewayService{
 		accountRepo:      accountRepo,
@@ -133,6 +135,7 @@ func NewAntigravityGatewayService(
 		httpUpstream:     httpUpstream,
 		settingService:   settingService,
 		model429Tracker:  model429Tracker,
+		deferredService:  deferredService,
 	}
 }
 
@@ -891,6 +894,11 @@ urlFallbackLoop:
 	// 成功请求，重置该账户-模型的 429 backoff
 	if s.model429Tracker != nil {
 		s.model429Tracker.MarkAvailable(account.ID, originalModel)
+	}
+
+	// Schedule batch update for account last_used_at
+	if s.deferredService != nil {
+		s.deferredService.ScheduleLastUsedUpdate(account.ID)
 	}
 
 	return &ForwardResult{
@@ -1654,6 +1662,11 @@ handleSuccess:
 	// 成功请求，重置该账户-模型的 429 backoff
 	if s.model429Tracker != nil {
 		s.model429Tracker.MarkAvailable(account.ID, originalModel)
+	}
+
+	// Schedule batch update for account last_used_at
+	if s.deferredService != nil {
+		s.deferredService.ScheduleLastUsedUpdate(account.ID)
 	}
 
 	return &ForwardResult{

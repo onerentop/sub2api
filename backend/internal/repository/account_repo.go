@@ -425,7 +425,7 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	accounts, err := q.
 		Offset(params.Offset()).
 		Limit(params.Limit()).
-		Order(dbent.Desc(dbaccount.FieldID)).
+		Order(dbent.Desc(dbaccount.FieldLastUsedAt), dbent.Desc(dbaccount.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, nil, err
