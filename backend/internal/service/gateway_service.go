@@ -518,34 +518,50 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 
 	// ============ Layer 2: 负载感知选择 ============
 	candidates := make([]*Account, 0, len(accounts))
+	var (
+		excludedCount      int
+		notSchedulable     int
+		model429Blocked    int
+		platformNotAllowed int
+		modelBlacklisted   int
+		modelNotSupported  int
+	)
 	for i := range accounts {
 		acc := &accounts[i]
 		if isExcluded(acc.ID) {
+			excludedCount++
 			continue
 		}
 		// Scheduler snapshots can be temporarily stale (bucket rebuild is throttled);
 		// re-check schedulability here so recently rate-limited/overloaded accounts
 		// are not selected again before the bucket is rebuilt.
 		if !acc.IsSchedulable() {
+			notSchedulable++
 			continue
 		}
 		// Fast in-memory 429 check to avoid selecting rate-limited accounts
 		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
+			model429Blocked++
 			continue
 		}
 		if !s.isAccountAllowedForPlatform(acc, platform, useMixed) {
+			platformNotAllowed++
 			continue
 		}
 		if !acc.IsSchedulableForModel(requestedModel) {
+			modelBlacklisted++
 			continue
 		}
 		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
+			modelNotSupported++
 			continue
 		}
 		candidates = append(candidates, acc)
 	}
 
 	if len(candidates) == 0 {
+		log.Printf("[Account Selection LoadAware] No candidates: total=%d excluded=%d notSchedulable=%d model429Blocked=%d platformNotAllowed=%d modelBlacklisted=%d modelNotSupported=%d platform=%s model=%s",
+			len(accounts), excludedCount, notSchedulable, model429Blocked, platformNotAllowed, modelBlacklisted, modelNotSupported, platform, requestedModel)
 		return nil, errors.New("no available accounts")
 	}
 
@@ -909,24 +925,36 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 
 	// 3. 收集有效候选账户
 	var candidates []*Account
+	var (
+		excludedCount     int
+		notSchedulable    int
+		model429Blocked   int
+		modelBlacklisted  int
+		modelNotSupported int
+	)
 	for i := range accounts {
 		acc := &accounts[i]
 		if _, excluded := excludedIDs[acc.ID]; excluded {
+			excludedCount++
 			continue
 		}
 		// Scheduler snapshots can be temporarily stale; re-check schedulability here to
 		// avoid selecting accounts that were recently rate-limited/overloaded.
 		if !acc.IsSchedulable() {
+			notSchedulable++
 			continue
 		}
 		// Fast in-memory 429 check to avoid selecting rate-limited accounts
 		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
+			model429Blocked++
 			continue
 		}
 		if !acc.IsSchedulableForModel(requestedModel) {
+			modelBlacklisted++
 			continue
 		}
 		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
+			modelNotSupported++
 			continue
 		}
 		candidates = append(candidates, acc)
@@ -934,6 +962,8 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 
 	// 4. 轮询选择
 	if len(candidates) == 0 {
+		log.Printf("[Account Selection] No candidates: total=%d excluded=%d notSchedulable=%d model429Blocked=%d modelBlacklisted=%d modelNotSupported=%d platform=%s model=%s",
+			len(accounts), excludedCount, notSchedulable, model429Blocked, modelBlacklisted, modelNotSupported, platform, requestedModel)
 		if requestedModel != "" {
 			return nil, fmt.Errorf("no available accounts supporting model: %s", requestedModel)
 		}
@@ -982,28 +1012,42 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 
 	// 3. 收集有效候选账户（考虑混合调度）
 	var candidates []*Account
+	var (
+		excludedCount       int
+		notSchedulable      int
+		model429Blocked     int
+		notMixedScheduling  int
+		modelBlacklisted    int
+		modelNotSupported   int
+	)
 	for i := range accounts {
 		acc := &accounts[i]
 		if _, excluded := excludedIDs[acc.ID]; excluded {
+			excludedCount++
 			continue
 		}
 		// Scheduler snapshots can be temporarily stale; re-check schedulability here to
 		// avoid selecting accounts that were recently rate-limited/overloaded.
 		if !acc.IsSchedulable() {
+			notSchedulable++
 			continue
 		}
 		// Fast in-memory 429 check to avoid selecting rate-limited accounts
 		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
+			model429Blocked++
 			continue
 		}
 		// 过滤：原生平台直接通过，antigravity 需要启用混合调度
 		if acc.Platform == PlatformAntigravity && !acc.IsMixedSchedulingEnabled() {
+			notMixedScheduling++
 			continue
 		}
 		if !acc.IsSchedulableForModel(requestedModel) {
+			modelBlacklisted++
 			continue
 		}
 		if requestedModel != "" && !s.isModelSupportedByAccount(acc, requestedModel) {
+			modelNotSupported++
 			continue
 		}
 		candidates = append(candidates, acc)
@@ -1011,6 +1055,8 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 
 	// 4. 轮询选择
 	if len(candidates) == 0 {
+		log.Printf("[Account Selection Mixed] No candidates: total=%d excluded=%d notSchedulable=%d model429Blocked=%d notMixedScheduling=%d modelBlacklisted=%d modelNotSupported=%d platform=%s model=%s",
+			len(accounts), excludedCount, notSchedulable, model429Blocked, notMixedScheduling, modelBlacklisted, modelNotSupported, nativePlatform, requestedModel)
 		if requestedModel != "" {
 			return nil, fmt.Errorf("no available accounts supporting model: %s", requestedModel)
 		}
