@@ -46,14 +46,14 @@ const (
 )
 
 // BaseURLs 定义 Antigravity API 端点，按优先级排序
-// 顺序必须与 VSCode 插件一致：prod → sandbox（prod 优先）
-// 参考: vscode-antigravity-cockpit/src/shared/cloudcode_base.ts
+// 参考 CLIProxyAPI: sandbox-daily → daily → prod（sandbox 限流更宽松，优先使用）
 var BaseURLs = []string{
-	"https://cloudcode-pa.googleapis.com",               // prod（优先！配额唤醒必须用这个）
-	"https://daily-cloudcode-pa.sandbox.googleapis.com", // sandbox（fallback）
+	"https://daily-cloudcode-pa.sandbox.googleapis.com", // sandbox-daily（优先！限流最宽松）
+	"https://daily-cloudcode-pa.googleapis.com",         // daily（中间）
+	"https://cloudcode-pa.googleapis.com",               // prod（最后！限流最严格）
 }
 
-// BaseURL 默认 URL（保持向后兼容）
+// BaseURL 默认 URL（保持向后兼容，使用 sandbox-daily）
 var BaseURL = BaseURLs[0]
 
 // URLAvailability 管理 URL 可用性状态（带 TTL 自动恢复）
