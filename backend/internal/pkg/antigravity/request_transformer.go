@@ -314,10 +314,12 @@ func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDu
 			// 无效的 signature 会导致上游 400 错误
 			if isValidSignature(block.Signature) {
 				// 有效 signature，保留 thinking block
+				log.Printf("[Antigravity] thinking block with valid signature (len=%d)", len(block.Signature))
 				part.ThoughtSignature = block.Signature
 			} else if !allowDummyThought {
 				// Claude 模型没有有效 signature：直接丢弃（参考 CLIProxyAPI TypeScript plugin 方式）
 				// 不转换为普通文本，因为这会破坏 Claude 要求 assistant 消息以 thinking block 开头的规则
+				log.Printf("[Antigravity] dropping thinking block with invalid signature (len=%d)", len(block.Signature))
 				strippedThinking = true
 				continue
 			} else {
