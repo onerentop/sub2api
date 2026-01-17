@@ -204,7 +204,8 @@ export default {
     mySubscriptions: 'My Subscriptions',
     recharge: 'Recharge',
     products: 'Products',
-    orders: 'Orders'
+    orders: 'Orders',
+    socialOAuth: 'Social Login'
   },
 
   // Auth
@@ -3077,6 +3078,30 @@ export default {
         remark: 'Remark',
         remarkPlaceholder: 'Enter audit remark (optional)'
       }
+    },
+
+    // Social OAuth Management
+    socialOAuth: {
+      title: 'Social Login Settings',
+      description: 'Configure third-party social login providers',
+      providers: 'Login Providers',
+      provider: 'Provider',
+      enabled: 'Enabled',
+      disabled: 'Disabled',
+      configured: 'Configured',
+      notConfigured: 'Not Configured',
+      clientId: 'Client ID',
+      clientSecret: 'Client Secret',
+      editProvider: 'Edit Provider',
+      saveChanges: 'Save Changes',
+      cancel: 'Cancel',
+      enable: 'Enable',
+      disable: 'Disable',
+      google: 'Google',
+      github: 'GitHub',
+      noProviders: 'No login providers available',
+      updateSuccess: 'Provider configuration updated successfully',
+      updateError: 'Failed to update provider configuration'
     }
   },
 

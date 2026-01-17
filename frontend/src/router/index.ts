@@ -359,6 +359,18 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'admin.orders.description'
     }
   },
+  {
+    path: '/admin/social-oauth',
+    name: 'AdminSocialOAuth',
+    component: () => import('@/views/admin/SocialOAuthView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Social OAuth',
+      titleKey: 'admin.socialOAuth.title',
+      descriptionKey: 'admin.socialOAuth.description'
+    }
+  },
 
   // ==================== 404 Not Found ====================
   {

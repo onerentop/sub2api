@@ -477,6 +477,22 @@ const ChevronDoubleRightIcon = {
     )
 }
 
+// Link icon for Social OAuth
+const LinkIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244'
+        })
+      ]
+    )
+}
+
 // User navigation items (for regular users)
 const userNavItems = computed(() => {
   const items = [
@@ -522,6 +538,7 @@ const adminNavItems = computed(() => {
     { path: '/admin/products', label: t('nav.products'), icon: ShoppingBagIcon, hideInSimpleMode: true },
     { path: '/admin/orders', label: t('nav.orders'), icon: ReceiptIcon, hideInSimpleMode: true },
     { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon },
+    { path: '/admin/social-oauth', label: t('nav.socialOAuth'), icon: LinkIcon },
   ]
 
   // 简单模式下，在系统设置前插入 API密钥
