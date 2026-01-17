@@ -31,8 +31,8 @@ export interface UserOAuthBinding {
 
 // 获取可用的社交登录提供商
 export async function getSocialProviders(): Promise<SocialProvider[]> {
-  const response = await api.get<{ data: SocialProvider[] }>('/social/providers')
-  return response.data.data
+  const response = await api.get<SocialProvider[]>('/social/providers')
+  return response.data
 }
 
 // 启动社交登录
@@ -40,11 +40,11 @@ export async function startSocialLogin(
   provider: string,
   redirectTo?: string
 ): Promise<StartOAuthResult> {
-  const response = await api.post<{ data: StartOAuthResult }>('/social/login/start', {
+  const response = await api.post<StartOAuthResult>('/social/login/start', {
     provider,
     redirect_to: redirectTo || '/dashboard'
   })
-  return response.data.data
+  return response.data
 }
 
 // 处理社交登录回调
@@ -54,27 +54,27 @@ export async function handleSocialLoginCallback(
   state: string,
   sessionId: string
 ): Promise<HandleCallbackResult> {
-  const response = await api.post<{ data: HandleCallbackResult }>('/social/login/callback', {
+  const response = await api.post<HandleCallbackResult>('/social/login/callback', {
     provider,
     code,
     state,
     session_id: sessionId
   })
-  return response.data.data
+  return response.data
 }
 
 // 获取用户绑定列表
 export async function getUserBindings(): Promise<UserOAuthBinding[]> {
-  const response = await api.get<{ data: UserOAuthBinding[] }>('/social/bindings')
-  return response.data.data
+  const response = await api.get<UserOAuthBinding[]>('/social/bindings')
+  return response.data
 }
 
 // 启动社交账号绑定
 export async function startSocialBind(provider: string): Promise<StartOAuthResult> {
-  const response = await api.post<{ data: StartOAuthResult }>('/social/bind/start', {
+  const response = await api.post<StartOAuthResult>('/social/bind/start', {
     provider
   })
-  return response.data.data
+  return response.data
 }
 
 // 处理社交账号绑定回调
