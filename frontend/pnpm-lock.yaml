@@ -26,9 +26,6 @@ importers:
       file-saver:
         specifier: ^2.0.5
         version: 2.0.5
-      jszip:
-        specifier: ^3.10.1
-        version: 3.10.1
       pinia:
         specifier: ^2.1.7
         version: 2.3.1(typescript@5.6.3)(vue@3.5.26(typescript@5.6.3))
@@ -51,6 +48,9 @@ importers:
       '@types/file-saver':
         specifier: ^2.0.7
         version: 2.0.7
+      '@types/jszip':
+        specifier: ^3.4.0
+        version: 3.4.1
       '@types/mdx':
         specifier: ^2.0.13
         version: 2.0.13
@@ -75,6 +75,9 @@ importers:
       eslint-plugin-vue:
         specifier: ^9.25.0
         version: 9.33.0(eslint@8.57.1)
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
       postcss:
         specifier: ^8.4.32
         version: 8.5.6
@@ -1409,6 +1412,10 @@ packages:
 
   '@types/js-cookie@3.0.6':
     resolution: {integrity: sha512-wkw9yd1kEXOPnvEeEV1Go1MmxtBJL0RR79aOTAApecWFVu7w0NNXNqhcWgvw2YgZDYadliXkl14pa3WXw5jlCQ==}
+
+  '@types/jszip@3.4.1':
+    resolution: {integrity: sha512-TezXjmf3lj+zQ651r6hPqvSScqBLvyPI9FxdXBqpEwBijNGQ2NXpaFW/7joGzveYkKQUil7iiDHLo6LV71Pc0A==}
+    deprecated: This is a stub types definition. jszip provides its own type definitions, so you do not need this installed.
 
   '@types/katex@0.16.7':
     resolution: {integrity: sha512-HMwFiRujE5PjrgwHQ25+bsLJgowjGjm5Z8FVSf0N6PwgJrwxH0QxzHYDcKsTfV3wva0vzrpqMTJS2jXPr5BMEQ==}
@@ -5362,6 +5369,10 @@ snapshots:
       '@types/unist': 3.0.3
 
   '@types/js-cookie@3.0.6': {}
+
+  '@types/jszip@3.4.1':
+    dependencies:
+      jszip: 3.10.1
 
   '@types/katex@0.16.7': {}
 
