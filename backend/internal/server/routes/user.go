@@ -80,5 +80,14 @@ func RegisterUserRoutes(
 			payment.GET("/orders", h.Payment.ListOrders)
 			payment.GET("/orders/:order_no", h.Payment.GetOrderStatus)
 		}
+
+		// 社交账号绑定（需要认证）
+		social := authenticated.Group("/social")
+		{
+			social.GET("/bindings", h.SocialOAuth.GetBindings)
+			social.POST("/bind/start", h.SocialOAuth.StartBind)
+			social.POST("/bind/callback", h.SocialOAuth.HandleBindCallback)
+			social.POST("/unbind", h.SocialOAuth.Unbind)
+		}
 	}
 }

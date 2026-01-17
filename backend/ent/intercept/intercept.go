@@ -13,6 +13,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/oauthprovider"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/product"
@@ -26,6 +27,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/useroauthbinding"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
 
@@ -218,6 +220,33 @@ func (f TraverseGroup) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.GroupQuery", q)
+}
+
+// The OAuthProviderFunc type is an adapter to allow the use of ordinary function as a Querier.
+type OAuthProviderFunc func(context.Context, *ent.OAuthProviderQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f OAuthProviderFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.OAuthProviderQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.OAuthProviderQuery", q)
+}
+
+// The TraverseOAuthProvider type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseOAuthProvider func(context.Context, *ent.OAuthProviderQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseOAuthProvider) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseOAuthProvider) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.OAuthProviderQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.OAuthProviderQuery", q)
 }
 
 // The PaymentOrderFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -544,6 +573,33 @@ func (f TraverseUserAttributeValue) Traverse(ctx context.Context, q ent.Query) e
 	return fmt.Errorf("unexpected query type %T. expect *ent.UserAttributeValueQuery", q)
 }
 
+// The UserOAuthBindingFunc type is an adapter to allow the use of ordinary function as a Querier.
+type UserOAuthBindingFunc func(context.Context, *ent.UserOAuthBindingQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f UserOAuthBindingFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.UserOAuthBindingQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.UserOAuthBindingQuery", q)
+}
+
+// The TraverseUserOAuthBinding type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseUserOAuthBinding func(context.Context, *ent.UserOAuthBindingQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseUserOAuthBinding) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseUserOAuthBinding) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.UserOAuthBindingQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.UserOAuthBindingQuery", q)
+}
+
 // The UserSubscriptionFunc type is an adapter to allow the use of ordinary function as a Querier.
 type UserSubscriptionFunc func(context.Context, *ent.UserSubscriptionQuery) (ent.Value, error)
 
@@ -584,6 +640,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.AnnouncementQuery, predicate.Announcement, announcement.OrderOption]{typ: ent.TypeAnnouncement, tq: q}, nil
 	case *ent.GroupQuery:
 		return &query[*ent.GroupQuery, predicate.Group, group.OrderOption]{typ: ent.TypeGroup, tq: q}, nil
+	case *ent.OAuthProviderQuery:
+		return &query[*ent.OAuthProviderQuery, predicate.OAuthProvider, oauthprovider.OrderOption]{typ: ent.TypeOAuthProvider, tq: q}, nil
 	case *ent.PaymentOrderQuery:
 		return &query[*ent.PaymentOrderQuery, predicate.PaymentOrder, paymentorder.OrderOption]{typ: ent.TypePaymentOrder, tq: q}, nil
 	case *ent.ProductQuery:
@@ -608,6 +666,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.UserAttributeDefinitionQuery, predicate.UserAttributeDefinition, userattributedefinition.OrderOption]{typ: ent.TypeUserAttributeDefinition, tq: q}, nil
 	case *ent.UserAttributeValueQuery:
 		return &query[*ent.UserAttributeValueQuery, predicate.UserAttributeValue, userattributevalue.OrderOption]{typ: ent.TypeUserAttributeValue, tq: q}, nil
+	case *ent.UserOAuthBindingQuery:
+		return &query[*ent.UserOAuthBindingQuery, predicate.UserOAuthBinding, useroauthbinding.OrderOption]{typ: ent.TypeUserOAuthBinding, tq: q}, nil
 	case *ent.UserSubscriptionQuery:
 		return &query[*ent.UserSubscriptionQuery, predicate.UserSubscription, usersubscription.OrderOption]{typ: ent.TypeUserSubscription, tq: q}, nil
 	default:

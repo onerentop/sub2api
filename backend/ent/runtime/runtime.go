@@ -10,6 +10,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/oauthprovider"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/product"
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
@@ -23,6 +24,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/useroauthbinding"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
 
@@ -311,6 +313,70 @@ func init() {
 	groupDescClaudeCodeOnly := groupFields[14].Descriptor()
 	// group.DefaultClaudeCodeOnly holds the default value on creation for the claude_code_only field.
 	group.DefaultClaudeCodeOnly = groupDescClaudeCodeOnly.Default.(bool)
+	oauthproviderFields := schema.OAuthProvider{}.Fields()
+	_ = oauthproviderFields
+	// oauthproviderDescName is the schema descriptor for name field.
+	oauthproviderDescName := oauthproviderFields[0].Descriptor()
+	// oauthprovider.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	oauthprovider.NameValidator = func() func(string) error {
+		validators := oauthproviderDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// oauthproviderDescDisplayName is the schema descriptor for display_name field.
+	oauthproviderDescDisplayName := oauthproviderFields[1].Descriptor()
+	// oauthprovider.DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
+	oauthprovider.DisplayNameValidator = func() func(string) error {
+		validators := oauthproviderDescDisplayName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(display_name string) error {
+			for _, fn := range fns {
+				if err := fn(display_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// oauthproviderDescClientID is the schema descriptor for client_id field.
+	oauthproviderDescClientID := oauthproviderFields[2].Descriptor()
+	// oauthprovider.DefaultClientID holds the default value on creation for the client_id field.
+	oauthprovider.DefaultClientID = oauthproviderDescClientID.Default.(string)
+	// oauthprovider.ClientIDValidator is a validator for the "client_id" field. It is called by the builders before save.
+	oauthprovider.ClientIDValidator = oauthproviderDescClientID.Validators[0].(func(string) error)
+	// oauthproviderDescClientSecret is the schema descriptor for client_secret field.
+	oauthproviderDescClientSecret := oauthproviderFields[3].Descriptor()
+	// oauthprovider.DefaultClientSecret holds the default value on creation for the client_secret field.
+	oauthprovider.DefaultClientSecret = oauthproviderDescClientSecret.Default.(string)
+	// oauthprovider.ClientSecretValidator is a validator for the "client_secret" field. It is called by the builders before save.
+	oauthprovider.ClientSecretValidator = oauthproviderDescClientSecret.Validators[0].(func(string) error)
+	// oauthproviderDescEnabled is the schema descriptor for enabled field.
+	oauthproviderDescEnabled := oauthproviderFields[4].Descriptor()
+	// oauthprovider.DefaultEnabled holds the default value on creation for the enabled field.
+	oauthprovider.DefaultEnabled = oauthproviderDescEnabled.Default.(bool)
+	// oauthproviderDescCreatedAt is the schema descriptor for created_at field.
+	oauthproviderDescCreatedAt := oauthproviderFields[6].Descriptor()
+	// oauthprovider.DefaultCreatedAt holds the default value on creation for the created_at field.
+	oauthprovider.DefaultCreatedAt = oauthproviderDescCreatedAt.Default.(func() time.Time)
+	// oauthproviderDescUpdatedAt is the schema descriptor for updated_at field.
+	oauthproviderDescUpdatedAt := oauthproviderFields[7].Descriptor()
+	// oauthprovider.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	oauthprovider.DefaultUpdatedAt = oauthproviderDescUpdatedAt.Default.(func() time.Time)
+	// oauthprovider.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	oauthprovider.UpdateDefaultUpdatedAt = oauthproviderDescUpdatedAt.UpdateDefault.(func() time.Time)
 	paymentorderMixin := schema.PaymentOrder{}.Mixin()
 	paymentorderMixinFields0 := paymentorderMixin[0].Fields()
 	_ = paymentorderMixinFields0
@@ -935,6 +1001,66 @@ func init() {
 	userattributevalueDescValue := userattributevalueFields[2].Descriptor()
 	// userattributevalue.DefaultValue holds the default value on creation for the value field.
 	userattributevalue.DefaultValue = userattributevalueDescValue.Default.(string)
+	useroauthbindingFields := schema.UserOAuthBinding{}.Fields()
+	_ = useroauthbindingFields
+	// useroauthbindingDescProvider is the schema descriptor for provider field.
+	useroauthbindingDescProvider := useroauthbindingFields[1].Descriptor()
+	// useroauthbinding.ProviderValidator is a validator for the "provider" field. It is called by the builders before save.
+	useroauthbinding.ProviderValidator = func() func(string) error {
+		validators := useroauthbindingDescProvider.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(provider string) error {
+			for _, fn := range fns {
+				if err := fn(provider); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// useroauthbindingDescProviderUserID is the schema descriptor for provider_user_id field.
+	useroauthbindingDescProviderUserID := useroauthbindingFields[2].Descriptor()
+	// useroauthbinding.ProviderUserIDValidator is a validator for the "provider_user_id" field. It is called by the builders before save.
+	useroauthbinding.ProviderUserIDValidator = func() func(string) error {
+		validators := useroauthbindingDescProviderUserID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(provider_user_id string) error {
+			for _, fn := range fns {
+				if err := fn(provider_user_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// useroauthbindingDescProviderEmail is the schema descriptor for provider_email field.
+	useroauthbindingDescProviderEmail := useroauthbindingFields[3].Descriptor()
+	// useroauthbinding.ProviderEmailValidator is a validator for the "provider_email" field. It is called by the builders before save.
+	useroauthbinding.ProviderEmailValidator = useroauthbindingDescProviderEmail.Validators[0].(func(string) error)
+	// useroauthbindingDescProviderUsername is the schema descriptor for provider_username field.
+	useroauthbindingDescProviderUsername := useroauthbindingFields[4].Descriptor()
+	// useroauthbinding.ProviderUsernameValidator is a validator for the "provider_username" field. It is called by the builders before save.
+	useroauthbinding.ProviderUsernameValidator = useroauthbindingDescProviderUsername.Validators[0].(func(string) error)
+	// useroauthbindingDescProviderAvatar is the schema descriptor for provider_avatar field.
+	useroauthbindingDescProviderAvatar := useroauthbindingFields[5].Descriptor()
+	// useroauthbinding.ProviderAvatarValidator is a validator for the "provider_avatar" field. It is called by the builders before save.
+	useroauthbinding.ProviderAvatarValidator = useroauthbindingDescProviderAvatar.Validators[0].(func(string) error)
+	// useroauthbindingDescCreatedAt is the schema descriptor for created_at field.
+	useroauthbindingDescCreatedAt := useroauthbindingFields[8].Descriptor()
+	// useroauthbinding.DefaultCreatedAt holds the default value on creation for the created_at field.
+	useroauthbinding.DefaultCreatedAt = useroauthbindingDescCreatedAt.Default.(func() time.Time)
+	// useroauthbindingDescUpdatedAt is the schema descriptor for updated_at field.
+	useroauthbindingDescUpdatedAt := useroauthbindingFields[9].Descriptor()
+	// useroauthbinding.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	useroauthbinding.DefaultUpdatedAt = useroauthbindingDescUpdatedAt.Default.(func() time.Time)
+	// useroauthbinding.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	useroauthbinding.UpdateDefaultUpdatedAt = useroauthbindingDescUpdatedAt.UpdateDefault.(func() time.Time)
 	usersubscriptionMixin := schema.UserSubscription{}.Mixin()
 	usersubscriptionMixinHooks1 := usersubscriptionMixin[1].Hooks()
 	usersubscription.Hooks[0] = usersubscriptionMixinHooks1[0]

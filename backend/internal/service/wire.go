@@ -261,4 +261,5 @@ var ProviderSet = wire.NewSet(
 	NewPublicAccountService,
 	NewYiPayService,
 	NewPaymentService,
+	NewSocialOAuthService,
 )

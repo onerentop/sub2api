@@ -14,6 +14,7 @@ type AdminHandlers struct {
 	OpenAIOAuth      *admin.OpenAIOAuthHandler
 	GeminiOAuth      *admin.GeminiOAuthHandler
 	AntigravityOAuth *admin.AntigravityOAuthHandler
+	SocialOAuth      *admin.SocialOAuthHandler
 	Proxy            *admin.ProxyHandler
 	Redeem           *admin.RedeemHandler
 	Promo            *admin.PromoHandler
@@ -42,6 +43,7 @@ type Handlers struct {
 	OpenAIGateway          *OpenAIGatewayHandler
 	Setting                *SettingHandler
 	PublicAntigravityOAuth *PublicAntigravityOAuthHandler
+	SocialOAuth            *SocialOAuthHandler
 	Payment                *PaymentHandler
 }
 

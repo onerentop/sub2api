@@ -69,11 +69,13 @@ type UserEdges struct {
 	PromoCodeUsages []*PromoCodeUsage `json:"promo_code_usages,omitempty"`
 	// PaymentOrders holds the value of the payment_orders edge.
 	PaymentOrders []*PaymentOrder `json:"payment_orders,omitempty"`
+	// OauthBindings holds the value of the oauth_bindings edge.
+	OauthBindings []*UserOAuthBinding `json:"oauth_bindings,omitempty"`
 	// UserAllowedGroups holds the value of the user_allowed_groups edge.
 	UserAllowedGroups []*UserAllowedGroup `json:"user_allowed_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [10]bool
+	loadedTypes [11]bool
 }
 
 // APIKeysOrErr returns the APIKeys value or an error if the edge
@@ -157,10 +159,19 @@ func (e UserEdges) PaymentOrdersOrErr() ([]*PaymentOrder, error) {
 	return nil, &NotLoadedError{edge: "payment_orders"}
 }
 
+// OauthBindingsOrErr returns the OauthBindings value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) OauthBindingsOrErr() ([]*UserOAuthBinding, error) {
+	if e.loadedTypes[9] {
+		return e.OauthBindings, nil
+	}
+	return nil, &NotLoadedError{edge: "oauth_bindings"}
+}
+
 // UserAllowedGroupsOrErr returns the UserAllowedGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) UserAllowedGroupsOrErr() ([]*UserAllowedGroup, error) {
-	if e.loadedTypes[9] {
+	if e.loadedTypes[10] {
 		return e.UserAllowedGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "user_allowed_groups"}
@@ -337,6 +348,11 @@ func (_m *User) QueryPromoCodeUsages() *PromoCodeUsageQuery {
 // QueryPaymentOrders queries the "payment_orders" edge of the User entity.
 func (_m *User) QueryPaymentOrders() *PaymentOrderQuery {
 	return NewUserClient(_m.config).QueryPaymentOrders(_m)
+}
+
+// QueryOauthBindings queries the "oauth_bindings" edge of the User entity.
+func (_m *User) QueryOauthBindings() *UserOAuthBindingQuery {
+	return NewUserClient(_m.config).QueryOauthBindings(_m)
 }
 
 // QueryUserAllowedGroups queries the "user_allowed_groups" edge of the User entity.

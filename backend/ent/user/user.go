@@ -59,6 +59,8 @@ const (
 	EdgePromoCodeUsages = "promo_code_usages"
 	// EdgePaymentOrders holds the string denoting the payment_orders edge name in mutations.
 	EdgePaymentOrders = "payment_orders"
+	// EdgeOauthBindings holds the string denoting the oauth_bindings edge name in mutations.
+	EdgeOauthBindings = "oauth_bindings"
 	// EdgeUserAllowedGroups holds the string denoting the user_allowed_groups edge name in mutations.
 	EdgeUserAllowedGroups = "user_allowed_groups"
 	// Table holds the table name of the user in the database.
@@ -124,6 +126,13 @@ const (
 	PaymentOrdersInverseTable = "payment_orders"
 	// PaymentOrdersColumn is the table column denoting the payment_orders relation/edge.
 	PaymentOrdersColumn = "user_id"
+	// OauthBindingsTable is the table that holds the oauth_bindings relation/edge.
+	OauthBindingsTable = "user_oauth_bindings"
+	// OauthBindingsInverseTable is the table name for the UserOAuthBinding entity.
+	// It exists in this package in order to avoid circular dependency with the "useroauthbinding" package.
+	OauthBindingsInverseTable = "user_oauth_bindings"
+	// OauthBindingsColumn is the table column denoting the oauth_bindings relation/edge.
+	OauthBindingsColumn = "user_id"
 	// UserAllowedGroupsTable is the table that holds the user_allowed_groups relation/edge.
 	UserAllowedGroupsTable = "user_allowed_groups"
 	// UserAllowedGroupsInverseTable is the table name for the UserAllowedGroup entity.
@@ -404,6 +413,20 @@ func ByPaymentOrders(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByOauthBindingsCount orders the results by oauth_bindings count.
+func ByOauthBindingsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newOauthBindingsStep(), opts...)
+	}
+}
+
+// ByOauthBindings orders the results by oauth_bindings terms.
+func ByOauthBindings(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newOauthBindingsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByUserAllowedGroupsCount orders the results by user_allowed_groups count.
 func ByUserAllowedGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -478,6 +501,13 @@ func newPaymentOrdersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PaymentOrdersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, PaymentOrdersTable, PaymentOrdersColumn),
+	)
+}
+func newOauthBindingsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(OauthBindingsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, OauthBindingsTable, OauthBindingsColumn),
 	)
 }
 func newUserAllowedGroupsStep() *sqlgraph.Step {

@@ -78,6 +78,15 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/auth/social/:action/callback',
+    name: 'SocialOAuthCallback',
+    component: () => import('@/views/auth/SocialOAuthCallbackView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Social OAuth Callback'
+    }
+  },
+  {
     path: '/contribute',
     name: 'Contribute',
     component: () => import('@/views/public/ContributeView.vue'),

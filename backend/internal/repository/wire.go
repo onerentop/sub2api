@@ -54,6 +54,8 @@ var ProviderSet = wire.NewSet(
 	NewUserAttributeDefinitionRepository,
 	NewUserAttributeValueRepository,
 	NewAnnouncementRepository,
+	NewOAuthProviderRepository,
+	NewUserOAuthBindingRepository,
 	NewProductRepository,
 	NewPaymentOrderRepository,
 

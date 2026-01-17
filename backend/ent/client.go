@@ -20,6 +20,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/oauthprovider"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/product"
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
@@ -32,6 +33,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/useroauthbinding"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 
 	stdsql "database/sql"
@@ -52,6 +54,8 @@ type Client struct {
 	Announcement *AnnouncementClient
 	// Group is the client for interacting with the Group builders.
 	Group *GroupClient
+	// OAuthProvider is the client for interacting with the OAuthProvider builders.
+	OAuthProvider *OAuthProviderClient
 	// PaymentOrder is the client for interacting with the PaymentOrder builders.
 	PaymentOrder *PaymentOrderClient
 	// Product is the client for interacting with the Product builders.
@@ -76,6 +80,8 @@ type Client struct {
 	UserAttributeDefinition *UserAttributeDefinitionClient
 	// UserAttributeValue is the client for interacting with the UserAttributeValue builders.
 	UserAttributeValue *UserAttributeValueClient
+	// UserOAuthBinding is the client for interacting with the UserOAuthBinding builders.
+	UserOAuthBinding *UserOAuthBindingClient
 	// UserSubscription is the client for interacting with the UserSubscription builders.
 	UserSubscription *UserSubscriptionClient
 }
@@ -94,6 +100,7 @@ func (c *Client) init() {
 	c.AccountGroup = NewAccountGroupClient(c.config)
 	c.Announcement = NewAnnouncementClient(c.config)
 	c.Group = NewGroupClient(c.config)
+	c.OAuthProvider = NewOAuthProviderClient(c.config)
 	c.PaymentOrder = NewPaymentOrderClient(c.config)
 	c.Product = NewProductClient(c.config)
 	c.PromoCode = NewPromoCodeClient(c.config)
@@ -106,6 +113,7 @@ func (c *Client) init() {
 	c.UserAllowedGroup = NewUserAllowedGroupClient(c.config)
 	c.UserAttributeDefinition = NewUserAttributeDefinitionClient(c.config)
 	c.UserAttributeValue = NewUserAttributeValueClient(c.config)
+	c.UserOAuthBinding = NewUserOAuthBindingClient(c.config)
 	c.UserSubscription = NewUserSubscriptionClient(c.config)
 }
 
@@ -204,6 +212,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AccountGroup:            NewAccountGroupClient(cfg),
 		Announcement:            NewAnnouncementClient(cfg),
 		Group:                   NewGroupClient(cfg),
+		OAuthProvider:           NewOAuthProviderClient(cfg),
 		PaymentOrder:            NewPaymentOrderClient(cfg),
 		Product:                 NewProductClient(cfg),
 		PromoCode:               NewPromoCodeClient(cfg),
@@ -216,6 +225,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		UserAllowedGroup:        NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition: NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:      NewUserAttributeValueClient(cfg),
+		UserOAuthBinding:        NewUserOAuthBindingClient(cfg),
 		UserSubscription:        NewUserSubscriptionClient(cfg),
 	}, nil
 }
@@ -241,6 +251,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AccountGroup:            NewAccountGroupClient(cfg),
 		Announcement:            NewAnnouncementClient(cfg),
 		Group:                   NewGroupClient(cfg),
+		OAuthProvider:           NewOAuthProviderClient(cfg),
 		PaymentOrder:            NewPaymentOrderClient(cfg),
 		Product:                 NewProductClient(cfg),
 		PromoCode:               NewPromoCodeClient(cfg),
@@ -253,6 +264,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		UserAllowedGroup:        NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition: NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:      NewUserAttributeValueClient(cfg),
+		UserOAuthBinding:        NewUserOAuthBindingClient(cfg),
 		UserSubscription:        NewUserSubscriptionClient(cfg),
 	}, nil
 }
@@ -283,10 +295,11 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.Group, c.PaymentOrder,
-		c.Product, c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.Setting,
-		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
-		c.UserAttributeValue, c.UserSubscription,
+		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.Group, c.OAuthProvider,
+		c.PaymentOrder, c.Product, c.PromoCode, c.PromoCodeUsage, c.Proxy,
+		c.RedeemCode, c.Setting, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserOAuthBinding,
+		c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -296,10 +309,11 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.Group, c.PaymentOrder,
-		c.Product, c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.Setting,
-		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
-		c.UserAttributeValue, c.UserSubscription,
+		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.Group, c.OAuthProvider,
+		c.PaymentOrder, c.Product, c.PromoCode, c.PromoCodeUsage, c.Proxy,
+		c.RedeemCode, c.Setting, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserOAuthBinding,
+		c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -318,6 +332,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Announcement.mutate(ctx, m)
 	case *GroupMutation:
 		return c.Group.mutate(ctx, m)
+	case *OAuthProviderMutation:
+		return c.OAuthProvider.mutate(ctx, m)
 	case *PaymentOrderMutation:
 		return c.PaymentOrder.mutate(ctx, m)
 	case *ProductMutation:
@@ -342,6 +358,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UserAttributeDefinition.mutate(ctx, m)
 	case *UserAttributeValueMutation:
 		return c.UserAttributeValue.mutate(ctx, m)
+	case *UserOAuthBindingMutation:
+		return c.UserOAuthBinding.mutate(ctx, m)
 	case *UserSubscriptionMutation:
 		return c.UserSubscription.mutate(ctx, m)
 	default:
@@ -1256,6 +1274,139 @@ func (c *GroupClient) mutate(ctx context.Context, m *GroupMutation) (Value, erro
 		return (&GroupDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Group mutation op: %q", m.Op())
+	}
+}
+
+// OAuthProviderClient is a client for the OAuthProvider schema.
+type OAuthProviderClient struct {
+	config
+}
+
+// NewOAuthProviderClient returns a client for the OAuthProvider from the given config.
+func NewOAuthProviderClient(c config) *OAuthProviderClient {
+	return &OAuthProviderClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `oauthprovider.Hooks(f(g(h())))`.
+func (c *OAuthProviderClient) Use(hooks ...Hook) {
+	c.hooks.OAuthProvider = append(c.hooks.OAuthProvider, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `oauthprovider.Intercept(f(g(h())))`.
+func (c *OAuthProviderClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OAuthProvider = append(c.inters.OAuthProvider, interceptors...)
+}
+
+// Create returns a builder for creating a OAuthProvider entity.
+func (c *OAuthProviderClient) Create() *OAuthProviderCreate {
+	mutation := newOAuthProviderMutation(c.config, OpCreate)
+	return &OAuthProviderCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OAuthProvider entities.
+func (c *OAuthProviderClient) CreateBulk(builders ...*OAuthProviderCreate) *OAuthProviderCreateBulk {
+	return &OAuthProviderCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OAuthProviderClient) MapCreateBulk(slice any, setFunc func(*OAuthProviderCreate, int)) *OAuthProviderCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OAuthProviderCreateBulk{err: fmt.Errorf("calling to OAuthProviderClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OAuthProviderCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OAuthProviderCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OAuthProvider.
+func (c *OAuthProviderClient) Update() *OAuthProviderUpdate {
+	mutation := newOAuthProviderMutation(c.config, OpUpdate)
+	return &OAuthProviderUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OAuthProviderClient) UpdateOne(_m *OAuthProvider) *OAuthProviderUpdateOne {
+	mutation := newOAuthProviderMutation(c.config, OpUpdateOne, withOAuthProvider(_m))
+	return &OAuthProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OAuthProviderClient) UpdateOneID(id int64) *OAuthProviderUpdateOne {
+	mutation := newOAuthProviderMutation(c.config, OpUpdateOne, withOAuthProviderID(id))
+	return &OAuthProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OAuthProvider.
+func (c *OAuthProviderClient) Delete() *OAuthProviderDelete {
+	mutation := newOAuthProviderMutation(c.config, OpDelete)
+	return &OAuthProviderDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OAuthProviderClient) DeleteOne(_m *OAuthProvider) *OAuthProviderDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OAuthProviderClient) DeleteOneID(id int64) *OAuthProviderDeleteOne {
+	builder := c.Delete().Where(oauthprovider.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OAuthProviderDeleteOne{builder}
+}
+
+// Query returns a query builder for OAuthProvider.
+func (c *OAuthProviderClient) Query() *OAuthProviderQuery {
+	return &OAuthProviderQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOAuthProvider},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OAuthProvider entity by its id.
+func (c *OAuthProviderClient) Get(ctx context.Context, id int64) (*OAuthProvider, error) {
+	return c.Query().Where(oauthprovider.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OAuthProviderClient) GetX(ctx context.Context, id int64) *OAuthProvider {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OAuthProviderClient) Hooks() []Hook {
+	return c.hooks.OAuthProvider
+}
+
+// Interceptors returns the client interceptors.
+func (c *OAuthProviderClient) Interceptors() []Interceptor {
+	return c.inters.OAuthProvider
+}
+
+func (c *OAuthProviderClient) mutate(ctx context.Context, m *OAuthProviderMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OAuthProviderCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OAuthProviderUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OAuthProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OAuthProviderDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OAuthProvider mutation op: %q", m.Op())
 	}
 }
 
@@ -2819,6 +2970,22 @@ func (c *UserClient) QueryPaymentOrders(_m *User) *PaymentOrderQuery {
 	return query
 }
 
+// QueryOauthBindings queries the oauth_bindings edge of a User.
+func (c *UserClient) QueryOauthBindings(_m *User) *UserOAuthBindingQuery {
+	query := (&UserOAuthBindingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(useroauthbinding.Table, useroauthbinding.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.OauthBindingsTable, user.OauthBindingsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryUserAllowedGroups queries the user_allowed_groups edge of a User.
 func (c *UserClient) QueryUserAllowedGroups(_m *User) *UserAllowedGroupQuery {
 	query := (&UserAllowedGroupClient{config: c.config}).Query()
@@ -3294,6 +3461,155 @@ func (c *UserAttributeValueClient) mutate(ctx context.Context, m *UserAttributeV
 	}
 }
 
+// UserOAuthBindingClient is a client for the UserOAuthBinding schema.
+type UserOAuthBindingClient struct {
+	config
+}
+
+// NewUserOAuthBindingClient returns a client for the UserOAuthBinding from the given config.
+func NewUserOAuthBindingClient(c config) *UserOAuthBindingClient {
+	return &UserOAuthBindingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `useroauthbinding.Hooks(f(g(h())))`.
+func (c *UserOAuthBindingClient) Use(hooks ...Hook) {
+	c.hooks.UserOAuthBinding = append(c.hooks.UserOAuthBinding, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `useroauthbinding.Intercept(f(g(h())))`.
+func (c *UserOAuthBindingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserOAuthBinding = append(c.inters.UserOAuthBinding, interceptors...)
+}
+
+// Create returns a builder for creating a UserOAuthBinding entity.
+func (c *UserOAuthBindingClient) Create() *UserOAuthBindingCreate {
+	mutation := newUserOAuthBindingMutation(c.config, OpCreate)
+	return &UserOAuthBindingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserOAuthBinding entities.
+func (c *UserOAuthBindingClient) CreateBulk(builders ...*UserOAuthBindingCreate) *UserOAuthBindingCreateBulk {
+	return &UserOAuthBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserOAuthBindingClient) MapCreateBulk(slice any, setFunc func(*UserOAuthBindingCreate, int)) *UserOAuthBindingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserOAuthBindingCreateBulk{err: fmt.Errorf("calling to UserOAuthBindingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserOAuthBindingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserOAuthBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserOAuthBinding.
+func (c *UserOAuthBindingClient) Update() *UserOAuthBindingUpdate {
+	mutation := newUserOAuthBindingMutation(c.config, OpUpdate)
+	return &UserOAuthBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserOAuthBindingClient) UpdateOne(_m *UserOAuthBinding) *UserOAuthBindingUpdateOne {
+	mutation := newUserOAuthBindingMutation(c.config, OpUpdateOne, withUserOAuthBinding(_m))
+	return &UserOAuthBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserOAuthBindingClient) UpdateOneID(id int64) *UserOAuthBindingUpdateOne {
+	mutation := newUserOAuthBindingMutation(c.config, OpUpdateOne, withUserOAuthBindingID(id))
+	return &UserOAuthBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserOAuthBinding.
+func (c *UserOAuthBindingClient) Delete() *UserOAuthBindingDelete {
+	mutation := newUserOAuthBindingMutation(c.config, OpDelete)
+	return &UserOAuthBindingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserOAuthBindingClient) DeleteOne(_m *UserOAuthBinding) *UserOAuthBindingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserOAuthBindingClient) DeleteOneID(id int64) *UserOAuthBindingDeleteOne {
+	builder := c.Delete().Where(useroauthbinding.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserOAuthBindingDeleteOne{builder}
+}
+
+// Query returns a query builder for UserOAuthBinding.
+func (c *UserOAuthBindingClient) Query() *UserOAuthBindingQuery {
+	return &UserOAuthBindingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserOAuthBinding},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserOAuthBinding entity by its id.
+func (c *UserOAuthBindingClient) Get(ctx context.Context, id int64) (*UserOAuthBinding, error) {
+	return c.Query().Where(useroauthbinding.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserOAuthBindingClient) GetX(ctx context.Context, id int64) *UserOAuthBinding {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a UserOAuthBinding.
+func (c *UserOAuthBindingClient) QueryUser(_m *UserOAuthBinding) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(useroauthbinding.Table, useroauthbinding.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, useroauthbinding.UserTable, useroauthbinding.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserOAuthBindingClient) Hooks() []Hook {
+	return c.hooks.UserOAuthBinding
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserOAuthBindingClient) Interceptors() []Interceptor {
+	return c.inters.UserOAuthBinding
+}
+
+func (c *UserOAuthBindingClient) mutate(ctx context.Context, m *UserOAuthBindingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserOAuthBindingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserOAuthBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserOAuthBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserOAuthBindingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserOAuthBinding mutation op: %q", m.Op())
+	}
+}
+
 // UserSubscriptionClient is a client for the UserSubscription schema.
 type UserSubscriptionClient struct {
 	config
@@ -3496,16 +3812,16 @@ func (c *UserSubscriptionClient) mutate(ctx context.Context, m *UserSubscription
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Account, AccountGroup, Announcement, Group, PaymentOrder, Product,
-		PromoCode, PromoCodeUsage, Proxy, RedeemCode, Setting, UsageLog, User,
+		APIKey, Account, AccountGroup, Announcement, Group, OAuthProvider, PaymentOrder,
+		Product, PromoCode, PromoCodeUsage, Proxy, RedeemCode, Setting, UsageLog, User,
 		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
-		UserSubscription []ent.Hook
+		UserOAuthBinding, UserSubscription []ent.Hook
 	}
 	inters struct {
-		APIKey, Account, AccountGroup, Announcement, Group, PaymentOrder, Product,
-		PromoCode, PromoCodeUsage, Proxy, RedeemCode, Setting, UsageLog, User,
+		APIKey, Account, AccountGroup, Announcement, Group, OAuthProvider, PaymentOrder,
+		Product, PromoCode, PromoCodeUsage, Proxy, RedeemCode, Setting, UsageLog, User,
 		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
-		UserSubscription []ent.Interceptor
+		UserOAuthBinding, UserSubscription []ent.Interceptor
 	}
 )
 

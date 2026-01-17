@@ -17,6 +17,7 @@ func ProvideAdminHandlers(
 	openaiOAuthHandler *admin.OpenAIOAuthHandler,
 	geminiOAuthHandler *admin.GeminiOAuthHandler,
 	antigravityOAuthHandler *admin.AntigravityOAuthHandler,
+	socialOAuthHandler *admin.SocialOAuthHandler,
 	proxyHandler *admin.ProxyHandler,
 	redeemHandler *admin.RedeemHandler,
 	promoHandler *admin.PromoHandler,
@@ -39,6 +40,7 @@ func ProvideAdminHandlers(
 		OpenAIOAuth:      openaiOAuthHandler,
 		GeminiOAuth:      geminiOAuthHandler,
 		AntigravityOAuth: antigravityOAuthHandler,
+		SocialOAuth:      socialOAuthHandler,
 		Proxy:            proxyHandler,
 		Redeem:           redeemHandler,
 		Promo:            promoHandler,
@@ -78,6 +80,7 @@ func ProvideHandlers(
 	openaiGatewayHandler *OpenAIGatewayHandler,
 	settingHandler *SettingHandler,
 	publicAntigravityOAuthHandler *PublicAntigravityOAuthHandler,
+	socialOAuthHandler *SocialOAuthHandler,
 	paymentHandler *PaymentHandler,
 ) *Handlers {
 	return &Handlers{
@@ -93,6 +96,7 @@ func ProvideHandlers(
 		OpenAIGateway:          openaiGatewayHandler,
 		Setting:                settingHandler,
 		PublicAntigravityOAuth: publicAntigravityOAuthHandler,
+		SocialOAuth:            socialOAuthHandler,
 		Payment:                paymentHandler,
 	}
 }
@@ -111,6 +115,7 @@ var ProviderSet = wire.NewSet(
 	NewOpenAIGatewayHandler,
 	ProvideSettingHandler,
 	NewPublicAntigravityOAuthHandler,
+	NewSocialOAuthHandler,
 	NewPaymentHandler,
 
 	// Admin handlers
@@ -122,6 +127,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewOpenAIOAuthHandler,
 	admin.NewGeminiOAuthHandler,
 	admin.NewAntigravityOAuthHandler,
+	admin.NewSocialOAuthHandler,
 	admin.NewProxyHandler,
 	admin.NewRedeemHandler,
 	admin.NewPromoHandler,

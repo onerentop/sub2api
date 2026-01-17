@@ -38,6 +38,9 @@ func RegisterAdminRoutes(
 		// Antigravity OAuth
 		registerAntigravityOAuthRoutes(admin, h)
 
+		// Social OAuth
+		registerSocialOAuthRoutes(admin, h)
+
 		// 代理管理
 		registerProxyRoutes(admin, h)
 
@@ -417,5 +420,15 @@ func registerPaymentOrderRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		orders.POST("/:id/approve", h.Admin.PaymentOrder.Approve)
 		orders.POST("/:id/reject", h.Admin.PaymentOrder.Reject)
 		orders.POST("/:id/fulfill", h.Admin.PaymentOrder.ManualFulfill)
+	}
+}
+
+func registerSocialOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	socialOAuth := admin.Group("/social-oauth")
+	{
+		// Provider management (providers are predefined, only update is supported)
+		socialOAuth.GET("/providers", h.Admin.SocialOAuth.ListProviders)
+		socialOAuth.GET("/providers/:name", h.Admin.SocialOAuth.GetProvider)
+		socialOAuth.PUT("/providers/:name", h.Admin.SocialOAuth.UpdateProvider)
 	}
 }

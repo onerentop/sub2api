@@ -35,6 +35,14 @@ func RegisterAuthRoutes(
 		auth.GET("/oauth/linuxdo/callback", h.Auth.LinuxDoOAuthCallback)
 	}
 
+	// 社交 OAuth 登录（无需认证）
+	social := v1.Group("/social")
+	{
+		social.GET("/providers", h.SocialOAuth.GetProviders)
+		social.POST("/login/start", h.SocialOAuth.StartOAuth)
+		social.POST("/login/callback", h.SocialOAuth.HandleCallback)
+	}
+
 	// 公开设置（无需认证）
 	settings := v1.Group("/settings")
 	{

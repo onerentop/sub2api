@@ -69,6 +69,18 @@ func (f GroupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GroupMutation", m)
 }
 
+// The OAuthProviderFunc type is an adapter to allow the use of ordinary
+// function as OAuthProvider mutator.
+type OAuthProviderFunc func(context.Context, *ent.OAuthProviderMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OAuthProviderFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OAuthProviderMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OAuthProviderMutation", m)
+}
+
 // The PaymentOrderFunc type is an adapter to allow the use of ordinary
 // function as PaymentOrder mutator.
 type PaymentOrderFunc func(context.Context, *ent.PaymentOrderMutation) (ent.Value, error)
@@ -211,6 +223,18 @@ func (f UserAttributeValueFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserAttributeValueMutation", m)
+}
+
+// The UserOAuthBindingFunc type is an adapter to allow the use of ordinary
+// function as UserOAuthBinding mutator.
+type UserOAuthBindingFunc func(context.Context, *ent.UserOAuthBindingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserOAuthBindingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserOAuthBindingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserOAuthBindingMutation", m)
 }
 
 // The UserSubscriptionFunc type is an adapter to allow the use of ordinary

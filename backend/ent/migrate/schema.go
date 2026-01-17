@@ -314,6 +314,31 @@ var (
 			},
 		},
 	}
+	// OauthProvidersColumns holds the columns for the "oauth_providers" table.
+	OauthProvidersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "name", Type: field.TypeString, Unique: true, Size: 50},
+		{Name: "display_name", Type: field.TypeString, Size: 100},
+		{Name: "client_id", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "client_secret", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "enabled", Type: field.TypeBool, Default: false},
+		{Name: "config", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// OauthProvidersTable holds the schema information for the "oauth_providers" table.
+	OauthProvidersTable = &schema.Table{
+		Name:       "oauth_providers",
+		Columns:    OauthProvidersColumns,
+		PrimaryKey: []*schema.Column{OauthProvidersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "oauthprovider_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{OauthProvidersColumns[5]},
+			},
+		},
+	}
 	// PaymentOrdersColumns holds the columns for the "payment_orders" table.
 	PaymentOrdersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -880,6 +905,51 @@ var (
 			},
 		},
 	}
+	// UserOauthBindingsColumns holds the columns for the "user_oauth_bindings" table.
+	UserOauthBindingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "provider", Type: field.TypeString, Size: 50},
+		{Name: "provider_user_id", Type: field.TypeString, Size: 255},
+		{Name: "provider_email", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "provider_username", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "provider_avatar", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "access_token", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "refresh_token", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+	}
+	// UserOauthBindingsTable holds the schema information for the "user_oauth_bindings" table.
+	UserOauthBindingsTable = &schema.Table{
+		Name:       "user_oauth_bindings",
+		Columns:    UserOauthBindingsColumns,
+		PrimaryKey: []*schema.Column{UserOauthBindingsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_oauth_bindings_users_oauth_bindings",
+				Columns:    []*schema.Column{UserOauthBindingsColumns[10]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "useroauthbinding_provider_provider_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{UserOauthBindingsColumns[1], UserOauthBindingsColumns[2]},
+			},
+			{
+				Name:    "useroauthbinding_user_id_provider",
+				Unique:  true,
+				Columns: []*schema.Column{UserOauthBindingsColumns[10], UserOauthBindingsColumns[1]},
+			},
+			{
+				Name:    "useroauthbinding_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{UserOauthBindingsColumns[10]},
+			},
+		},
+	}
 	// UserSubscriptionsColumns holds the columns for the "user_subscriptions" table.
 	UserSubscriptionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -971,6 +1041,7 @@ var (
 		AccountGroupsTable,
 		AnnouncementsTable,
 		GroupsTable,
+		OauthProvidersTable,
 		PaymentOrdersTable,
 		ProductsTable,
 		PromoCodesTable,
@@ -983,6 +1054,7 @@ var (
 		UserAllowedGroupsTable,
 		UserAttributeDefinitionsTable,
 		UserAttributeValuesTable,
+		UserOauthBindingsTable,
 		UserSubscriptionsTable,
 	}
 )
@@ -1007,6 +1079,9 @@ func init() {
 	}
 	GroupsTable.Annotation = &entsql.Annotation{
 		Table: "groups",
+	}
+	OauthProvidersTable.Annotation = &entsql.Annotation{
+		Table: "oauth_providers",
 	}
 	PaymentOrdersTable.ForeignKeys[0].RefTable = ProductsTable
 	PaymentOrdersTable.ForeignKeys[1].RefTable = UsersTable
@@ -1059,6 +1134,10 @@ func init() {
 	UserAttributeValuesTable.ForeignKeys[1].RefTable = UserAttributeDefinitionsTable
 	UserAttributeValuesTable.Annotation = &entsql.Annotation{
 		Table: "user_attribute_values",
+	}
+	UserOauthBindingsTable.ForeignKeys[0].RefTable = UsersTable
+	UserOauthBindingsTable.Annotation = &entsql.Annotation{
+		Table: "user_oauth_bindings",
 	}
 	UserSubscriptionsTable.ForeignKeys[0].RefTable = GroupsTable
 	UserSubscriptionsTable.ForeignKeys[1].RefTable = UsersTable

@@ -19,6 +19,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/useroauthbinding"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
 
@@ -329,6 +330,21 @@ func (_c *UserCreate) AddPaymentOrders(v ...*PaymentOrder) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddPaymentOrderIDs(ids...)
+}
+
+// AddOauthBindingIDs adds the "oauth_bindings" edge to the UserOAuthBinding entity by IDs.
+func (_c *UserCreate) AddOauthBindingIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddOauthBindingIDs(ids...)
+	return _c
+}
+
+// AddOauthBindings adds the "oauth_bindings" edges to the UserOAuthBinding entity.
+func (_c *UserCreate) AddOauthBindings(v ...*UserOAuthBinding) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddOauthBindingIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -686,6 +702,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(paymentorder.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.OauthBindingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.OauthBindingsTable,
+			Columns: []string{user.OauthBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(useroauthbinding.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

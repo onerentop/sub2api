@@ -24,6 +24,8 @@ type Tx struct {
 	Announcement *AnnouncementClient
 	// Group is the client for interacting with the Group builders.
 	Group *GroupClient
+	// OAuthProvider is the client for interacting with the OAuthProvider builders.
+	OAuthProvider *OAuthProviderClient
 	// PaymentOrder is the client for interacting with the PaymentOrder builders.
 	PaymentOrder *PaymentOrderClient
 	// Product is the client for interacting with the Product builders.
@@ -48,6 +50,8 @@ type Tx struct {
 	UserAttributeDefinition *UserAttributeDefinitionClient
 	// UserAttributeValue is the client for interacting with the UserAttributeValue builders.
 	UserAttributeValue *UserAttributeValueClient
+	// UserOAuthBinding is the client for interacting with the UserOAuthBinding builders.
+	UserOAuthBinding *UserOAuthBindingClient
 	// UserSubscription is the client for interacting with the UserSubscription builders.
 	UserSubscription *UserSubscriptionClient
 
@@ -186,6 +190,7 @@ func (tx *Tx) init() {
 	tx.AccountGroup = NewAccountGroupClient(tx.config)
 	tx.Announcement = NewAnnouncementClient(tx.config)
 	tx.Group = NewGroupClient(tx.config)
+	tx.OAuthProvider = NewOAuthProviderClient(tx.config)
 	tx.PaymentOrder = NewPaymentOrderClient(tx.config)
 	tx.Product = NewProductClient(tx.config)
 	tx.PromoCode = NewPromoCodeClient(tx.config)
@@ -198,6 +203,7 @@ func (tx *Tx) init() {
 	tx.UserAllowedGroup = NewUserAllowedGroupClient(tx.config)
 	tx.UserAttributeDefinition = NewUserAttributeDefinitionClient(tx.config)
 	tx.UserAttributeValue = NewUserAttributeValueClient(tx.config)
+	tx.UserOAuthBinding = NewUserOAuthBindingClient(tx.config)
 	tx.UserSubscription = NewUserSubscriptionClient(tx.config)
 }
 

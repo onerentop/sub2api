@@ -1027,6 +1027,29 @@ func HasPaymentOrdersWith(preds ...predicate.PaymentOrder) predicate.User {
 	})
 }
 
+// HasOauthBindings applies the HasEdge predicate on the "oauth_bindings" edge.
+func HasOauthBindings() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, OauthBindingsTable, OauthBindingsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasOauthBindingsWith applies the HasEdge predicate on the "oauth_bindings" edge with a given conditions (other predicates).
+func HasOauthBindingsWith(preds ...predicate.UserOAuthBinding) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newOauthBindingsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasUserAllowedGroups applies the HasEdge predicate on the "user_allowed_groups" edge.
 func HasUserAllowedGroups() predicate.User {
 	return predicate.User(func(s *sql.Selector) {
