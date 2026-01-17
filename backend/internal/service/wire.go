@@ -259,4 +259,6 @@ var ProviderSet = wire.NewSet(
 	NewModel429Tracker,
 	NewRoundRobinSelector,
 	NewPublicAccountService,
+	NewYiPayService,
+	NewPaymentService,
 )

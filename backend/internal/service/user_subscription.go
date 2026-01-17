@@ -3,32 +3,32 @@ package service
 import "time"
 
 type UserSubscription struct {
-	ID      int64
-	UserID  int64
-	GroupID int64
+	ID      int64 `json:"id"`
+	UserID  int64 `json:"user_id"`
+	GroupID int64 `json:"group_id"`
 
-	StartsAt  time.Time
-	ExpiresAt time.Time
-	Status    string
+	StartsAt  time.Time `json:"starts_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+	Status    string    `json:"status"`
 
-	DailyWindowStart   *time.Time
-	WeeklyWindowStart  *time.Time
-	MonthlyWindowStart *time.Time
+	DailyWindowStart   *time.Time `json:"daily_window_start,omitempty"`
+	WeeklyWindowStart  *time.Time `json:"weekly_window_start,omitempty"`
+	MonthlyWindowStart *time.Time `json:"monthly_window_start,omitempty"`
 
-	DailyUsageUSD   float64
-	WeeklyUsageUSD  float64
-	MonthlyUsageUSD float64
+	DailyUsageUSD   float64 `json:"daily_usage_usd"`
+	WeeklyUsageUSD  float64 `json:"weekly_usage_usd"`
+	MonthlyUsageUSD float64 `json:"monthly_usage_usd"`
 
-	AssignedBy *int64
-	AssignedAt time.Time
-	Notes      string
+	AssignedBy *int64    `json:"assigned_by,omitempty"`
+	AssignedAt time.Time `json:"assigned_at"`
+	Notes      string    `json:"notes,omitempty"`
 
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
-	User           *User
-	Group          *Group
-	AssignedByUser *User
+	User           *User  `json:"user,omitempty"`
+	Group          *Group `json:"group,omitempty"`
+	AssignedByUser *User  `json:"assigned_by_user,omitempty"`
 }
 
 func (s *UserSubscription) IsActive() bool {

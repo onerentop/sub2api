@@ -9,44 +9,44 @@ import (
 )
 
 type Account struct {
-	ID          int64
-	Name        string
-	Notes       *string
-	Platform    string
-	Type        string
-	Credentials map[string]any
-	Extra       map[string]any
-	ProxyID     *int64
-	Concurrency int
-	Priority    int
+	ID          int64          `json:"id"`
+	Name        string         `json:"name"`
+	Notes       *string        `json:"notes,omitempty"`
+	Platform    string         `json:"platform"`
+	Type        string         `json:"type"`
+	Credentials map[string]any `json:"credentials,omitempty"`
+	Extra       map[string]any `json:"extra,omitempty"`
+	ProxyID     *int64         `json:"proxy_id,omitempty"`
+	Concurrency int            `json:"concurrency"`
+	Priority    int            `json:"priority"`
 	// RateMultiplier 账号计费倍率（>=0，允许 0 表示该账号计费为 0）。
 	// 使用指针用于兼容旧版本调度缓存（Redis）中缺字段的情况：nil 表示按 1.0 处理。
-	RateMultiplier     *float64
-	Status             string
-	ErrorMessage       string
-	LastUsedAt         *time.Time
-	ExpiresAt          *time.Time
-	AutoPauseOnExpired bool
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	RateMultiplier     *float64   `json:"rate_multiplier,omitempty"`
+	Status             string     `json:"status"`
+	ErrorMessage       string     `json:"error_message,omitempty"`
+	LastUsedAt         *time.Time `json:"last_used_at,omitempty"`
+	ExpiresAt          *time.Time `json:"expires_at,omitempty"`
+	AutoPauseOnExpired bool       `json:"auto_pause_on_expired"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 
-	Schedulable bool
+	Schedulable bool `json:"schedulable"`
 
-	RateLimitedAt    *time.Time
-	RateLimitResetAt *time.Time
-	OverloadUntil    *time.Time
+	RateLimitedAt    *time.Time `json:"rate_limited_at,omitempty"`
+	RateLimitResetAt *time.Time `json:"rate_limit_reset_at,omitempty"`
+	OverloadUntil    *time.Time `json:"overload_until,omitempty"`
 
-	TempUnschedulableUntil  *time.Time
-	TempUnschedulableReason string
+	TempUnschedulableUntil  *time.Time `json:"temp_unschedulable_until,omitempty"`
+	TempUnschedulableReason string     `json:"temp_unschedulable_reason,omitempty"`
 
-	SessionWindowStart  *time.Time
-	SessionWindowEnd    *time.Time
-	SessionWindowStatus string
+	SessionWindowStart  *time.Time `json:"session_window_start,omitempty"`
+	SessionWindowEnd    *time.Time `json:"session_window_end,omitempty"`
+	SessionWindowStatus string     `json:"session_window_status,omitempty"`
 
-	Proxy         *Proxy
-	AccountGroups []AccountGroup
-	GroupIDs      []int64
-	Groups        []*Group
+	Proxy         *Proxy         `json:"proxy,omitempty"`
+	AccountGroups []AccountGroup `json:"account_groups,omitempty"`
+	GroupIDs      []int64        `json:"group_ids,omitempty"`
+	Groups        []*Group       `json:"groups,omitempty"`
 }
 
 type TempUnschedulableRule struct {

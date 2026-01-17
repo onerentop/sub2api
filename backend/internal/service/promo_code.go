@@ -6,32 +6,32 @@ import (
 
 // PromoCode 注册优惠码
 type PromoCode struct {
-	ID          int64
-	Code        string
-	BonusAmount float64
-	MaxUses     int
-	UsedCount   int
-	Status      string
-	ExpiresAt   *time.Time
-	Notes       string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          int64      `json:"id"`
+	Code        string     `json:"code"`
+	BonusAmount float64    `json:"bonus_amount"`
+	MaxUses     int        `json:"max_uses"`
+	UsedCount   int        `json:"used_count"`
+	Status      string     `json:"status"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+	Notes       string     `json:"notes,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 
 	// 关联
-	UsageRecords []PromoCodeUsage
+	UsageRecords []PromoCodeUsage `json:"usage_records,omitempty"`
 }
 
 // PromoCodeUsage 优惠码使用记录
 type PromoCodeUsage struct {
-	ID          int64
-	PromoCodeID int64
-	UserID      int64
-	BonusAmount float64
-	UsedAt      time.Time
+	ID          int64     `json:"id"`
+	PromoCodeID int64     `json:"promo_code_id"`
+	UserID      int64     `json:"user_id"`
+	BonusAmount float64   `json:"bonus_amount"`
+	UsedAt      time.Time `json:"used_at"`
 
 	// 关联
-	PromoCode *PromoCode
-	User      *User
+	PromoCode *PromoCode `json:"promo_code,omitempty"`
+	User      *User      `json:"user,omitempty"`
 }
 
 // CanUse 检查优惠码是否可用

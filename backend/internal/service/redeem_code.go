@@ -7,21 +7,21 @@ import (
 )
 
 type RedeemCode struct {
-	ID        int64
-	Code      string
-	Type      string
-	Value     float64
-	Status    string
-	UsedBy    *int64
-	UsedAt    *time.Time
-	Notes     string
-	CreatedAt time.Time
+	ID        int64      `json:"id"`
+	Code      string     `json:"code"`
+	Type      string     `json:"type"`
+	Value     float64    `json:"value"`
+	Status    string     `json:"status"`
+	UsedBy    *int64     `json:"used_by,omitempty"`
+	UsedAt    *time.Time `json:"used_at,omitempty"`
+	Notes     string     `json:"notes,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
 
-	GroupID      *int64
-	ValidityDays int
+	GroupID      *int64 `json:"group_id,omitempty"`
+	ValidityDays int    `json:"validity_days"`
 
-	User  *User
-	Group *Group
+	User  *User  `json:"user,omitempty"`
+	Group *Group `json:"group,omitempty"`
 }
 
 func (r *RedeemCode) IsUsed() bool {

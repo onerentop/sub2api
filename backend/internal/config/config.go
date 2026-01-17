@@ -59,6 +59,7 @@ type Config struct {
 	Timezone     string                     `mapstructure:"timezone"` // e.g. "Asia/Shanghai", "UTC"
 	Gemini       GeminiConfig               `mapstructure:"gemini"`
 	Update       UpdateConfig               `mapstructure:"update"`
+	Payment      PaymentConfig              `mapstructure:"payment"`
 }
 
 type GeminiConfig struct {
@@ -88,6 +89,25 @@ type UpdateConfig struct {
 	// 支持 http/https/socks5/socks5h 协议
 	// 例如: "http://127.0.0.1:7890", "socks5://127.0.0.1:1080"
 	ProxyURL string `mapstructure:"proxy_url"`
+}
+
+// PaymentConfig 支付配置
+type PaymentConfig struct {
+	Enabled        bool            `mapstructure:"enabled"`          // 是否启用充值功能
+	YiPay          YiPayConfig     `mapstructure:"yipay"`            // 易支付配置
+	MinAmount      float64         `mapstructure:"min_amount"`       // 最低充值金额（元）
+	MaxAmount      float64         `mapstructure:"max_amount"`       // 最高充值金额（元）
+	AuditThreshold float64         `mapstructure:"audit_threshold"`  // 超过此金额需人工审核
+	CNYToValueRate float64         `mapstructure:"cny_to_value_rate"` // CNY 转余额比例（1:1）
+}
+
+// YiPayConfig 易支付配置
+type YiPayConfig struct {
+	APIURL    string `mapstructure:"api_url"`    // 易支付网关地址
+	PID       string `mapstructure:"pid"`        // 商户ID
+	Key       string `mapstructure:"key"`        // 商户密钥
+	NotifyURL string `mapstructure:"notify_url"` // 异步回调地址
+	ReturnURL string `mapstructure:"return_url"` // 同步返回地址
 }
 
 type LinuxDoConnectConfig struct {
@@ -797,6 +817,18 @@ func setDefaults() {
 	viper.SetDefault("gemini.oauth.client_secret", "")
 	viper.SetDefault("gemini.oauth.scopes", "")
 	viper.SetDefault("gemini.quota.policy", "")
+
+	// Payment - 支付配置
+	viper.SetDefault("payment.enabled", false)
+	viper.SetDefault("payment.yipay.api_url", "")
+	viper.SetDefault("payment.yipay.pid", "")
+	viper.SetDefault("payment.yipay.key", "")
+	viper.SetDefault("payment.yipay.notify_url", "")
+	viper.SetDefault("payment.yipay.return_url", "")
+	viper.SetDefault("payment.min_amount", 10)
+	viper.SetDefault("payment.max_amount", 10000)
+	viper.SetDefault("payment.audit_threshold", 1000)
+	viper.SetDefault("payment.cny_to_value_rate", 1.0)
 }
 
 func (c *Config) Validate() error {

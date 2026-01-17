@@ -16,5 +16,11 @@ func RegisterPublicRoutes(router *gin.Engine, h *handler.Handlers) {
 			antigravity.POST("/oauth/complete", h.PublicAntigravityOAuth.Complete)
 			antigravity.POST("/wake", h.PublicAntigravityOAuth.Wake)
 		}
+
+		// 支付回调接口 (YiPay异步通知，无需认证)
+		payment := public.Group("/payment")
+		{
+			payment.POST("/callback", h.Payment.Callback)
+		}
 	}
 }

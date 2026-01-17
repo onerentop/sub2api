@@ -27,6 +27,8 @@ func ProvideAdminHandlers(
 	subscriptionHandler *admin.SubscriptionHandler,
 	usageHandler *admin.UsageHandler,
 	userAttributeHandler *admin.UserAttributeHandler,
+	productHandler *admin.ProductHandler,
+	paymentOrderHandler *admin.PaymentOrderHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:        dashboardHandler,
@@ -47,6 +49,8 @@ func ProvideAdminHandlers(
 		Subscription:     subscriptionHandler,
 		Usage:            usageHandler,
 		UserAttribute:    userAttributeHandler,
+		Product:          productHandler,
+		PaymentOrder:     paymentOrderHandler,
 	}
 }
 
@@ -74,6 +78,7 @@ func ProvideHandlers(
 	openaiGatewayHandler *OpenAIGatewayHandler,
 	settingHandler *SettingHandler,
 	publicAntigravityOAuthHandler *PublicAntigravityOAuthHandler,
+	paymentHandler *PaymentHandler,
 ) *Handlers {
 	return &Handlers{
 		Auth:                   authHandler,
@@ -88,6 +93,7 @@ func ProvideHandlers(
 		OpenAIGateway:          openaiGatewayHandler,
 		Setting:                settingHandler,
 		PublicAntigravityOAuth: publicAntigravityOAuthHandler,
+		Payment:                paymentHandler,
 	}
 }
 
@@ -105,6 +111,7 @@ var ProviderSet = wire.NewSet(
 	NewOpenAIGatewayHandler,
 	ProvideSettingHandler,
 	NewPublicAntigravityOAuthHandler,
+	NewPaymentHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -125,6 +132,8 @@ var ProviderSet = wire.NewSet(
 	admin.NewSubscriptionHandler,
 	admin.NewUsageHandler,
 	admin.NewUserAttributeHandler,
+	admin.NewProductHandler,
+	admin.NewPaymentOrderHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

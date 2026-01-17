@@ -15,6 +15,14 @@ export { usageAPI } from './usage'
 export { userAPI } from './user'
 export { redeemAPI, type RedeemHistoryItem } from './redeem'
 export { userGroupsAPI } from './groups'
+export {
+  paymentAPI,
+  type Product,
+  type PaymentOrder,
+  type CreateOrderRequest,
+  type CreateOrderResponse,
+  type PaymentConfigResponse
+} from './payment'
 
 // Admin APIs
 export { adminAPI } from './admin'

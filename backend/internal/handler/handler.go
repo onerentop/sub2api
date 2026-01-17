@@ -24,6 +24,8 @@ type AdminHandlers struct {
 	Subscription     *admin.SubscriptionHandler
 	Usage            *admin.UsageHandler
 	UserAttribute    *admin.UserAttributeHandler
+	Product          *admin.ProductHandler
+	PaymentOrder     *admin.PaymentOrderHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -40,6 +42,7 @@ type Handlers struct {
 	OpenAIGateway          *OpenAIGatewayHandler
 	Setting                *SettingHandler
 	PublicAntigravityOAuth *PublicAntigravityOAuthHandler
+	Payment                *PaymentHandler
 }
 
 // BuildInfo contains build-time information

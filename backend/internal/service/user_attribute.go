@@ -47,29 +47,29 @@ type UserAttributeValidation struct {
 
 // UserAttributeDefinition represents a custom attribute definition
 type UserAttributeDefinition struct {
-	ID           int64
-	Key          string
-	Name         string
-	Description  string
-	Type         UserAttributeType
-	Options      []UserAttributeOption
-	Required     bool
-	Validation   UserAttributeValidation
-	Placeholder  string
-	DisplayOrder int
-	Enabled      bool
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID           int64                   `json:"id"`
+	Key          string                  `json:"key"`
+	Name         string                  `json:"name"`
+	Description  string                  `json:"description,omitempty"`
+	Type         UserAttributeType       `json:"type"`
+	Options      []UserAttributeOption   `json:"options,omitempty"`
+	Required     bool                    `json:"required"`
+	Validation   UserAttributeValidation `json:"validation,omitempty"`
+	Placeholder  string                  `json:"placeholder,omitempty"`
+	DisplayOrder int                     `json:"display_order"`
+	Enabled      bool                    `json:"enabled"`
+	CreatedAt    time.Time               `json:"created_at"`
+	UpdatedAt    time.Time               `json:"updated_at"`
 }
 
 // UserAttributeValue represents a user's attribute value
 type UserAttributeValue struct {
-	ID          int64
-	UserID      int64
-	AttributeID int64
-	Value       string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          int64     `json:"id"`
+	UserID      int64     `json:"user_id"`
+	AttributeID int64     `json:"attribute_id"`
+	Value       string    `json:"value"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // CreateAttributeDefinitionInput for creating new definition

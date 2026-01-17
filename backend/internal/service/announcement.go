@@ -16,17 +16,17 @@ const (
 
 // Announcement 公告实体
 type Announcement struct {
-	ID        int64
-	Title     string
-	Content   string
-	Type      AnnouncementType
-	SortOrder int
-	Enabled   bool
-	StartTime *time.Time
-	EndTime   *time.Time
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt *time.Time
+	ID        int64            `json:"id"`
+	Title     string           `json:"title"`
+	Content   string           `json:"content"`
+	Type      AnnouncementType `json:"type"`
+	SortOrder int              `json:"sort_order"`
+	Enabled   bool             `json:"enabled"`
+	StartTime *time.Time       `json:"start_time,omitempty"`
+	EndTime   *time.Time       `json:"end_time,omitempty"`
+	CreatedAt time.Time        `json:"created_at"`
+	UpdatedAt time.Time        `json:"updated_at"`
+	DeletedAt *time.Time       `json:"-"`
 }
 
 // IsActive 检查公告是否当前有效
@@ -90,18 +90,18 @@ type UpdateAnnouncementInput struct {
 
 // AnnouncementSortItem 排序项
 type AnnouncementSortItem struct {
-	ID        int64
-	SortOrder int
+	ID        int64 `json:"id"`
+	SortOrder int   `json:"sort_order"`
 }
 
 // ActiveAnnouncementsResponse 活动公告响应
 type ActiveAnnouncementsResponse struct {
-	Announcements []Announcement
-	Settings      AnnouncementSettings
+	Announcements []Announcement       `json:"announcements"`
+	Settings      AnnouncementSettings `json:"settings"`
 }
 
 // AnnouncementSettings 公告设置
 type AnnouncementSettings struct {
-	Enabled  bool
-	Interval int // 轮播间隔（毫秒）
+	Enabled  bool `json:"enabled"`
+	Interval int  `json:"interval"` // 轮播间隔（毫秒）
 }

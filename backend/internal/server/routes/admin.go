@@ -67,6 +67,12 @@ func RegisterAdminRoutes(
 
 		// 用户属性管理
 		registerUserAttributeRoutes(admin, h)
+
+		// 商品管理
+		registerProductRoutes(admin, h)
+
+		// 支付订单管理
+		registerPaymentOrderRoutes(admin, h)
 	}
 }
 
@@ -387,5 +393,29 @@ func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		announcements.PUT("/:id", h.Admin.Announcement.Update)
 		announcements.DELETE("/:id", h.Admin.Announcement.Delete)
 		announcements.PUT("/sort", h.Admin.Announcement.UpdateSortOrders)
+	}
+}
+
+func registerProductRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	products := admin.Group("/products")
+	{
+		products.GET("", h.Admin.Product.List)
+		products.GET("/:id", h.Admin.Product.GetByID)
+		products.POST("", h.Admin.Product.Create)
+		products.PUT("/:id", h.Admin.Product.Update)
+		products.DELETE("/:id", h.Admin.Product.Delete)
+		products.POST("/:id/toggle-active", h.Admin.Product.ToggleActive)
+	}
+}
+
+func registerPaymentOrderRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	orders := admin.Group("/payment-orders")
+	{
+		orders.GET("", h.Admin.PaymentOrder.List)
+		orders.GET("/stats", h.Admin.PaymentOrder.GetStats)
+		orders.GET("/:id", h.Admin.PaymentOrder.GetByID)
+		orders.POST("/:id/approve", h.Admin.PaymentOrder.Approve)
+		orders.POST("/:id/reject", h.Admin.PaymentOrder.Reject)
+		orders.POST("/:id/fulfill", h.Admin.PaymentOrder.ManualFulfill)
 	}
 }
