@@ -273,6 +273,9 @@ export default {
       code: 'Code',
       state: 'State',
       fullUrl: 'Full URL'
+    },
+    social: {
+      orContinueWith: 'Or continue with'
     }
   },
 

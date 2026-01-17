@@ -270,6 +270,9 @@ export default {
       code: '授权码',
       state: '状态',
       fullUrl: '完整URL'
+    },
+    social: {
+      orContinueWith: '或使用以下方式登录'
     }
   },
 
