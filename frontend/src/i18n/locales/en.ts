@@ -2925,6 +2925,32 @@ export default {
       failedToSave: 'Failed to save settings',
       failedToTestSmtp: 'SMTP connection test failed',
       failedToSendTestEmail: 'Failed to send test email'
+    },
+
+    // Social OAuth Management
+    socialOAuth: {
+      title: 'Social Login Settings',
+      description: 'Configure third-party social login providers',
+      providers: 'Login Providers',
+      provider: 'Provider',
+      enabled: 'Enabled',
+      disabled: 'Disabled',
+      configured: 'Configured',
+      notConfigured: 'Not Configured',
+      clientId: 'Client ID',
+      clientSecret: 'Client Secret',
+      editProvider: 'Edit Provider',
+      saveChanges: 'Save Changes',
+      cancel: 'Cancel',
+      enable: 'Enable',
+      disable: 'Disable',
+      google: 'Google',
+      github: 'GitHub',
+      noProviders: 'No login providers available',
+      updateSuccess: 'Provider configuration updated successfully',
+      updateError: 'Failed to update provider configuration',
+      redirectUri: 'Redirect URI',
+      redirectUriHint: 'Copy this URL to your OAuth app settings'
     }
   },
 
@@ -3097,30 +3123,6 @@ export default {
         remark: 'Remark',
         remarkPlaceholder: 'Enter audit remark (optional)'
       }
-    },
-
-    // Social OAuth Management
-    socialOAuth: {
-      title: 'Social Login Settings',
-      description: 'Configure third-party social login providers',
-      providers: 'Login Providers',
-      provider: 'Provider',
-      enabled: 'Enabled',
-      disabled: 'Disabled',
-      configured: 'Configured',
-      notConfigured: 'Not Configured',
-      clientId: 'Client ID',
-      clientSecret: 'Client Secret',
-      editProvider: 'Edit Provider',
-      saveChanges: 'Save Changes',
-      cancel: 'Cancel',
-      enable: 'Enable',
-      disable: 'Disable',
-      google: 'Google',
-      github: 'GitHub',
-      noProviders: 'No login providers available',
-      updateSuccess: 'Provider configuration updated successfully',
-      updateError: 'Failed to update provider configuration'
     }
   },
 

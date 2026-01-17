@@ -3070,6 +3070,32 @@ export default {
       failedToSave: '保存设置失败',
       failedToTestSmtp: 'SMTP 连接测试失败',
       failedToSendTestEmail: '发送测试邮件失败'
+    },
+
+    // Social OAuth Management
+    socialOAuth: {
+      title: '社交登录配置',
+      description: '配置第三方社交登录提供商',
+      providers: '登录提供商',
+      provider: '提供商',
+      enabled: '已启用',
+      disabled: '已禁用',
+      configured: '已配置',
+      notConfigured: '未配置',
+      clientId: '客户端 ID',
+      clientSecret: '客户端密钥',
+      editProvider: '编辑提供商',
+      saveChanges: '保存更改',
+      cancel: '取消',
+      enable: '启用',
+      disable: '禁用',
+      google: 'Google',
+      github: 'GitHub',
+      noProviders: '暂无可用的登录提供商',
+      updateSuccess: '提供商配置更新成功',
+      updateError: '更新提供商配置失败',
+      redirectUri: '回调地址',
+      redirectUriHint: '请将此 URL 复制到您的 OAuth 应用设置中'
     }
   },
 
@@ -3233,30 +3259,6 @@ export default {
         remark: '备注',
         remarkPlaceholder: '输入审核备注（选填）'
       }
-    },
-
-    // Social OAuth Management
-    socialOAuth: {
-      title: '社交登录配置',
-      description: '配置第三方社交登录提供商',
-      providers: '登录提供商',
-      provider: '提供商',
-      enabled: '已启用',
-      disabled: '已禁用',
-      configured: '已配置',
-      notConfigured: '未配置',
-      clientId: '客户端 ID',
-      clientSecret: '客户端密钥',
-      editProvider: '编辑提供商',
-      saveChanges: '保存更改',
-      cancel: '取消',
-      enable: '启用',
-      disable: '禁用',
-      google: 'Google',
-      github: 'GitHub',
-      noProviders: '暂无可用的登录提供商',
-      updateSuccess: '提供商配置更新成功',
-      updateError: '更新提供商配置失败'
     }
   },
 
