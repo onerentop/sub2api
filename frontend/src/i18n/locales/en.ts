@@ -3083,12 +3083,6 @@ export default {
       rejectSuccess: 'Order rejected',
       fulfillSuccess: 'Order fulfilled',
       loadFailed: 'Failed to load orders',
-      filterStatus: 'Filter by Status',
-      allStatus: 'All Status',
-      filterType: 'Filter by Type',
-      allTypes: 'All Types',
-      search: 'Search order or user',
-      searchPlaceholder: 'Enter order number or user email',
       noOrders: 'No orders yet',
       // Detail dialog
       orderDetail: 'Order Details',

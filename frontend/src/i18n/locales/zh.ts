@@ -3219,12 +3219,6 @@ export default {
       rejectSuccess: '订单已拒绝',
       fulfillSuccess: '订单已完成',
       loadFailed: '加载订单失败',
-      filterStatus: '状态筛选',
-      allStatus: '所有状态',
-      filterType: '类型筛选',
-      allTypes: '所有类型',
-      search: '搜索订单号或用户',
-      searchPlaceholder: '输入订单号或用户邮箱',
       noOrders: '暂无订单',
       // Detail dialog
       orderDetail: '订单详情',
