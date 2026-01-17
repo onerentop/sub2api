@@ -222,7 +222,27 @@
 
       <!-- Users Table -->
       <template #table>
+        <!-- Bulk Actions Bar -->
+        <UserBulkActionsBar
+          :selected-ids="selIds"
+          @delete="handleBulkDelete"
+          @edit="handleBulkEdit"
+          @clear="clearSelection"
+          @select-page="selectPage"
+          @toggle-status="handleBulkToggleStatus"
+        />
+
         <DataTable :columns="columns" :data="users" :loading="loading" :actions-count="7">
+          <!-- Checkbox column -->
+          <template #cell-checkbox="{ row }">
+            <input
+              v-if="row.role !== 'admin'"
+              type="checkbox"
+              :checked="selIds.includes(row.id)"
+              @change="toggleSel(row.id)"
+              class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+          </template>
           <template #cell-email="{ value }">
             <div class="flex items-center gap-2">
               <div
@@ -480,6 +500,8 @@
     <UserAllowedGroupsModal :show="showAllowedGroupsModal" :user="allowedGroupsUser" @close="closeAllowedGroupsModal" @success="loadUsers" />
     <UserBalanceModal :show="showBalanceModal" :user="balanceUser" :operation="balanceOperation" @close="closeBalanceModal" @success="loadUsers" />
     <UserAttributesConfigModal :show="showAttributesModal" @close="handleAttributesModalClose" />
+    <UserBulkEditModal :show="showBulkEdit" :user-ids="selIds" @close="showBulkEdit = false" @updated="handleBulkUpdated" />
+    <ConfirmDialog :show="showBulkDeleteDialog" :title="t('admin.users.bulkActions.deleteTitle')" :message="t('admin.users.bulkActions.deleteMessage', { count: selIds.length })" :danger="true" @confirm="confirmBulkDelete" @cancel="showBulkDeleteDialog = false" />
   </AppLayout>
 </template>
 
@@ -509,6 +531,8 @@ import UserEditModal from '@/components/admin/user/UserEditModal.vue'
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
+import UserBulkActionsBar from '@/components/admin/user/UserBulkActionsBar.vue'
+import UserBulkEditModal from '@/components/admin/user/UserBulkEditModal.vue'
 
 const appStore = useAppStore()
 
@@ -560,6 +584,7 @@ const getAttributeValue = (userId: number, attrId: number): string => {
 
 // All possible columns (for column settings)
 const allColumns = computed<Column[]>(() => [
+  { key: 'checkbox', label: '', sortable: false },
   { key: 'email', label: t('admin.users.columns.user'), sortable: true },
   { key: 'id', label: 'ID', sortable: true },
   { key: 'username', label: t('admin.users.columns.username'), sortable: true },
@@ -576,9 +601,9 @@ const allColumns = computed<Column[]>(() => [
   { key: 'actions', label: t('admin.users.columns.actions'), sortable: false }
 ])
 
-// Columns that can be toggled (exclude email and actions which are always visible)
+// Columns that can be toggled (exclude checkbox, email and actions which are always visible)
 const toggleableColumns = computed(() =>
-  allColumns.value.filter(col => col.key !== 'email' && col.key !== 'actions')
+  allColumns.value.filter(col => col.key !== 'checkbox' && col.key !== 'email' && col.key !== 'actions')
 )
 
 // Hidden columns (stored in Set - columns NOT in this set are visible)
@@ -633,13 +658,18 @@ const isColumnVisible = (key: string) => !hiddenColumns.has(key)
 // Filtered columns based on visibility
 const columns = computed<Column[]>(() =>
   allColumns.value.filter(col =>
-    col.key === 'email' || col.key === 'actions' || !hiddenColumns.has(col.key)
+    col.key === 'checkbox' || col.key === 'email' || col.key === 'actions' || !hiddenColumns.has(col.key)
   )
 )
 
 const users = ref<User[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
+
+// Bulk selection state
+const selIds = ref<number[]>([])
+const showBulkEdit = ref(false)
+const showBulkDeleteDialog = ref(false)
 
 // Filter values (role, status, and custom attributes)
 const filters = reactive({
@@ -1076,6 +1106,79 @@ const handleWithdraw = (user: User) => {
 const closeBalanceModal = () => {
   showBalanceModal.value = false
   balanceUser.value = null
+}
+
+// Bulk selection helpers
+const toggleSel = (id: number) => {
+  const i = selIds.value.indexOf(id)
+  if (i === -1) selIds.value.push(id)
+  else selIds.value.splice(i, 1)
+}
+const selectPage = () => {
+  // Select all non-admin users on current page
+  const pageUserIds = users.value.filter(u => u.role !== 'admin').map(u => u.id)
+  selIds.value = [...new Set([...selIds.value, ...pageUserIds])]
+}
+const clearSelection = () => {
+  selIds.value = []
+}
+
+// Bulk action handlers
+const handleBulkDelete = () => {
+  if (selIds.value.length === 0) return
+  showBulkDeleteDialog.value = true
+}
+
+const confirmBulkDelete = async () => {
+  if (selIds.value.length === 0) return
+  try {
+    const result = await adminAPI.users.batchDelete(selIds.value)
+    if (result.success > 0) {
+      appStore.showSuccess(t('admin.users.bulkActions.deleteSuccess', { count: result.success }))
+    }
+    if (result.failed > 0) {
+      appStore.showError(t('admin.users.bulkActions.deleteFailed', { count: result.failed }))
+    }
+    selIds.value = result.failed_ids || []
+    showBulkDeleteDialog.value = false
+    loadUsers()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.users.bulkActions.deleteError'))
+    console.error('Error bulk deleting users:', error)
+  }
+}
+
+const handleBulkToggleStatus = async (status: 'active' | 'disabled') => {
+  if (selIds.value.length === 0) return
+  try {
+    const result = await adminAPI.users.bulkUpdate(selIds.value, { status })
+    if (result.success > 0) {
+      appStore.showSuccess(
+        status === 'active'
+          ? t('admin.users.bulkActions.enableSuccess', { count: result.success })
+          : t('admin.users.bulkActions.disableSuccess', { count: result.success })
+      )
+    }
+    if (result.failed > 0) {
+      appStore.showError(t('admin.users.bulkActions.updateFailed', { count: result.failed }))
+    }
+    selIds.value = result.failed_ids || []
+    loadUsers()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.users.bulkActions.updateError'))
+    console.error('Error bulk updating users:', error)
+  }
+}
+
+const handleBulkEdit = () => {
+  if (selIds.value.length === 0) return
+  showBulkEdit.value = true
+}
+
+const handleBulkUpdated = () => {
+  showBulkEdit.value = false
+  selIds.value = []
+  loadUsers()
 }
 
 // 滚动时关闭菜单

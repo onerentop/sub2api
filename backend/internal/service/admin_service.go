@@ -22,6 +22,8 @@ type AdminService interface {
 	UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error)
 	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int) ([]APIKey, int64, error)
 	GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error)
+	BulkUpdateUsers(ctx context.Context, input *BulkUpdateUsersInput) (*BulkUpdateUsersResult, error)
+	BatchDeleteUsers(ctx context.Context, ids []int64) (*BatchDeleteUsersResult, error)
 
 	// Group management
 	ListGroups(ctx context.Context, page, pageSize int, platform, status, search string, isExclusive *bool) ([]Group, int64, error)
@@ -94,6 +96,41 @@ type UpdateUserInput struct {
 	// 余额计费模式限额覆盖
 	BalanceDailyQuota  *float64 // 每日限额（覆盖分组设置，nil=不修改，负数=清除）
 	BalanceWeeklyQuota *float64 // 每周限额（覆盖分组设置，nil=不修改，负数=清除）
+}
+
+// BulkUpdateUsersInput represents input for bulk updating multiple users
+type BulkUpdateUsersInput struct {
+	UserIDs            []int64
+	Status             string   // active/disabled
+	Concurrency        *int     // 并发数
+	AllowedGroups      *[]int64 // 允许的分组
+	BalanceDailyQuota  *float64 // 余额每日限额
+	BalanceWeeklyQuota *float64 // 余额每周限额
+	BalanceAdjustment  *float64 // 余额调整（正数增加，负数减少）
+}
+
+// BulkUpdateUserResult captures the result for a single user update
+type BulkUpdateUserResult struct {
+	UserID  int64  `json:"user_id"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+// BulkUpdateUsersResult is the aggregated response for bulk user updates
+type BulkUpdateUsersResult struct {
+	Success    int                    `json:"success"`
+	Failed     int                    `json:"failed"`
+	SuccessIDs []int64                `json:"success_ids"`
+	FailedIDs  []int64                `json:"failed_ids"`
+	Results    []BulkUpdateUserResult `json:"results"`
+}
+
+// BatchDeleteUsersResult is the result for batch user deletion
+type BatchDeleteUsersResult struct {
+	Success    int     `json:"success"`
+	Failed     int     `json:"failed"`
+	SuccessIDs []int64 `json:"success_ids"`
+	FailedIDs  []int64 `json:"failed_ids"`
 }
 
 type CreateGroupInput struct {
@@ -543,6 +580,119 @@ func (s *adminServiceImpl) GetUserUsageStats(ctx context.Context, userID int64, 
 		"total_tokens":    0,
 		"avg_duration_ms": 0,
 	}, nil
+}
+
+// BulkUpdateUsers updates multiple users with the same settings
+func (s *adminServiceImpl) BulkUpdateUsers(ctx context.Context, input *BulkUpdateUsersInput) (*BulkUpdateUsersResult, error) {
+	result := &BulkUpdateUsersResult{
+		SuccessIDs: make([]int64, 0),
+		FailedIDs:  make([]int64, 0),
+		Results:    make([]BulkUpdateUserResult, 0, len(input.UserIDs)),
+	}
+
+	for _, userID := range input.UserIDs {
+		updateResult := BulkUpdateUserResult{UserID: userID}
+
+		// Get user first to check role
+		user, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			updateResult.Success = false
+			updateResult.Error = "user not found"
+			result.Failed++
+			result.FailedIDs = append(result.FailedIDs, userID)
+			result.Results = append(result.Results, updateResult)
+			continue
+		}
+
+		// Protect admin users from status changes
+		if user.Role == "admin" && input.Status == "disabled" {
+			updateResult.Success = false
+			updateResult.Error = "cannot disable admin user"
+			result.Failed++
+			result.FailedIDs = append(result.FailedIDs, userID)
+			result.Results = append(result.Results, updateResult)
+			continue
+		}
+
+		// Build update input
+		updateInput := &UpdateUserInput{}
+		hasUpdates := false
+
+		if input.Status != "" {
+			updateInput.Status = input.Status
+			hasUpdates = true
+		}
+		if input.Concurrency != nil {
+			updateInput.Concurrency = input.Concurrency
+			hasUpdates = true
+		}
+		if input.AllowedGroups != nil {
+			updateInput.AllowedGroups = input.AllowedGroups
+			hasUpdates = true
+		}
+		if input.BalanceDailyQuota != nil {
+			updateInput.BalanceDailyQuota = input.BalanceDailyQuota
+			hasUpdates = true
+		}
+		if input.BalanceWeeklyQuota != nil {
+			updateInput.BalanceWeeklyQuota = input.BalanceWeeklyQuota
+			hasUpdates = true
+		}
+
+		// Handle balance adjustment separately
+		if input.BalanceAdjustment != nil && *input.BalanceAdjustment != 0 {
+			newBalance := user.Balance + *input.BalanceAdjustment
+			if newBalance < 0 {
+				newBalance = 0
+			}
+			updateInput.Balance = &newBalance
+			hasUpdates = true
+		}
+
+		if !hasUpdates {
+			updateResult.Success = true
+			result.Success++
+			result.SuccessIDs = append(result.SuccessIDs, userID)
+			result.Results = append(result.Results, updateResult)
+			continue
+		}
+
+		_, err = s.UpdateUser(ctx, userID, updateInput)
+		if err != nil {
+			updateResult.Success = false
+			updateResult.Error = err.Error()
+			result.Failed++
+			result.FailedIDs = append(result.FailedIDs, userID)
+		} else {
+			updateResult.Success = true
+			result.Success++
+			result.SuccessIDs = append(result.SuccessIDs, userID)
+		}
+		result.Results = append(result.Results, updateResult)
+	}
+
+	return result, nil
+}
+
+// BatchDeleteUsers deletes multiple users (except admins)
+func (s *adminServiceImpl) BatchDeleteUsers(ctx context.Context, ids []int64) (*BatchDeleteUsersResult, error) {
+	result := &BatchDeleteUsersResult{
+		SuccessIDs: make([]int64, 0),
+		FailedIDs:  make([]int64, 0),
+	}
+
+	for _, id := range ids {
+		err := s.DeleteUser(ctx, id)
+		if err != nil {
+			result.Failed++
+			result.FailedIDs = append(result.FailedIDs, id)
+		} else {
+			result.Success++
+			result.SuccessIDs = append(result.SuccessIDs, id)
+		}
+	}
+
+	return result, nil
 }
 
 // Group management implementations

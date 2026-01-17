@@ -175,6 +175,72 @@ export async function getUserUsageStats(
   return data
 }
 
+/**
+ * Bulk update parameters for multiple users
+ */
+export interface BulkUpdateUsersParams {
+  status?: 'active' | 'disabled'
+  concurrency?: number
+  allowed_groups?: number[]
+  balance_daily_quota?: number
+  balance_weekly_quota?: number
+  balance_adjustment?: number  // 正数增加，负数减少
+}
+
+/**
+ * Bulk update result
+ */
+export interface BulkUpdateUsersResult {
+  success: number
+  failed: number
+  success_ids: number[]
+  failed_ids: number[]
+  results: Array<{
+    user_id: number
+    success: boolean
+    error?: string
+  }>
+}
+
+/**
+ * Batch delete result
+ */
+export interface BatchDeleteUsersResult {
+  success: number
+  failed: number
+  success_ids: number[]
+  failed_ids: number[]
+}
+
+/**
+ * Bulk update multiple users
+ * @param userIds - Array of user IDs
+ * @param updates - Fields to update
+ * @returns Bulk update result
+ */
+export async function bulkUpdate(
+  userIds: number[],
+  updates: BulkUpdateUsersParams
+): Promise<BulkUpdateUsersResult> {
+  const { data } = await apiClient.post<BulkUpdateUsersResult>('/admin/users/bulk-update', {
+    user_ids: userIds,
+    ...updates
+  })
+  return data
+}
+
+/**
+ * Batch delete multiple users
+ * @param userIds - Array of user IDs to delete
+ * @returns Batch delete result
+ */
+export async function batchDelete(userIds: number[]): Promise<BatchDeleteUsersResult> {
+  const { data } = await apiClient.post<BatchDeleteUsersResult>('/admin/users/batch-delete', {
+    user_ids: userIds
+  })
+  return data
+}
+
 export const usersAPI = {
   list,
   getById,
@@ -185,7 +251,9 @@ export const usersAPI = {
   updateConcurrency,
   toggleStatus,
   getUserApiKeys,
-  getUserUsageStats
+  getUserUsageStats,
+  bulkUpdate,
+  batchDelete
 }
 
 export default usersAPI

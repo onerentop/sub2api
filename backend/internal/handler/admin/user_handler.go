@@ -56,6 +56,22 @@ type UpdateBalanceRequest struct {
 	Notes     string  `json:"notes"`
 }
 
+// BulkUpdateUsersRequest represents the payload for bulk updating users
+type BulkUpdateUsersRequest struct {
+	UserIDs            []int64  `json:"user_ids" binding:"required,min=1"`
+	Status             string   `json:"status" binding:"omitempty,oneof=active disabled"`
+	Concurrency        *int     `json:"concurrency"`
+	AllowedGroups      *[]int64 `json:"allowed_groups"`
+	BalanceDailyQuota  *float64 `json:"balance_daily_quota"`
+	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota"`
+	BalanceAdjustment  *float64 `json:"balance_adjustment"` // 余额调整（正数增加，负数减少）
+}
+
+// BatchDeleteUsersRequest represents the payload for batch deleting users
+type BatchDeleteUsersRequest struct {
+	UserIDs []int64 `json:"user_ids" binding:"required,min=1"`
+}
+
 // List handles listing all users with pagination
 // GET /api/v1/admin/users
 // Query params:
@@ -280,4 +296,60 @@ func (h *UserHandler) GetUserUsage(c *gin.Context) {
 	}
 
 	response.Success(c, stats)
+}
+
+// BulkUpdate handles bulk updating multiple users
+// POST /api/v1/admin/users/bulk-update
+func (h *UserHandler) BulkUpdate(c *gin.Context) {
+	var req BulkUpdateUsersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	hasUpdates := req.Status != "" ||
+		req.Concurrency != nil ||
+		req.AllowedGroups != nil ||
+		req.BalanceDailyQuota != nil ||
+		req.BalanceWeeklyQuota != nil ||
+		req.BalanceAdjustment != nil
+
+	if !hasUpdates {
+		response.BadRequest(c, "No updates provided")
+		return
+	}
+
+	result, err := h.adminService.BulkUpdateUsers(c.Request.Context(), &service.BulkUpdateUsersInput{
+		UserIDs:            req.UserIDs,
+		Status:             req.Status,
+		Concurrency:        req.Concurrency,
+		AllowedGroups:      req.AllowedGroups,
+		BalanceDailyQuota:  req.BalanceDailyQuota,
+		BalanceWeeklyQuota: req.BalanceWeeklyQuota,
+		BalanceAdjustment:  req.BalanceAdjustment,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// BatchDelete handles batch deleting multiple users
+// POST /api/v1/admin/users/batch-delete
+func (h *UserHandler) BatchDelete(c *gin.Context) {
+	var req BatchDeleteUsersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	result, err := h.adminService.BatchDeleteUsers(c.Request.Context(), req.UserIDs)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, result)
 }

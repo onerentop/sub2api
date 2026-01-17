@@ -176,6 +176,10 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		users.GET("/:id/api-keys", h.Admin.User.GetUserAPIKeys)
 		users.GET("/:id/usage", h.Admin.User.GetUserUsage)
 
+		// Bulk operations
+		users.POST("/bulk-update", h.Admin.User.BulkUpdate)
+		users.POST("/batch-delete", h.Admin.User.BatchDelete)
+
 		// User attribute values
 		users.GET("/:id/attributes", h.Admin.UserAttribute.GetUserAttributes)
 		users.PUT("/:id/attributes", h.Admin.UserAttribute.UpdateUserAttributes)
