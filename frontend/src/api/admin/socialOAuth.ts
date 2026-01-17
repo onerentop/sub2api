@@ -1,27 +1,32 @@
 import api from '../index'
 
 export interface SocialOAuthProvider {
-  id: number
   name: string
   display_name: string
   enabled: boolean
+  has_client_id: boolean
+  has_client_secret: boolean
+  config?: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+// Response from GetProvider (includes client_id)
+export interface SocialOAuthProviderDetail {
+  name: string
+  display_name: string
   client_id: string
-  client_secret_set: boolean  // Whether secret is set (not exposed)
-  redirect_uri: string
-  scopes: string[]
-  extra_config: Record<string, string>
+  enabled: boolean
+  config?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
 
 export interface UpdateProviderRequest {
-  display_name?: string
   enabled?: boolean
   client_id?: string
   client_secret?: string
-  redirect_uri?: string
-  scopes?: string[]
-  extra_config?: Record<string, string>
+  config?: Record<string, unknown>
 }
 
 /**
@@ -33,9 +38,9 @@ export async function getProviders(): Promise<SocialOAuthProvider[]> {
 }
 
 /**
- * Get a single OAuth provider by name
+ * Get a single OAuth provider by name (includes client_id)
  */
-export async function getProvider(name: string): Promise<SocialOAuthProvider> {
+export async function getProvider(name: string): Promise<SocialOAuthProviderDetail> {
   const response = await api.get(`/api/admin/social-oauth/providers/${name}`)
   return response.data.data || response.data
 }

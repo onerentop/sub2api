@@ -18,124 +18,147 @@
         <div class="loading loading-spinner loading-lg text-primary"></div>
       </div>
 
-      <!-- Providers List -->
-      <div v-else class="grid gap-6 md:grid-cols-2">
-        <div
-          v-for="provider in providers"
-          :key="provider.name"
-          class="card p-6 space-y-4"
-        >
-          <!-- Provider Header -->
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <component :is="getProviderIcon(provider.name)" class="w-10 h-10" />
-              <div>
-                <h3 class="font-semibold text-gray-900 dark:text-white">
-                  {{ provider.display_name }}
-                </h3>
-                <p class="text-sm text-gray-500 dark:text-dark-400">
-                  {{ provider.name }}
-                </p>
-              </div>
-            </div>
-            <label class="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                :checked="provider.enabled"
-                class="toggle toggle-primary"
-                @change="handleToggleEnabled(provider)"
-              />
-              <span class="text-sm">
-                {{ provider.enabled ? t('common.enabled') : t('common.disabled') }}
-              </span>
-            </label>
-          </div>
-
-          <!-- Provider Config -->
-          <div class="space-y-3">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-dark-300 mb-1">
-                Client ID
-              </label>
-              <input
-                v-model="editingProviders[provider.name].client_id"
-                type="text"
-                class="input w-full"
-                :placeholder="t('admin.socialOAuth.clientIdPlaceholder')"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-dark-300 mb-1">
-                Client Secret
-              </label>
-              <div class="relative">
-                <input
-                  v-model="editingProviders[provider.name].client_secret"
-                  :type="showSecrets[provider.name] ? 'text' : 'password'"
-                  class="input w-full pr-10"
-                  :placeholder="provider.client_secret_set
-                    ? t('admin.socialOAuth.secretSetPlaceholder')
-                    : t('admin.socialOAuth.clientSecretPlaceholder')"
-                />
-                <button
-                  type="button"
-                  class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
-                  @click="showSecrets[provider.name] = !showSecrets[provider.name]"
-                >
-                  <Icon :name="showSecrets[provider.name] ? 'eyeOff' : 'eye'" size="md" />
-                </button>
-              </div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-dark-300 mb-1">
-                Redirect URI
-              </label>
-              <div class="flex gap-2">
-                <input
-                  :value="getRedirectUri(provider.name)"
-                  type="text"
-                  class="input w-full bg-gray-50 dark:bg-dark-800"
-                  readonly
-                />
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-sm"
-                  @click="copyRedirectUri(provider.name)"
-                >
-                  <Icon name="copy" size="md" />
-                </button>
-              </div>
-              <p class="text-xs text-gray-500 dark:text-dark-400 mt-1">
-                {{ t('admin.socialOAuth.redirectUriHint') }}
-              </p>
-            </div>
-          </div>
-
-          <!-- Save Button -->
-          <div class="flex justify-end pt-2">
-            <button
-              class="btn btn-primary btn-sm"
-              :disabled="saving[provider.name]"
-              @click="handleSave(provider.name)"
-            >
-              <span v-if="saving[provider.name]" class="loading loading-spinner loading-xs"></span>
-              <span v-else>{{ t('common.save') }}</span>
-            </button>
-          </div>
-        </div>
+      <!-- Error Message -->
+      <div v-else-if="error" class="alert alert-error">
+        <span>{{ error }}</span>
+        <button class="btn btn-sm btn-ghost" @click="loadProviders">
+          {{ t('common.retry') }}
+        </button>
       </div>
 
       <!-- Empty State -->
       <div
-        v-if="!loading && providers.length === 0"
+        v-else-if="providers.length === 0"
         class="text-center py-12 text-gray-500 dark:text-dark-400"
       >
         {{ t('admin.socialOAuth.noProviders') }}
       </div>
 
-      <!-- Error Message -->
-      <div v-if="error" class="alert alert-error">
-        <span>{{ error }}</span>
+      <!-- Providers List -->
+      <div v-else class="grid gap-6 md:grid-cols-2">
+        <div
+          v-for="provider in providers"
+          :key="provider.name"
+          class="card bg-base-100 shadow-xl"
+        >
+          <div class="card-body">
+            <!-- Provider Header -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <component :is="getProviderIcon(provider.name)" class="w-10 h-10" />
+                <div>
+                  <h3 class="card-title text-lg">
+                    {{ provider.display_name }}
+                  </h3>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span
+                      class="badge"
+                      :class="provider.has_client_id ? 'badge-success' : 'badge-ghost'"
+                    >
+                      {{ provider.has_client_id ? t('admin.socialOAuth.configured') : t('admin.socialOAuth.notConfigured') }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="form-control">
+                <label class="label cursor-pointer gap-2">
+                  <span class="label-text">{{ provider.enabled ? t('common.enabled') : t('common.disabled') }}</span>
+                  <input
+                    type="checkbox"
+                    :checked="provider.enabled"
+                    class="toggle toggle-primary"
+                    :disabled="saving[provider.name]"
+                    @change="handleToggleEnabled(provider)"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div class="divider my-2"></div>
+
+            <!-- Provider Config -->
+            <div class="space-y-4">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-medium">{{ t('admin.socialOAuth.clientId') }}</span>
+                </label>
+                <input
+                  v-model="editingProviders[provider.name].client_id"
+                  type="text"
+                  class="input input-bordered w-full"
+                  placeholder="Enter Client ID"
+                />
+              </div>
+
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-medium">{{ t('admin.socialOAuth.clientSecret') }}</span>
+                </label>
+                <div class="join w-full">
+                  <input
+                    v-model="editingProviders[provider.name].client_secret"
+                    :type="showSecrets[provider.name] ? 'text' : 'password'"
+                    class="input input-bordered join-item w-full"
+                    :placeholder="provider.has_client_secret ? '••••••••••••••••' : 'Enter Client Secret'"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-square join-item"
+                    @click="showSecrets[provider.name] = !showSecrets[provider.name]"
+                  >
+                    <svg v-if="showSecrets[provider.name]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-medium">Redirect URI</span>
+                </label>
+                <div class="join w-full">
+                  <input
+                    :value="getRedirectUri(provider.name)"
+                    type="text"
+                    class="input input-bordered join-item w-full bg-base-200"
+                    readonly
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-square join-item"
+                    @click="copyRedirectUri(provider.name)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+                    </svg>
+                  </button>
+                </div>
+                <label class="label">
+                  <span class="label-text-alt text-gray-500">
+                    {{ t('admin.socialOAuth.redirectUriHint', 'Copy this URL to your OAuth app settings') }}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="card-actions justify-end mt-4">
+              <button
+                class="btn btn-primary"
+                :disabled="saving[provider.name]"
+                @click="handleSave(provider.name)"
+              >
+                <span v-if="saving[provider.name]" class="loading loading-spinner loading-xs"></span>
+                <span v-else>{{ t('common.save') }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </AppLayout>
@@ -146,9 +169,9 @@ import { ref, reactive, onMounted, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import Icon from '@/components/icons/Icon.vue'
 import {
   getProviders,
+  getProvider,
   updateProvider,
   type SocialOAuthProvider,
   type UpdateProviderRequest
@@ -213,19 +236,28 @@ async function loadProviders() {
   try {
     loading.value = true
     error.value = ''
-    providers.value = await getProviders()
+    const providerList = await getProviders()
+    providers.value = providerList
 
-    // Initialize editing state for each provider
-    providers.value.forEach(provider => {
-      editingProviders[provider.name] = {
-        client_id: provider.client_id || '',
-        client_secret: ''
+    // Load detailed info for each provider to get client_id
+    for (const provider of providerList) {
+      try {
+        const detail = await getProvider(provider.name)
+        editingProviders[provider.name] = {
+          client_id: detail.client_id || '',
+          client_secret: ''
+        }
+      } catch {
+        editingProviders[provider.name] = {
+          client_id: '',
+          client_secret: ''
+        }
       }
       showSecrets[provider.name] = false
       saving[provider.name] = false
-    })
+    }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : t('admin.socialOAuth.loadError')
+    error.value = err instanceof Error ? err.message : 'Failed to load providers'
   } finally {
     loading.value = false
   }
@@ -260,14 +292,18 @@ async function handleSave(providerName: string) {
       data.client_secret = editing.client_secret
     }
 
-    const updated = await updateProvider(providerName, data)
+    await updateProvider(providerName, data)
 
-    // Update provider in list
+    // Clear the secret field after save
+    editingProviders[providerName].client_secret = ''
+
+    // Update provider status
     const index = providers.value.findIndex(p => p.name === providerName)
-    if (index !== -1) {
-      providers.value[index] = updated
-      editingProviders[providerName].client_id = updated.client_id
-      editingProviders[providerName].client_secret = ''
+    if (index !== -1 && data.client_id) {
+      providers.value[index].has_client_id = true
+    }
+    if (index !== -1 && data.client_secret) {
+      providers.value[index].has_client_secret = true
     }
 
     appStore.showSuccess(t('admin.socialOAuth.updateSuccess'))
