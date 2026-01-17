@@ -33,7 +33,7 @@ export interface UpdateProviderRequest {
  * Get all OAuth providers for admin
  */
 export async function getProviders(): Promise<SocialOAuthProvider[]> {
-  const response = await api.get('/api/admin/social-oauth/providers')
+  const response = await api.get('/admin/social-oauth/providers')
   return response.data.data || response.data
 }
 
@@ -41,7 +41,7 @@ export async function getProviders(): Promise<SocialOAuthProvider[]> {
  * Get a single OAuth provider by name (includes client_id)
  */
 export async function getProvider(name: string): Promise<SocialOAuthProviderDetail> {
-  const response = await api.get(`/api/admin/social-oauth/providers/${name}`)
+  const response = await api.get(`/admin/social-oauth/providers/${name}`)
   return response.data.data || response.data
 }
 
@@ -49,6 +49,6 @@ export async function getProvider(name: string): Promise<SocialOAuthProviderDeta
  * Update an OAuth provider
  */
 export async function updateProvider(name: string, data: UpdateProviderRequest): Promise<SocialOAuthProvider> {
-  const response = await api.put(`/api/admin/social-oauth/providers/${name}`, data)
+  const response = await api.put(`/admin/social-oauth/providers/${name}`, data)
   return response.data.data || response.data
 }
