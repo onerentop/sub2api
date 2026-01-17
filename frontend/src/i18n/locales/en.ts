@@ -2971,24 +2971,25 @@ export default {
     // Products Management
     products: {
       title: 'Product Management',
-      description: 'Manage recharge products and subscription plans',
-      create: 'Create Product',
-      edit: 'Edit Product',
-      delete: 'Delete Product',
+      pageDescription: 'Manage recharge products and subscription plans',
+      createProduct: 'Create Product',
+      editProduct: 'Edit Product',
+      deleteProduct: 'Delete Product',
       deleteConfirm: 'Are you sure you want to delete product "{name}"?',
       deleteSuccess: 'Product deleted successfully',
       createSuccess: 'Product created successfully',
       updateSuccess: 'Product updated successfully',
       name: 'Product Name',
       namePlaceholder: 'Enter product name',
-      productDescription: 'Description',
+      description: 'Description',
       descriptionPlaceholder: 'Enter product description (optional)',
-      type: 'Type',
-      typeBalance: 'Balance Recharge',
-      typeSubscription: 'Subscription Plan',
+      productType: 'Type',
       priceCny: 'Price (CNY)',
-      pricePlaceholder: 'Enter price',
+      price: 'Price',
       value: 'Value',
+      balanceValue: 'Balance Amount',
+      subscriptionDays: 'Subscription Days',
+      days: 'days',
       valuePlaceholder: 'Enter value (balance or days)',
       valueHintBalance: 'Balance amount to credit',
       valueHintSubscription: 'Subscription duration in days',
@@ -3010,56 +3011,78 @@ export default {
       enabled: 'Enabled',
       disabled: 'Disabled',
       save: 'Save',
-      cancel: 'Cancel'
+      cancel: 'Cancel',
+      // Nested type object for template access
+      type: {
+        label: 'Type',
+        balance: 'Balance Recharge',
+        subscription: 'Subscription Plan'
+      }
     },
 
     // Orders Management
     orders: {
       title: 'Order Management',
       description: 'Manage payment orders and audit records',
-      stats: {
-        todayOrders: 'Today Orders',
-        todayAmount: 'Today Amount',
-        paidOrders: 'Paid Orders',
-        paidAmount: 'Paid Amount',
-        pendingOrders: 'Pending Orders',
-        pendingAmount: 'Pending Amount',
-        totalOrders: 'Total Orders',
-        totalAmount: 'Total Amount'
-      },
+      // Stats (flat structure for template access)
+      todayOrders: 'Today Orders',
+      totalPaid: 'Paid',
+      pendingOrders: 'Pending',
+      totalOrders: 'Total Orders',
+      // Table columns
       orderNo: 'Order No',
+      tradeNo: 'Trade No',
       user: 'User',
-      amount: 'Amount',
+      userEmail: 'User Email',
       orderType: 'Type',
-      typeBalance: 'Balance Recharge',
-      typeSubscription: 'Subscription Plan',
-      typeCustom: 'Custom Amount',
+      amount: 'Amount',
+      value: 'Value',
       paymentMethod: 'Payment Method',
-      wechat: 'WeChat Pay',
-      alipay: 'Alipay',
-      status: 'Status',
-      statusPending: 'Pending',
-      statusPaid: 'Paid',
-      statusFailed: 'Failed',
-      statusExpired: 'Expired',
-      statusAuditing: 'Auditing',
-      statusRejected: 'Rejected',
-      createdAt: 'Created At',
       paidAt: 'Paid At',
-      actions: 'Actions',
-      viewDetail: 'View Details',
+      remark: 'Remark',
+      days: 'days',
+      // Filters
+      searchOrders: 'Search order number or user email',
+      allTypes: 'All Types',
+      // Order types
+      type: {
+        balance: 'Balance Recharge',
+        subscription: 'Subscription Plan'
+      },
+      // Payment methods
+      method: {
+        alipay: 'Alipay',
+        wechat: 'WeChat Pay',
+        usdt: 'USDT',
+        manual: 'Manual'
+      },
+      // Status
+      status: {
+        pending: 'Pending',
+        paid: 'Paid',
+        auditing: 'Auditing',
+        failed: 'Failed',
+        refunded: 'Refunded',
+        expired: 'Expired',
+        rejected: 'Rejected'
+      },
+      // Actions
       approve: 'Approve',
       reject: 'Reject',
-      fulfill: 'Manual Fulfill',
+      manualFulfill: 'Manual Fulfill',
+      approveOrder: 'Approve Order',
+      rejectOrder: 'Reject Order',
+      manualFulfillOrder: 'Manual Fulfill Order',
       approveConfirm: 'Are you sure you want to approve this order? User balance will be updated immediately.',
       rejectConfirm: 'Are you sure you want to reject this order? Please provide a reason.',
-      fulfillConfirm: 'Are you sure you want to manually fulfill this order? Please enter the YiPay trade number.',
+      fulfillConfirm: 'Are you sure you want to manually fulfill this order? Please enter the trade number.',
       rejectReason: 'Reject Reason',
       rejectReasonPlaceholder: 'Enter reject reason',
-      tradeNoPlaceholder: 'Enter YiPay trade number',
+      tradeNoPlaceholder: 'Enter trade number',
       approveSuccess: 'Order approved',
       rejectSuccess: 'Order rejected',
       fulfillSuccess: 'Order fulfilled',
+      loadFailed: 'Failed to load orders',
       filterStatus: 'Filter by Status',
       allStatus: 'All Status',
       filterType: 'Filter by Type',
@@ -3067,6 +3090,8 @@ export default {
       search: 'Search order or user',
       searchPlaceholder: 'Enter order number or user email',
       noOrders: 'No orders yet',
+      // Detail dialog
+      orderDetail: 'Order Details',
       detail: {
         title: 'Order Details',
         basicInfo: 'Basic Information',
