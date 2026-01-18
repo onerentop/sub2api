@@ -281,7 +281,18 @@ export default {
       signInWithGitHub: 'Continue with GitHub',
       signInWithGitee: 'Continue with Gitee',
       signInWithQQ: 'Continue with QQ',
-      signInWithWeChat: 'Continue with WeChat'
+      signInWithWeChat: 'Continue with WeChat',
+      // OAuth callback page
+      processing: 'Processing...',
+      pleaseWait: 'Please wait while we complete the login',
+      loginFailed: 'Login Failed',
+      loginSuccess: 'Login Successful',
+      redirecting: 'Redirecting...',
+      backToLogin: 'Back to Login',
+      missingParams: 'Missing required authorization parameters',
+      sessionExpired: 'Authorization session has expired, please try again',
+      invalidProvider: 'Invalid login provider',
+      unknownError: 'An unknown error occurred, please try again'
     }
   },
 
@@ -585,6 +596,16 @@ export default {
     passwordTooShort: 'Password must be at least 8 characters long',
     passwordChangeSuccess: 'Password changed successfully',
     passwordChangeFailed: 'Failed to change password'
+  },
+
+  // User Settings (OAuth bindings)
+  settings: {
+    oauth: {
+      bindSuccess: 'Account linked successfully',
+      bindError: 'Failed to link account',
+      unbindSuccess: 'Account unlinked successfully',
+      unbindError: 'Failed to unlink account'
+    }
   },
 
   // Empty States

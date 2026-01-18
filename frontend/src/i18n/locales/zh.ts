@@ -278,7 +278,18 @@ export default {
       signInWithGitHub: '使用 GitHub 登录',
       signInWithGitee: '使用 Gitee 登录',
       signInWithQQ: '使用 QQ 登录',
-      signInWithWeChat: '使用微信登录'
+      signInWithWeChat: '使用微信登录',
+      // OAuth callback page
+      processing: '正在处理...',
+      pleaseWait: '请稍候，正在完成登录验证',
+      loginFailed: '登录失败',
+      loginSuccess: '登录成功',
+      redirecting: '正在跳转...',
+      backToLogin: '返回登录',
+      missingParams: '缺少必要的授权参数',
+      sessionExpired: '授权会话已过期，请重新登录',
+      invalidProvider: '无效的登录方式',
+      unknownError: '发生未知错误，请重试'
     }
   },
 
@@ -581,6 +592,16 @@ export default {
     passwordTooShort: '密码至少需要 8 个字符',
     passwordChangeSuccess: '密码修改成功',
     passwordChangeFailed: '密码修改失败'
+  },
+
+  // User Settings (OAuth bindings)
+  settings: {
+    oauth: {
+      bindSuccess: '绑定成功',
+      bindError: '绑定失败',
+      unbindSuccess: '解绑成功',
+      unbindError: '解绑失败'
+    }
   },
 
   // Empty States
