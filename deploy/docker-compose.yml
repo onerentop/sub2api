@@ -111,6 +111,16 @@ services:
       - SECURITY_URL_ALLOWLIST_UPSTREAM_HOSTS=${SECURITY_URL_ALLOWLIST_UPSTREAM_HOSTS:-}
 
       # =======================================================================
+      # CORS Configuration (跨域资源共享配置)
+      # =======================================================================
+      # Allowed origins for CORS (comma-separated, use "*" to allow all)
+      # 允许的跨域来源（逗号分隔，使用 "*" 允许所有）
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-*}
+      # Allow credentials (cookies/auth headers) - cannot be used with "*"
+      # 允许携带凭证（cookies/授权头）- 不能与 "*" 同时使用
+      - CORS_ALLOW_CREDENTIALS=${CORS_ALLOW_CREDENTIALS:-false}
+
+      # =======================================================================
       # Update Configuration (在线更新配置)
       # =======================================================================
       # Proxy for accessing GitHub (online updates + pricing data)

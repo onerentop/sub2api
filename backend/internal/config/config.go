@@ -559,6 +559,15 @@ func Load() (*Config, error) {
 	if cfg.Server.Mode == "" {
 		cfg.Server.Mode = "debug"
 	}
+
+	// 处理环境变量中的 CORS 配置（支持逗号分隔的值）
+	if corsOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); corsOrigins != "" {
+		cfg.CORS.AllowedOrigins = parseCommaSeparatedEnv(corsOrigins)
+	}
+	if corsCredentials := os.Getenv("CORS_ALLOW_CREDENTIALS"); corsCredentials != "" {
+		cfg.CORS.AllowCredentials = corsCredentials == "true" || corsCredentials == "1"
+	}
+
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
 	cfg.LinuxDo.ClientID = strings.TrimSpace(cfg.LinuxDo.ClientID)
 	cfg.LinuxDo.ClientSecret = strings.TrimSpace(cfg.LinuxDo.ClientSecret)
@@ -1148,6 +1157,23 @@ func normalizeStringSlice(values []string) []string {
 		normalized = append(normalized, trimmed)
 	}
 	return normalized
+}
+
+// parseCommaSeparatedEnv 解析环境变量中逗号分隔的字符串列表
+func parseCommaSeparatedEnv(value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
 
 func isWeakJWTSecret(secret string) bool {
