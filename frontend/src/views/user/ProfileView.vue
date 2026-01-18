@@ -15,6 +15,10 @@
       </div>
       <ProfileEditForm :initial-username="user?.username || ''" />
       <ProfilePasswordForm />
+      <!-- OAuth Bindings Section -->
+      <div class="card p-6">
+        <OAuthBindingsSection />
+      </div>
     </div>
   </AppLayout>
 </template>
@@ -27,6 +31,7 @@ import StatCard from '@/components/common/StatCard.vue'
 import ProfileInfoCard from '@/components/user/profile/ProfileInfoCard.vue'
 import ProfileEditForm from '@/components/user/profile/ProfileEditForm.vue'
 import ProfilePasswordForm from '@/components/user/profile/ProfilePasswordForm.vue'
+import OAuthBindingsSection from '@/components/user/OAuthBindingsSection.vue'
 import { Icon } from '@/components/icons'
 
 const { t } = useI18n(); const authStore = useAuthStore(); const user = computed(() => authStore.user)

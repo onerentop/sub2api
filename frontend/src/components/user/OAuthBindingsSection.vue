@@ -147,14 +147,21 @@ async function loadData() {
   try {
     loading.value = true
     error.value = ''
-    const [providersData, bindingsData] = await Promise.all([
-      getSocialProviders(),
-      getUserBindings()
-    ])
-    providers.value = providersData
-    bindings.value = bindingsData
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : t('settings.oauth.loadError')
+    // 分开调用，避免一个失败导致另一个也失败
+    try {
+      providers.value = await getSocialProviders()
+    } catch (err) {
+      console.error('Failed to load social providers:', err)
+    }
+    try {
+      bindings.value = await getUserBindings()
+    } catch (err) {
+      console.error('Failed to load user bindings:', err)
+    }
+    // 只有两个都失败才显示错误
+    if (providers.value.length === 0 && bindings.value.length === 0) {
+      error.value = t('settings.oauth.loadError')
+    }
   } finally {
     loading.value = false
   }

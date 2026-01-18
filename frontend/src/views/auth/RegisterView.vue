@@ -14,6 +14,9 @@
       <!-- LinuxDo Connect OAuth 登录 -->
       <LinuxDoOAuthSection v-if="linuxdoOAuthEnabled" :disabled="isLoading" />
 
+      <!-- Social OAuth 登录 (Google, GitHub) -->
+      <SocialLoginSection :disabled="isLoading" :show-divider="true" />
+
       <!-- Registration Disabled Message -->
       <div
         v-if="!registrationEnabled && settingsLoaded"
@@ -236,6 +239,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
 import LinuxDoOAuthSection from '@/components/auth/LinuxDoOAuthSection.vue'
+import SocialLoginSection from '@/components/auth/SocialLoginSection.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/TurnstileWidget.vue'
 import { useAuthStore, useAppStore } from '@/stores'

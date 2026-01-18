@@ -601,6 +601,14 @@ export default {
   // User Settings (OAuth bindings)
   settings: {
     oauth: {
+      title: 'Linked Accounts',
+      description: 'Link third-party accounts for quick login',
+      bound: 'Linked',
+      notBound: 'Not linked',
+      bind: 'Link',
+      unbind: 'Unlink',
+      confirmUnbind: 'Are you sure you want to unlink this account? You will not be able to use it to log in after unlinking.',
+      loadError: 'Failed to load linked accounts',
       bindSuccess: 'Account linked successfully',
       bindError: 'Failed to link account',
       unbindSuccess: 'Account unlinked successfully',

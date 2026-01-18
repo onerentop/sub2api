@@ -597,6 +597,14 @@ export default {
   // User Settings (OAuth bindings)
   settings: {
     oauth: {
+      title: '第三方账号绑定',
+      description: '绑定第三方账号以便快速登录',
+      bound: '已绑定',
+      notBound: '未绑定',
+      bind: '绑定',
+      unbind: '解绑',
+      confirmUnbind: '确定要解绑此账号吗？解绑后将无法使用该账号登录。',
+      loadError: '加载绑定信息失败',
       bindSuccess: '绑定成功',
       bindError: '绑定失败',
       unbindSuccess: '解绑成功',
