@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { handleSocialLoginCallback, handleSocialBindCallback } from '@/api/social'
@@ -62,9 +62,9 @@ const error = ref(false)
 const success = ref(false)
 const errorMessage = ref('')
 
-// 根据路由参数判断是登录还是绑定
-const action = computed(() => route.params.action as string)
-const isBind = computed(() => action.value === 'bind')
+// 通过 localStorage session 类型判断是登录还是绑定
+// 绑定和登录现在使用相同的回调 URL，避免 OAuth 提供商需要额外配置
+const isBind = ref(false)
 
 onMounted(async () => {
   try {
@@ -77,10 +77,24 @@ onMounted(async () => {
       throw new Error(t('auth.social.missingParams'))
     }
 
-    // 根据操作类型获取不同的 session
-    const sessionKey = isBind.value ? 'social_oauth_bind_session' : 'social_oauth_session'
-    const sessionData = localStorage.getItem(sessionKey)
-    if (!sessionData) {
+    // 优先检查绑定 session，因为绑定和登录现在使用相同的回调 URL
+    const bindSessionData = localStorage.getItem('social_oauth_bind_session')
+    const loginSessionData = localStorage.getItem('social_oauth_session')
+
+    let sessionData: string | null = null
+    let sessionKey: string
+
+    if (bindSessionData) {
+      // 存在绑定 session，这是绑定操作
+      sessionData = bindSessionData
+      sessionKey = 'social_oauth_bind_session'
+      isBind.value = true
+    } else if (loginSessionData) {
+      // 存在登录 session，这是登录操作
+      sessionData = loginSessionData
+      sessionKey = 'social_oauth_session'
+      isBind.value = false
+    } else {
       throw new Error(t('auth.social.sessionExpired'))
     }
 

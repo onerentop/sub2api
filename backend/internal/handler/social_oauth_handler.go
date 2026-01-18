@@ -131,8 +131,9 @@ func (h *SocialOAuthHandler) StartBind(c *gin.Context) {
 		return
 	}
 
-	// 构建回调 URL
-	callbackURL := h.buildCallbackURL(c, req.Provider, "bind")
+	// 构建回调 URL - 使用与登录相同的回调路径，避免 OAuth 提供商需要额外配置
+	// 前端通过 localStorage session 类型区分是登录还是绑定
+	callbackURL := h.buildCallbackURL(c, req.Provider, "login")
 
 	result, err := h.socialOAuthService.StartBind(c.Request.Context(), userID, req.Provider, callbackURL)
 	if err != nil {
@@ -160,8 +161,8 @@ func (h *SocialOAuthHandler) HandleBindCallback(c *gin.Context) {
 		return
 	}
 
-	// 构建回调 URL
-	callbackURL := h.buildCallbackURL(c, req.Provider, "bind")
+	// 构建回调 URL - 与 StartBind 保持一致，使用登录回调路径
+	callbackURL := h.buildCallbackURL(c, req.Provider, "login")
 
 	err := h.socialOAuthService.HandleBindCallback(c.Request.Context(), req.Provider, req.Code, req.State, req.SessionID, callbackURL)
 	if err != nil {
