@@ -163,6 +163,12 @@ export default {
     notAvailable: 'N/A',
     now: 'Now',
     unknown: 'Unknown',
+    createdAt: 'Created At',
+    viewDetail: 'View Details',
+    allStatus: 'All Status',
+    enable: 'Enable',
+    disable: 'Disable',
+    operationFailed: 'Operation failed',
     time: {
       never: 'Never',
       justNow: 'Just now',
@@ -2989,6 +2995,116 @@ export default {
       updateError: 'Failed to update provider configuration',
       redirectUri: 'Redirect URI',
       redirectUriHint: 'Copy this URL to your OAuth app settings'
+    },
+
+    // Products Management
+    products: {
+      title: 'Product Management',
+      pageDescription: 'Manage recharge products and subscription plans',
+      createProduct: 'Create Product',
+      editProduct: 'Edit Product',
+      deleteProduct: 'Delete Product',
+      deleteConfirm: 'Are you sure you want to delete product "{name}"?',
+      deleteSuccess: 'Product deleted successfully',
+      createSuccess: 'Product created successfully',
+      updateSuccess: 'Product updated successfully',
+      loadFailed: 'Failed to load products',
+      name: 'Product Name',
+      namePlaceholder: 'Enter product name',
+      description: 'Description',
+      descriptionPlaceholder: 'Enter product description (optional)',
+      productType: 'Type',
+      priceCny: 'Price (CNY)',
+      price: 'Price',
+      value: 'Value',
+      balanceValue: 'Balance Amount',
+      subscriptionDays: 'Subscription Days',
+      days: 'days',
+      group: 'Associated Group',
+      selectGroup: 'Select group',
+      noGroup: 'None',
+      sortOrder: 'Sort Order',
+      enableProduct: 'Enable Product',
+      type: {
+        label: 'Type',
+        balance: 'Balance Recharge',
+        subscription: 'Subscription Plan'
+      },
+      searchProducts: 'Search products',
+      allTypes: 'All Types',
+      enabled: 'Enabled',
+      disabled: 'Disabled'
+    },
+
+    // Orders Management
+    orders: {
+      title: 'Order Management',
+      description: 'Manage payment orders and audit records',
+      todayOrders: 'Today Orders',
+      totalPaid: 'Paid',
+      pendingOrders: 'Pending',
+      totalOrders: 'Total Orders',
+      orderNo: 'Order No',
+      tradeNo: 'Trade No',
+      user: 'User',
+      userEmail: 'User Email',
+      orderType: 'Type',
+      amount: 'Amount',
+      value: 'Value',
+      paymentMethod: 'Payment Method',
+      paidAt: 'Paid At',
+      remark: 'Remark',
+      days: 'days',
+      searchOrders: 'Search order number or user email',
+      allTypes: 'All Types',
+      type: {
+        balance: 'Balance Recharge',
+        subscription: 'Subscription Plan'
+      },
+      method: {
+        alipay: 'Alipay',
+        wechat: 'WeChat Pay',
+        usdt: 'USDT',
+        manual: 'Manual'
+      },
+      status: {
+        pending: 'Pending',
+        paid: 'Paid',
+        auditing: 'Auditing',
+        failed: 'Failed',
+        refunded: 'Refunded',
+        expired: 'Expired',
+        rejected: 'Rejected'
+      },
+      approve: 'Approve',
+      reject: 'Reject',
+      manualFulfill: 'Manual Fulfill',
+      approveOrder: 'Approve Order',
+      rejectOrder: 'Reject Order',
+      manualFulfillOrder: 'Manual Fulfill Order',
+      approveConfirm: 'Are you sure you want to approve this order? User balance will be updated immediately.',
+      rejectConfirm: 'Are you sure you want to reject this order? Please provide a reason.',
+      fulfillConfirm: 'Are you sure you want to manually fulfill this order? Please enter the trade number.',
+      rejectReason: 'Reject Reason',
+      rejectReasonPlaceholder: 'Enter reject reason',
+      tradeNoPlaceholder: 'Enter trade number',
+      approveSuccess: 'Order approved',
+      rejectSuccess: 'Order rejected',
+      fulfillSuccess: 'Order fulfilled',
+      loadFailed: 'Failed to load orders',
+      noOrders: 'No orders yet',
+      orderDetail: 'Order Details',
+      detail: {
+        title: 'Order Details',
+        basicInfo: 'Basic Information',
+        paymentInfo: 'Payment Information',
+        productInfo: 'Product Information',
+        productName: 'Product Name',
+        productValue: 'Product Value',
+        auditInfo: 'Audit Information',
+        remark: 'Remark',
+        remarkPlaceholder: 'Enter audit remark (optional)'
+      }
     }
   },
 
@@ -3030,138 +3146,7 @@ export default {
     restartRequired: 'Please restart the service to apply the update',
     restartNow: 'Restart Now',
     restarting: 'Restarting...',
-    retry: 'Retry',
-
-    // Products Management
-    products: {
-      title: 'Product Management',
-      pageDescription: 'Manage recharge products and subscription plans',
-      createProduct: 'Create Product',
-      editProduct: 'Edit Product',
-      deleteProduct: 'Delete Product',
-      deleteConfirm: 'Are you sure you want to delete product "{name}"?',
-      deleteSuccess: 'Product deleted successfully',
-      createSuccess: 'Product created successfully',
-      updateSuccess: 'Product updated successfully',
-      name: 'Product Name',
-      namePlaceholder: 'Enter product name',
-      description: 'Description',
-      descriptionPlaceholder: 'Enter product description (optional)',
-      productType: 'Type',
-      priceCny: 'Price (CNY)',
-      price: 'Price',
-      value: 'Value',
-      balanceValue: 'Balance Amount',
-      subscriptionDays: 'Subscription Days',
-      days: 'days',
-      valuePlaceholder: 'Enter value (balance or days)',
-      valueHintBalance: 'Balance amount to credit',
-      valueHintSubscription: 'Subscription duration in days',
-      group: 'Associated Group',
-      selectGroup: 'Select group',
-      noGroup: 'None',
-      isActive: 'Active',
-      sortOrder: 'Sort Order',
-      sortOrderPlaceholder: 'Lower number = higher priority',
-      filterType: 'Filter by Type',
-      allTypes: 'All Types',
-      filterStatus: 'Filter by Status',
-      allStatus: 'All Status',
-      activeOnly: 'Active Only',
-      inactiveOnly: 'Inactive Only',
-      noProducts: 'No products yet',
-      actions: 'Actions',
-      toggleActive: 'Toggle Status',
-      enabled: 'Enabled',
-      disabled: 'Disabled',
-      save: 'Save',
-      cancel: 'Cancel',
-      // Nested type object for template access
-      type: {
-        label: 'Type',
-        balance: 'Balance Recharge',
-        subscription: 'Subscription Plan'
-      }
-    },
-
-    // Orders Management
-    orders: {
-      title: 'Order Management',
-      description: 'Manage payment orders and audit records',
-      // Stats (flat structure for template access)
-      todayOrders: 'Today Orders',
-      totalPaid: 'Paid',
-      pendingOrders: 'Pending',
-      totalOrders: 'Total Orders',
-      // Table columns
-      orderNo: 'Order No',
-      tradeNo: 'Trade No',
-      user: 'User',
-      userEmail: 'User Email',
-      orderType: 'Type',
-      amount: 'Amount',
-      value: 'Value',
-      paymentMethod: 'Payment Method',
-      paidAt: 'Paid At',
-      remark: 'Remark',
-      days: 'days',
-      // Filters
-      searchOrders: 'Search order number or user email',
-      allTypes: 'All Types',
-      // Order types
-      type: {
-        balance: 'Balance Recharge',
-        subscription: 'Subscription Plan'
-      },
-      // Payment methods
-      method: {
-        alipay: 'Alipay',
-        wechat: 'WeChat Pay',
-        usdt: 'USDT',
-        manual: 'Manual'
-      },
-      // Status
-      status: {
-        pending: 'Pending',
-        paid: 'Paid',
-        auditing: 'Auditing',
-        failed: 'Failed',
-        refunded: 'Refunded',
-        expired: 'Expired',
-        rejected: 'Rejected'
-      },
-      // Actions
-      approve: 'Approve',
-      reject: 'Reject',
-      manualFulfill: 'Manual Fulfill',
-      approveOrder: 'Approve Order',
-      rejectOrder: 'Reject Order',
-      manualFulfillOrder: 'Manual Fulfill Order',
-      approveConfirm: 'Are you sure you want to approve this order? User balance will be updated immediately.',
-      rejectConfirm: 'Are you sure you want to reject this order? Please provide a reason.',
-      fulfillConfirm: 'Are you sure you want to manually fulfill this order? Please enter the trade number.',
-      rejectReason: 'Reject Reason',
-      rejectReasonPlaceholder: 'Enter reject reason',
-      tradeNoPlaceholder: 'Enter trade number',
-      approveSuccess: 'Order approved',
-      rejectSuccess: 'Order rejected',
-      fulfillSuccess: 'Order fulfilled',
-      loadFailed: 'Failed to load orders',
-      noOrders: 'No orders yet',
-      // Detail dialog
-      orderDetail: 'Order Details',
-      detail: {
-        title: 'Order Details',
-        basicInfo: 'Basic Information',
-        paymentInfo: 'Payment Information',
-        productInfo: 'Product Information',
-        productName: 'Product Name',
-        productValue: 'Product Value',
-        auditInfo: 'Audit Information',
-        remark: 'Remark',
-        remarkPlaceholder: 'Enter audit remark (optional)'
-      }
-    }
+    retry: 'Retry'
   },
 
   // User Subscriptions Page

@@ -160,6 +160,12 @@ export default {
     notAvailable: '不可用',
     now: '现在',
     unknown: '未知',
+    createdAt: '创建时间',
+    viewDetail: '查看详情',
+    allStatus: '全部状态',
+    enable: '启用',
+    disable: '禁用',
+    operationFailed: '操作失败',
     time: {
       never: '从未',
       justNow: '刚刚',
@@ -3134,48 +3140,7 @@ export default {
       updateError: '更新提供商配置失败',
       redirectUri: '回调地址',
       redirectUriHint: '请将此 URL 复制到您的 OAuth 应用设置中'
-    }
-  },
-
-  // Subscription Progress (Header component)
-  subscriptionProgress: {
-    title: '我的订阅',
-    viewDetails: '查看订阅详情',
-    activeCount: '{count} 个有效订阅',
-    daily: '每日',
-    weekly: '每周',
-    monthly: '每月',
-    daysRemaining: '剩余 {days} 天',
-    expired: '已过期',
-    expiresToday: '今天到期',
-    expiresTomorrow: '明天到期',
-    viewAll: '查看全部订阅',
-    noSubscriptions: '暂无有效订阅',
-    unlimited: '无限制'
-  },
-
-  // Version Badge
-  version: {
-    currentVersion: '当前版本',
-    latestVersion: '最新版本',
-    upToDate: '已是最新版本',
-    updateAvailable: '有新版本可用！',
-    releaseNotes: '更新日志',
-    noReleaseNotes: '暂无更新日志',
-    viewUpdate: '查看更新',
-    viewRelease: '查看发布',
-    viewChangelog: '查看更新日志',
-    refresh: '刷新',
-    sourceMode: '源码构建',
-    sourceModeHint: '源码构建请使用 git pull 更新',
-    updateNow: '立即更新',
-    updating: '正在更新...',
-    updateComplete: '更新完成',
-    updateFailed: '更新失败',
-    restartRequired: '请重启服务以应用更新',
-    restartNow: '立即重启',
-    restarting: '正在重启...',
-    retry: '重试',
+    },
 
     // Products Management
     products: {
@@ -3298,6 +3263,47 @@ export default {
         remarkPlaceholder: '输入审核备注（选填）'
       }
     }
+  },
+
+  // Subscription Progress (Header component)
+  subscriptionProgress: {
+    title: '我的订阅',
+    viewDetails: '查看订阅详情',
+    activeCount: '{count} 个有效订阅',
+    daily: '每日',
+    weekly: '每周',
+    monthly: '每月',
+    daysRemaining: '剩余 {days} 天',
+    expired: '已过期',
+    expiresToday: '今天到期',
+    expiresTomorrow: '明天到期',
+    viewAll: '查看全部订阅',
+    noSubscriptions: '暂无有效订阅',
+    unlimited: '无限制'
+  },
+
+  // Version Badge
+  version: {
+    currentVersion: '当前版本',
+    latestVersion: '最新版本',
+    upToDate: '已是最新版本',
+    updateAvailable: '有新版本可用！',
+    releaseNotes: '更新日志',
+    noReleaseNotes: '暂无更新日志',
+    viewUpdate: '查看更新',
+    viewRelease: '查看发布',
+    viewChangelog: '查看更新日志',
+    refresh: '刷新',
+    sourceMode: '源码构建',
+    sourceModeHint: '源码构建请使用 git pull 更新',
+    updateNow: '立即更新',
+    updating: '正在更新...',
+    updateComplete: '更新完成',
+    updateFailed: '更新失败',
+    restartRequired: '请重启服务以应用更新',
+    restartNow: '立即重启',
+    restarting: '正在重启...',
+    retry: '重试'
   },
 
   // User Subscriptions Page
