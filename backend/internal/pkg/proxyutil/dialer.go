@@ -40,7 +40,20 @@ func ConfigureTransportProxy(transport *http.Transport, proxyURL *url.URL) error
 		return nil
 
 	case "socks5", "socks5h":
-		dialer, err := proxy.FromURL(proxyURL, proxy.Direct)
+		// 使用 proxy.SOCKS5() 明确传递认证信息，而不是 proxy.FromURL()
+		// 这样可以更可靠地处理用户名/密码认证
+		proxyAddr := proxyURL.Host
+
+		var auth *proxy.Auth
+		if proxyURL.User != nil {
+			password, _ := proxyURL.User.Password()
+			auth = &proxy.Auth{
+				User:     proxyURL.User.Username(),
+				Password: password,
+			}
+		}
+
+		dialer, err := proxy.SOCKS5("tcp", proxyAddr, auth, proxy.Direct)
 		if err != nil {
 			return fmt.Errorf("create socks5 dialer: %w", err)
 		}
