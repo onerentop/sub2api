@@ -82,11 +82,11 @@ func RegisterUserRoutes(
 		}
 
 		// 社交账号绑定（需要认证）
+		// 注意：/bind/callback 移到 auth.go 公开路由，因为回调时从 session 获取 userID
 		social := authenticated.Group("/social")
 		{
 			social.GET("/bindings", h.SocialOAuth.GetBindings)
 			social.POST("/bind/start", h.SocialOAuth.StartBind)
-			social.POST("/bind/callback", h.SocialOAuth.HandleBindCallback)
 			social.POST("/unbind", h.SocialOAuth.Unbind)
 		}
 	}

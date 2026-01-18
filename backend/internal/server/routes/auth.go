@@ -41,6 +41,9 @@ func RegisterAuthRoutes(
 		social.GET("/providers", h.SocialOAuth.GetProviders)
 		social.POST("/login/start", h.SocialOAuth.StartOAuth)
 		social.POST("/login/callback", h.SocialOAuth.HandleCallback)
+		// 绑定回调也不需要认证，因为 userID 已经存储在 session 中
+		// /bind/start 需要认证（在 user.go），回调时从 session 获取 userID
+		social.POST("/bind/callback", h.SocialOAuth.HandleBindCallback)
 	}
 
 	// 公开设置（无需认证）
