@@ -12,7 +12,7 @@ type Proxy struct {
 	Host      string    `json:"host"`
 	Port      int       `json:"port"`
 	Username  string    `json:"username,omitempty"`
-	Password  string    `json:"-"`
+	Password  string    `json:"password,omitempty"` // Internal use only - filtered out in API responses
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

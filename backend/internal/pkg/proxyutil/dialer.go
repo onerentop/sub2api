@@ -8,6 +8,7 @@ package proxyutil
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -51,6 +52,9 @@ func ConfigureTransportProxy(transport *http.Transport, proxyURL *url.URL) error
 				User:     proxyURL.User.Username(),
 				Password: password,
 			}
+			log.Printf("[proxyutil] SOCKS5 configured: addr=%s user=%s hasPassword=%v", proxyAddr, auth.User, password != "")
+		} else {
+			log.Printf("[proxyutil] SOCKS5 configured: addr=%s NO AUTH", proxyAddr)
 		}
 
 		dialer, err := proxy.SOCKS5("tcp", proxyAddr, auth, proxy.Direct)
