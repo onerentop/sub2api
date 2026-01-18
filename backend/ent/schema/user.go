@@ -73,6 +73,11 @@ func (User) Fields() []ent.Field {
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Comment("用户每周限额覆盖（余额计费模式）"),
+
+		// Token version for JWT invalidation on password change
+		field.Int64("token_version").
+			Default(0).
+			Comment("Token version, incremented on password change to invalidate existing JWTs"),
 	}
 }
 

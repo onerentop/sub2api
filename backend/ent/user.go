@@ -43,6 +43,8 @@ type User struct {
 	BalanceDailyQuota *float64 `json:"balance_daily_quota,omitempty"`
 	// 用户每周限额覆盖（余额计费模式）
 	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
+	// Token version, incremented on password change to invalidate existing JWTs
+	TokenVersion int64 `json:"token_version,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserQuery when eager-loading is set.
 	Edges        UserEdges `json:"edges"`
@@ -184,7 +186,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case user.FieldBalance, user.FieldBalanceDailyQuota, user.FieldBalanceWeeklyQuota:
 			values[i] = new(sql.NullFloat64)
-		case user.FieldID, user.FieldConcurrency:
+		case user.FieldID, user.FieldConcurrency, user.FieldTokenVersion:
 			values[i] = new(sql.NullInt64)
 		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes:
 			values[i] = new(sql.NullString)
@@ -291,6 +293,12 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.BalanceWeeklyQuota = new(float64)
 				*_m.BalanceWeeklyQuota = value.Float64
+			}
+		case user.FieldTokenVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field token_version", values[i])
+			} else if value.Valid {
+				_m.TokenVersion = value.Int64
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -427,6 +435,9 @@ func (_m *User) String() string {
 		builder.WriteString("balance_weekly_quota=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("token_version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TokenVersion))
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -197,6 +197,20 @@ func (_c *UserCreate) SetNillableBalanceWeeklyQuota(v *float64) *UserCreate {
 	return _c
 }
 
+// SetTokenVersion sets the "token_version" field.
+func (_c *UserCreate) SetTokenVersion(v int64) *UserCreate {
+	_c.mutation.SetTokenVersion(v)
+	return _c
+}
+
+// SetNillableTokenVersion sets the "token_version" field if the given value is not nil.
+func (_c *UserCreate) SetNillableTokenVersion(v *int64) *UserCreate {
+	if v != nil {
+		_c.SetTokenVersion(*v)
+	}
+	return _c
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by IDs.
 func (_c *UserCreate) AddAPIKeyIDs(ids ...int64) *UserCreate {
 	_c.mutation.AddAPIKeyIDs(ids...)
@@ -422,6 +436,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultNotes
 		_c.mutation.SetNotes(v)
 	}
+	if _, ok := _c.mutation.TokenVersion(); !ok {
+		v := user.DefaultTokenVersion
+		_c.mutation.SetTokenVersion(v)
+	}
 	return nil
 }
 
@@ -481,6 +499,9 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.Notes(); !ok {
 		return &ValidationError{Name: "notes", err: errors.New(`ent: missing required field "User.notes"`)}
+	}
+	if _, ok := _c.mutation.TokenVersion(); !ok {
+		return &ValidationError{Name: "token_version", err: errors.New(`ent: missing required field "User.token_version"`)}
 	}
 	return nil
 }
@@ -560,6 +581,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.BalanceWeeklyQuota(); ok {
 		_spec.SetField(user.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
 		_node.BalanceWeeklyQuota = &value
+	}
+	if value, ok := _c.mutation.TokenVersion(); ok {
+		_spec.SetField(user.FieldTokenVersion, field.TypeInt64, value)
+		_node.TokenVersion = value
 	}
 	if nodes := _c.mutation.APIKeysIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -963,6 +988,24 @@ func (u *UserUpsert) ClearBalanceWeeklyQuota() *UserUpsert {
 	return u
 }
 
+// SetTokenVersion sets the "token_version" field.
+func (u *UserUpsert) SetTokenVersion(v int64) *UserUpsert {
+	u.Set(user.FieldTokenVersion, v)
+	return u
+}
+
+// UpdateTokenVersion sets the "token_version" field to the value that was provided on create.
+func (u *UserUpsert) UpdateTokenVersion() *UserUpsert {
+	u.SetExcluded(user.FieldTokenVersion)
+	return u
+}
+
+// AddTokenVersion adds v to the "token_version" field.
+func (u *UserUpsert) AddTokenVersion(v int64) *UserUpsert {
+	u.Add(user.FieldTokenVersion, v)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -1222,6 +1265,27 @@ func (u *UserUpsertOne) UpdateBalanceWeeklyQuota() *UserUpsertOne {
 func (u *UserUpsertOne) ClearBalanceWeeklyQuota() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.ClearBalanceWeeklyQuota()
+	})
+}
+
+// SetTokenVersion sets the "token_version" field.
+func (u *UserUpsertOne) SetTokenVersion(v int64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetTokenVersion(v)
+	})
+}
+
+// AddTokenVersion adds v to the "token_version" field.
+func (u *UserUpsertOne) AddTokenVersion(v int64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.AddTokenVersion(v)
+	})
+}
+
+// UpdateTokenVersion sets the "token_version" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateTokenVersion() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateTokenVersion()
 	})
 }
 
@@ -1650,6 +1714,27 @@ func (u *UserUpsertBulk) UpdateBalanceWeeklyQuota() *UserUpsertBulk {
 func (u *UserUpsertBulk) ClearBalanceWeeklyQuota() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.ClearBalanceWeeklyQuota()
+	})
+}
+
+// SetTokenVersion sets the "token_version" field.
+func (u *UserUpsertBulk) SetTokenVersion(v int64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetTokenVersion(v)
+	})
+}
+
+// AddTokenVersion adds v to the "token_version" field.
+func (u *UserUpsertBulk) AddTokenVersion(v int64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.AddTokenVersion(v)
+	})
+}
+
+// UpdateTokenVersion sets the "token_version" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateTokenVersion() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateTokenVersion()
 	})
 }
 

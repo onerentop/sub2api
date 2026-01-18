@@ -400,6 +400,7 @@ func userEntityToService(u *dbent.User) *service.User {
 		Status:             u.Status,
 		BalanceDailyQuota:  u.BalanceDailyQuota,
 		BalanceWeeklyQuota: u.BalanceWeeklyQuota,
+		TokenVersion:       u.TokenVersion,
 		CreatedAt:          u.CreatedAt,
 		UpdatedAt:          u.UpdatedAt,
 	}
