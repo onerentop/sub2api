@@ -7,6 +7,7 @@ import (
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -219,11 +220,11 @@ func (h *SocialOAuthHandler) buildCallbackURL(c *gin.Context, provider, action s
 }
 
 // getUserIDFromContext 从上下文中获取用户 ID
+// 使用标准的 AuthSubject 中间件方法获取用户信息
 func getUserIDFromContext(c *gin.Context) (int64, bool) {
-	userID, exists := c.Get("user_id")
-	if !exists {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
 		return 0, false
 	}
-	id, ok := userID.(int64)
-	return id, ok
+	return subject.UserID, true
 }
