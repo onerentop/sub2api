@@ -52,4 +52,7 @@ type UserOAuthBindingRepository interface {
 
 	// CountByUserID 统计用户绑定数量
 	CountByUserID(ctx context.Context, userID int64) (int, error)
+
+	// TransferBinding 将绑定转移到新用户（用于强制转移场景）
+	TransferBinding(ctx context.Context, provider, providerUserID string, newUserID int64, binding *UserOAuthBinding) error
 }

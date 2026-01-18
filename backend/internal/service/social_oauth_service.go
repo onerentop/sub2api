@@ -370,11 +370,8 @@ func (s *SocialOAuthService) HandleBindCallback(ctx context.Context, providerNam
 	if err != nil {
 		return err
 	}
-	if existingBinding != nil {
-		return ErrOAuthAccountBound
-	}
 
-	// 创建绑定
+	// 创建绑定信息
 	binding := &UserOAuthBinding{
 		UserID:           userID,
 		Provider:         providerName,
@@ -386,6 +383,17 @@ func (s *SocialOAuthService) HandleBindCallback(ctx context.Context, providerNam
 		RefreshToken:     stringPtr(userInfo.RefreshToken),
 	}
 
+	if existingBinding != nil {
+		// 已被其他用户绑定，执行强制转移
+		if existingBinding.UserID == userID {
+			// 已经绑定到当前用户，无需操作
+			return nil
+		}
+		log.Printf("[SocialOAuth] transferring binding from user %d to user %d for %s", existingBinding.UserID, userID, providerName)
+		return s.bindingRepo.TransferBinding(ctx, providerName, userInfo.ProviderUserID, userID, binding)
+	}
+
+	// 创建新绑定
 	return s.bindingRepo.Create(ctx, binding)
 }
 

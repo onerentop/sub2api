@@ -111,6 +111,46 @@ func (r *userOAuthBindingRepository) CountByUserID(ctx context.Context, userID i
 		Count(ctx)
 }
 
+func (r *userOAuthBindingRepository) TransferBinding(ctx context.Context, provider, providerUserID string, newUserID int64, binding *service.UserOAuthBinding) error {
+	client := clientFromContext(ctx, r.client)
+
+	// 删除原绑定
+	_, err := client.UserOAuthBinding.Delete().
+		Where(
+			useroauthbinding.ProviderEQ(provider),
+			useroauthbinding.ProviderUserIDEQ(providerUserID),
+		).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	// 创建新绑定
+	builder := client.UserOAuthBinding.Create().
+		SetUserID(newUserID).
+		SetProvider(provider).
+		SetProviderUserID(providerUserID)
+
+	if binding.ProviderEmail != nil {
+		builder.SetProviderEmail(*binding.ProviderEmail)
+	}
+	if binding.ProviderUsername != nil {
+		builder.SetProviderUsername(*binding.ProviderUsername)
+	}
+	if binding.ProviderAvatar != nil {
+		builder.SetProviderAvatar(*binding.ProviderAvatar)
+	}
+	if binding.AccessToken != nil {
+		builder.SetAccessToken(*binding.AccessToken)
+	}
+	if binding.RefreshToken != nil {
+		builder.SetRefreshToken(*binding.RefreshToken)
+	}
+
+	_, err = builder.Save(ctx)
+	return err
+}
+
 // Entity to Service conversions
 
 func userOAuthBindingEntityToService(m *dbent.UserOAuthBinding) *service.UserOAuthBinding {
