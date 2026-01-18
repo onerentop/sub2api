@@ -394,8 +394,9 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 	}
 	originalClaudeBody := body
 
+	// 代理 URL - 只有代理处于激活状态时才使用
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 
@@ -843,8 +844,9 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		mappedModel = account.GetMappedModel(originalModel)
 	}
 
+	// 代理 URL - 只有代理处于激活状态时才使用
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 
@@ -2162,8 +2164,9 @@ func (s *GeminiMessagesCompatService) ForwardAIStudioGET(ctx context.Context, ac
 	}
 	fullURL := strings.TrimRight(normalizedBaseURL, "/") + path
 
+	// 代理 URL - 只有代理处于激活状态时才使用
 	var proxyURL string
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 

@@ -439,8 +439,9 @@ func (s *AccountUsageService) fetchOAuthUsageRaw(ctx context.Context, account *A
 		return nil, fmt.Errorf("no access token available")
 	}
 
+	// 代理 URL - 只有代理处于激活状态时才使用
 	var proxyURL string
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 

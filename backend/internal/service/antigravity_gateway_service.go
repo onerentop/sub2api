@@ -217,9 +217,9 @@ func (s *AntigravityGatewayService) TestConnection(ctx context.Context, account 
 		return nil, fmt.Errorf("构建请求失败: %w", err)
 	}
 
-	// 代理 URL
+	// 代理 URL - 只有代理处于激活状态时才使用
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 
@@ -525,9 +525,9 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 	// 获取 project_id（部分账户类型可能没有）
 	projectID := strings.TrimSpace(account.GetCredential("project_id"))
 
-	// 代理 URL
+	// 代理 URL - 只有代理处于激活状态时才使用
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 
@@ -1362,9 +1362,9 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 	// 获取 project_id（部分账户类型可能没有）
 	projectID := strings.TrimSpace(account.GetCredential("project_id"))
 
-	// 代理 URL
+	// 代理 URL - 只有代理处于激活状态时才使用
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 

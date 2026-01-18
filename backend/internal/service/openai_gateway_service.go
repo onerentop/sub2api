@@ -682,9 +682,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		return nil, err
 	}
 
-	// Get proxy URL
+	// Get proxy URL - only use proxy if it's active
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 

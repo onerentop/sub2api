@@ -259,9 +259,9 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		req.Header.Set("x-api-key", authToken)
 	}
 
-	// Get proxy URL
+	// Get proxy URL - only use proxy if it's active
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 
@@ -369,9 +369,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		}
 	}
 
-	// Get proxy URL
+	// Get proxy URL - only use proxy if it's active
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 
@@ -440,9 +440,9 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	// Send test_start event
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
 
-	// Get proxy and execute request
+	// Get proxy and execute request - only use proxy if it's active
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 

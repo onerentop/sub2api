@@ -409,9 +409,9 @@ func (s *GeminiOAuthService) RefreshAccountGoogleOneTier(
 		return "", nil, nil, fmt.Errorf("missing access_token")
 	}
 
-	// 获取 proxy URL
+	// 获取 proxy URL - 只有代理处于激活状态时才使用
 	var proxyURL string
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 

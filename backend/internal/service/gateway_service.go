@@ -1568,9 +1568,9 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		return nil, err
 	}
 
-	// 获取代理URL
+	// 获取代理URL - 只有代理处于激活状态时才使用
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 
@@ -2915,9 +2915,9 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		return err
 	}
 
-	// 获取代理URL
+	// 获取代理URL - 只有代理处于激活状态时才使用
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
 		proxyURL = account.Proxy.URL()
 	}
 
