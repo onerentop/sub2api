@@ -89,14 +89,17 @@ const buttonClass = computed(() => {
 })
 
 const buttonText = computed(() => {
+  // 尝试使用具体平台的翻译键，如 auth.social.signInWithGitHub
   const key = `auth.social.signInWith${props.displayName.replace(/\s/g, '')}`
-  const fallback = `${t('auth.social.signInWith')} ${props.displayName}`
-  try {
-    const translated = t(key)
-    return translated === key ? fallback : translated
-  } catch {
-    return fallback
+  const translated = t(key)
+
+  // 如果翻译存在且不等于原始键，使用翻译
+  if (translated !== key) {
+    return translated
   }
+
+  // 回退：使用带参数的通用翻译
+  return t('auth.social.continueWith', { provider: props.displayName })
 })
 
 async function handleClick() {

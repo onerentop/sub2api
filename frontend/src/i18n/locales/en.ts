@@ -275,7 +275,13 @@ export default {
       fullUrl: 'Full URL'
     },
     social: {
-      orContinueWith: 'Or continue with'
+      orContinueWith: 'Or continue with',
+      continueWith: 'Continue with {provider}',
+      signInWithGoogle: 'Continue with Google',
+      signInWithGitHub: 'Continue with GitHub',
+      signInWithGitee: 'Continue with Gitee',
+      signInWithQQ: 'Continue with QQ',
+      signInWithWeChat: 'Continue with WeChat'
     }
   },
 

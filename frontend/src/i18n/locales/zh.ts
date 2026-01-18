@@ -272,7 +272,13 @@ export default {
       fullUrl: '完整URL'
     },
     social: {
-      orContinueWith: '或使用以下方式登录'
+      orContinueWith: '或使用以下方式登录',
+      continueWith: '使用 {provider} 登录',
+      signInWithGoogle: '使用 Google 登录',
+      signInWithGitHub: '使用 GitHub 登录',
+      signInWithGitee: '使用 Gitee 登录',
+      signInWithQQ: '使用 QQ 登录',
+      signInWithWeChat: '使用微信登录'
     }
   },
 
