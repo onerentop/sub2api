@@ -511,6 +511,223 @@
           </div>
         </div>
 
+        <!-- Payment Settings (YiPay) -->
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.payment.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.payment.description') }}
+            </p>
+          </div>
+          <div class="space-y-5 p-6">
+            <!-- Enable Payment -->
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">{{
+                  t('admin.settings.payment.enablePayment')
+                }}</label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.payment.enablePaymentHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.payment_enabled" />
+            </div>
+
+            <!-- YiPay Config - Only show when enabled -->
+            <div
+              v-if="form.payment_enabled"
+              class="space-y-5 border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <!-- YiPay API URL -->
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.payment.apiUrl') }}
+                </label>
+                <input
+                  v-model="form.payment_yipay_api_url"
+                  type="url"
+                  class="input font-mono text-sm"
+                  placeholder="https://pay.example.com"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.payment.apiUrlHint') }}
+                </p>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <!-- PID -->
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.payment.pid') }}
+                  </label>
+                  <input
+                    v-model="form.payment_yipay_pid"
+                    type="text"
+                    class="input font-mono text-sm"
+                    placeholder="1000"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.payment.pidHint') }}
+                  </p>
+                </div>
+                <!-- Key -->
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.payment.key') }}
+                  </label>
+                  <input
+                    v-model="form.payment_yipay_key"
+                    type="password"
+                    class="input font-mono text-sm"
+                    :placeholder="
+                      form.payment_yipay_key_configured
+                        ? t('admin.settings.payment.keyConfiguredPlaceholder')
+                        : t('admin.settings.payment.keyPlaceholder')
+                    "
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{
+                      form.payment_yipay_key_configured
+                        ? t('admin.settings.payment.keyConfiguredHint')
+                        : t('admin.settings.payment.keyHint')
+                    }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <!-- Notify URL -->
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.payment.notifyUrl') }}
+                  </label>
+                  <input
+                    v-model="form.payment_yipay_notify_url"
+                    type="url"
+                    class="input font-mono text-sm"
+                    :placeholder="paymentNotifyUrlSuggestion"
+                  />
+                  <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm w-fit"
+                      @click="setAndCopyPaymentNotifyUrl"
+                    >
+                      {{ t('admin.settings.payment.quickSetCopy') }}
+                    </button>
+                  </div>
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.payment.notifyUrlHint') }}
+                  </p>
+                </div>
+                <!-- Return URL -->
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.payment.returnUrl') }}
+                  </label>
+                  <input
+                    v-model="form.payment_yipay_return_url"
+                    type="url"
+                    class="input font-mono text-sm"
+                    :placeholder="paymentReturnUrlSuggestion"
+                  />
+                  <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm w-fit"
+                      @click="setAndCopyPaymentReturnUrl"
+                    >
+                      {{ t('admin.settings.payment.quickSetCopy') }}
+                    </button>
+                  </div>
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.payment.returnUrlHint') }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Amount Settings -->
+              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <h3 class="mb-4 text-sm font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.settings.payment.amountSettings') }}
+                </h3>
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                  <!-- Min Amount -->
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.payment.minAmount') }}
+                    </label>
+                    <input
+                      v-model.number="form.payment_min_amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input"
+                      placeholder="10"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.payment.minAmountHint') }}
+                    </p>
+                  </div>
+                  <!-- Max Amount -->
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.payment.maxAmount') }}
+                    </label>
+                    <input
+                      v-model.number="form.payment_max_amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input"
+                      placeholder="1000"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.payment.maxAmountHint') }}
+                    </p>
+                  </div>
+                  <!-- Audit Threshold -->
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.payment.auditThreshold') }}
+                    </label>
+                    <input
+                      v-model.number="form.payment_audit_threshold"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input"
+                      placeholder="500"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.payment.auditThresholdHint') }}
+                    </p>
+                  </div>
+                  <!-- CNY to Value Rate -->
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.payment.cnyToValueRate') }}
+                    </label>
+                    <input
+                      v-model.number="form.payment_cny_to_value_rate"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input"
+                      placeholder="1"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.payment.cnyToValueRateHint') }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Default Settings -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -1006,6 +1223,7 @@ type SettingsForm = SystemSettings & {
   smtp_password: string
   turnstile_secret_key: string
   linuxdo_connect_client_secret: string
+  payment_yipay_key: string
 }
 
 const form = reactive<SettingsForm>({
@@ -1053,7 +1271,19 @@ const form = reactive<SettingsForm>({
   ops_monitoring_enabled: true,
   ops_realtime_monitoring_enabled: true,
   ops_query_mode_default: 'auto',
-  ops_metrics_interval_seconds: 60
+  ops_metrics_interval_seconds: 60,
+  // Payment settings (YiPay)
+  payment_enabled: false,
+  payment_yipay_api_url: '',
+  payment_yipay_pid: '',
+  payment_yipay_key: '',
+  payment_yipay_key_configured: false,
+  payment_yipay_notify_url: '',
+  payment_yipay_return_url: '',
+  payment_min_amount: 10,
+  payment_max_amount: 1000,
+  payment_audit_threshold: 500,
+  payment_cny_to_value_rate: 1
 })
 
 
@@ -1080,12 +1310,43 @@ const linuxdoRedirectUrlSuggestion = computed(() => {
   return `${origin}/api/v1/auth/oauth/linuxdo/callback`
 })
 
+// Payment URL suggestions
+const paymentNotifyUrlSuggestion = computed(() => {
+  if (typeof window === 'undefined') return ''
+  const origin =
+    window.location.origin || `${window.location.protocol}//${window.location.host}`
+  return `${origin}/api/v1/payment/notify`
+})
+
+const paymentReturnUrlSuggestion = computed(() => {
+  if (typeof window === 'undefined') return ''
+  const origin =
+    window.location.origin || `${window.location.protocol}//${window.location.host}`
+  return `${origin}/recharge?status=success`
+})
+
 async function setAndCopyLinuxdoRedirectUrl() {
   const url = linuxdoRedirectUrlSuggestion.value
   if (!url) return
 
   form.linuxdo_connect_redirect_url = url
   await copyToClipboard(url, t('admin.settings.linuxdo.redirectUrlSetAndCopied'))
+}
+
+async function setAndCopyPaymentNotifyUrl() {
+  const url = paymentNotifyUrlSuggestion.value
+  if (!url) return
+
+  form.payment_yipay_notify_url = url
+  await copyToClipboard(url, t('admin.settings.payment.urlSetAndCopied'))
+}
+
+async function setAndCopyPaymentReturnUrl() {
+  const url = paymentReturnUrlSuggestion.value
+  if (!url) return
+
+  form.payment_yipay_return_url = url
+  await copyToClipboard(url, t('admin.settings.payment.urlSetAndCopied'))
 }
 
 function handleLogoUpload(event: Event) {
@@ -1134,6 +1395,7 @@ async function loadSettings() {
     form.smtp_password = ''
     form.turnstile_secret_key = ''
     form.linuxdo_connect_client_secret = ''
+    form.payment_yipay_key = ''
   } catch (error: any) {
     appStore.showError(
       t('admin.settings.failedToLoad') + ': ' + (error.message || t('common.unknownError'))
@@ -1179,13 +1441,25 @@ async function saveSettings() {
       fallback_model_gemini: form.fallback_model_gemini,
       fallback_model_antigravity: form.fallback_model_antigravity,
       enable_identity_patch: form.enable_identity_patch,
-      identity_patch_prompt: form.identity_patch_prompt
+      identity_patch_prompt: form.identity_patch_prompt,
+      // Payment settings (YiPay)
+      payment_enabled: form.payment_enabled,
+      payment_yipay_api_url: form.payment_yipay_api_url,
+      payment_yipay_pid: form.payment_yipay_pid,
+      payment_yipay_key: form.payment_yipay_key || undefined,
+      payment_yipay_notify_url: form.payment_yipay_notify_url,
+      payment_yipay_return_url: form.payment_yipay_return_url,
+      payment_min_amount: form.payment_min_amount,
+      payment_max_amount: form.payment_max_amount,
+      payment_audit_threshold: form.payment_audit_threshold,
+      payment_cny_to_value_rate: form.payment_cny_to_value_rate
     }
     const updated = await adminAPI.settings.updateSettings(payload)
     Object.assign(form, updated)
     form.smtp_password = ''
     form.turnstile_secret_key = ''
     form.linuxdo_connect_client_secret = ''
+    form.payment_yipay_key = ''
     // Refresh cached public settings so sidebar/header update immediately
     await appStore.fetchPublicSettings(true)
     appStore.showSuccess(t('admin.settings.settingsSaved'))

@@ -17,8 +17,9 @@ import (
 // YiPayService 易支付服务
 // 负责与易支付平台的交互：生成支付链接、验证回调签名
 type YiPayService struct {
-	config *config.PaymentConfig
-	client *req.Client
+	config         *config.PaymentConfig
+	client         *req.Client
+	settingService *SettingService
 }
 
 // NewYiPayService 创建易支付服务实例
@@ -27,6 +28,22 @@ func NewYiPayService(cfg *config.Config) *YiPayService {
 		config: &cfg.Payment,
 		client: req.C().SetTimeout(30 * time.Second),
 	}
+}
+
+// SetSettingService 注入 SettingService 以支持动态配置
+func (s *YiPayService) SetSettingService(settingService *SettingService) {
+	s.settingService = settingService
+}
+
+// getConfig 获取支付配置（优先动态配置，回退静态配置）
+func (s *YiPayService) getConfig(ctx context.Context) *config.PaymentConfig {
+	if s.settingService != nil {
+		cfg, err := s.settingService.GetPaymentConfig(ctx)
+		if err == nil && cfg != nil {
+			return cfg
+		}
+	}
+	return s.config
 }
 
 // PaymentType 支付类型
@@ -66,37 +83,43 @@ type CallbackData struct {
 	RawData       map[string]string
 }
 
-// IsEnabled 是否启用支付功能
+// IsEnabled 是否启用支付功能（使用 background context，适用于无 context 的检查场景）
 func (s *YiPayService) IsEnabled() bool {
-	return s.config.Enabled
+	return s.getConfig(context.Background()).Enabled
+}
+
+// IsEnabledWithContext 是否启用支付功能（使用提供的 context）
+func (s *YiPayService) IsEnabledWithContext(ctx context.Context) bool {
+	return s.getConfig(ctx).Enabled
 }
 
 // CreatePayment 创建支付链接
 func (s *YiPayService) CreatePayment(ctx context.Context, req *CreatePaymentRequest) (*CreatePaymentResponse, error) {
-	if !s.IsEnabled() {
+	cfg := s.getConfig(ctx)
+	if !cfg.Enabled {
 		return nil, fmt.Errorf("payment is not enabled")
 	}
 
-	yiPayCfg := s.config.YiPay
+	yiPayCfg := cfg.YiPay
 
 	// 构建请求参数
 	params := map[string]string{
 		"pid":          yiPayCfg.PID,
 		"type":         string(req.PaymentType),
 		"out_trade_no": req.OrderNo,
-		"notify_url":   s.getNotifyURL(req.NotifyURL),
-		"return_url":   s.getReturnURL(req.ReturnURL),
+		"notify_url":   s.getNotifyURLWithConfig(req.NotifyURL, &yiPayCfg),
+		"return_url":   s.getReturnURLWithConfig(req.ReturnURL, &yiPayCfg),
 		"name":         req.ProductName,
 		"money":        fmt.Sprintf("%.2f", req.Amount),
 	}
 
 	// 计算签名
-	sign := s.generateSign(params)
+	sign := s.generateSignWithKey(params, yiPayCfg.Key)
 	params["sign"] = sign
 	params["sign_type"] = "MD5"
 
 	// 构建支付链接
-	paymentURL := s.buildPaymentURL(params)
+	paymentURL := s.buildPaymentURLWithConfig(params, yiPayCfg.APIURL)
 
 	return &CreatePaymentResponse{
 		PaymentURL: paymentURL,
@@ -105,7 +128,8 @@ func (s *YiPayService) CreatePayment(ctx context.Context, req *CreatePaymentRequ
 
 // VerifyCallback 验证回调签名
 func (s *YiPayService) VerifyCallback(data map[string]string) (*CallbackData, error) {
-	if !s.IsEnabled() {
+	cfg := s.getConfig(context.Background())
+	if !cfg.Enabled {
 		return nil, fmt.Errorf("payment is not enabled")
 	}
 
@@ -124,7 +148,7 @@ func (s *YiPayService) VerifyCallback(data map[string]string) (*CallbackData, er
 	}
 
 	// 验证签名
-	expectedSign := s.generateSign(signParams)
+	expectedSign := s.generateSignWithKey(signParams, cfg.YiPay.Key)
 	if !strings.EqualFold(sign, expectedSign) {
 		return nil, ErrPaymentSignInvalid
 	}
@@ -153,9 +177,14 @@ func (c *CallbackData) IsTradeSuccess() bool {
 	return c.TradeStatus == "TRADE_SUCCESS"
 }
 
-// generateSign 生成签名
+// generateSign 生成签名（使用静态配置，保留用于兼容）
 // 易支付签名规则：按参数名 ASCII 排序，拼接成 key=value& 格式，最后拼接 key，做 MD5
 func (s *YiPayService) generateSign(params map[string]string) string {
+	return s.generateSignWithKey(params, s.config.YiPay.Key)
+}
+
+// generateSignWithKey 生成签名（使用指定的 key）
+func (s *YiPayService) generateSignWithKey(params map[string]string, key string) string {
 	// 过滤空值并获取 key 列表
 	var keys []string
 	for k, v := range params {
@@ -179,16 +208,21 @@ func (s *YiPayService) generateSign(params map[string]string) string {
 	}
 
 	// 拼接 key
-	builder.WriteString(s.config.YiPay.Key)
+	builder.WriteString(key)
 
 	// 计算 MD5
 	hash := md5.Sum([]byte(builder.String()))
 	return hex.EncodeToString(hash[:])
 }
 
-// buildPaymentURL 构建支付链接
+// buildPaymentURL 构建支付链接（使用静态配置）
 func (s *YiPayService) buildPaymentURL(params map[string]string) string {
-	baseURL := strings.TrimSuffix(s.config.YiPay.APIURL, "/")
+	return s.buildPaymentURLWithConfig(params, s.config.YiPay.APIURL)
+}
+
+// buildPaymentURLWithConfig 构建支付链接（使用指定 API URL）
+func (s *YiPayService) buildPaymentURLWithConfig(params map[string]string, apiURL string) string {
+	baseURL := strings.TrimSuffix(apiURL, "/")
 	if !strings.HasSuffix(baseURL, "/submit.php") {
 		baseURL += "/submit.php"
 	}
@@ -202,7 +236,7 @@ func (s *YiPayService) buildPaymentURL(params map[string]string) string {
 	return baseURL + "?" + values.Encode()
 }
 
-// getNotifyURL 获取回调通知 URL
+// getNotifyURL 获取回调通知 URL（使用静态配置）
 func (s *YiPayService) getNotifyURL(override string) string {
 	if override != "" {
 		return override
@@ -210,7 +244,15 @@ func (s *YiPayService) getNotifyURL(override string) string {
 	return s.config.YiPay.NotifyURL
 }
 
-// getReturnURL 获取同步跳转 URL
+// getNotifyURLWithConfig 获取回调通知 URL（使用指定配置）
+func (s *YiPayService) getNotifyURLWithConfig(override string, yiPayCfg *config.YiPayConfig) string {
+	if override != "" {
+		return override
+	}
+	return yiPayCfg.NotifyURL
+}
+
+// getReturnURL 获取同步跳转 URL（使用静态配置）
 func (s *YiPayService) getReturnURL(override string) string {
 	if override != "" {
 		return override
@@ -218,13 +260,22 @@ func (s *YiPayService) getReturnURL(override string) string {
 	return s.config.YiPay.ReturnURL
 }
 
+// getReturnURLWithConfig 获取同步跳转 URL（使用指定配置）
+func (s *YiPayService) getReturnURLWithConfig(override string, yiPayCfg *config.YiPayConfig) string {
+	if override != "" {
+		return override
+	}
+	return yiPayCfg.ReturnURL
+}
+
 // QueryOrder 查询订单状态（可选功能，部分易支付支持）
 func (s *YiPayService) QueryOrder(ctx context.Context, orderNo string) (*CallbackData, error) {
-	if !s.IsEnabled() {
+	cfg := s.getConfig(ctx)
+	if !cfg.Enabled {
 		return nil, fmt.Errorf("payment is not enabled")
 	}
 
-	yiPayCfg := s.config.YiPay
+	yiPayCfg := cfg.YiPay
 
 	// 构建查询参数
 	params := map[string]string{

@@ -82,6 +82,17 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		OpsRealtimeMonitoringEnabled:         settings.OpsRealtimeMonitoringEnabled,
 		OpsQueryModeDefault:                  settings.OpsQueryModeDefault,
 		OpsMetricsIntervalSeconds:            settings.OpsMetricsIntervalSeconds,
+		// Payment settings
+		PaymentEnabled:            settings.PaymentEnabled,
+		PaymentYiPayAPIURL:        settings.PaymentYiPayAPIURL,
+		PaymentYiPayPID:           settings.PaymentYiPayPID,
+		PaymentYiPayKeyConfigured: settings.PaymentYiPayKeyConfigured,
+		PaymentYiPayNotifyURL:     settings.PaymentYiPayNotifyURL,
+		PaymentYiPayReturnURL:     settings.PaymentYiPayReturnURL,
+		PaymentMinAmount:          settings.PaymentMinAmount,
+		PaymentMaxAmount:          settings.PaymentMaxAmount,
+		PaymentAuditThreshold:     settings.PaymentAuditThreshold,
+		PaymentCNYToValueRate:     settings.PaymentCNYToValueRate,
 	})
 }
 
@@ -141,6 +152,18 @@ type UpdateSettingsRequest struct {
 	OpsRealtimeMonitoringEnabled *bool   `json:"ops_realtime_monitoring_enabled"`
 	OpsQueryModeDefault          *string `json:"ops_query_mode_default"`
 	OpsMetricsIntervalSeconds    *int    `json:"ops_metrics_interval_seconds"`
+
+	// Payment settings (YiPay)
+	PaymentEnabled         bool    `json:"payment_enabled"`
+	PaymentYiPayAPIURL     string  `json:"payment_yipay_api_url"`
+	PaymentYiPayPID        string  `json:"payment_yipay_pid"`
+	PaymentYiPayKey        string  `json:"payment_yipay_key"`
+	PaymentYiPayNotifyURL  string  `json:"payment_yipay_notify_url"`
+	PaymentYiPayReturnURL  string  `json:"payment_yipay_return_url"`
+	PaymentMinAmount       float64 `json:"payment_min_amount"`
+	PaymentMaxAmount       float64 `json:"payment_max_amount"`
+	PaymentAuditThreshold  float64 `json:"payment_audit_threshold"`
+	PaymentCNYToValueRate  float64 `json:"payment_cny_to_value_rate"`
 }
 
 // UpdateSettings 更新系统设置
@@ -295,6 +318,23 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.OpsMetricsIntervalSeconds
 		}(),
+		// Payment settings
+		PaymentEnabled: req.PaymentEnabled,
+		PaymentYiPayAPIURL: req.PaymentYiPayAPIURL,
+		PaymentYiPayPID: req.PaymentYiPayPID,
+		PaymentYiPayKey: func() string {
+			// If key is not provided, keep the existing one
+			if req.PaymentYiPayKey == "" {
+				return previousSettings.PaymentYiPayKey
+			}
+			return req.PaymentYiPayKey
+		}(),
+		PaymentYiPayNotifyURL: req.PaymentYiPayNotifyURL,
+		PaymentYiPayReturnURL: req.PaymentYiPayReturnURL,
+		PaymentMinAmount: req.PaymentMinAmount,
+		PaymentMaxAmount: req.PaymentMaxAmount,
+		PaymentAuditThreshold: req.PaymentAuditThreshold,
+		PaymentCNYToValueRate: req.PaymentCNYToValueRate,
 	}
 
 	if err := h.settingService.UpdateSettings(c.Request.Context(), settings); err != nil {
@@ -349,6 +389,17 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OpsRealtimeMonitoringEnabled:         updatedSettings.OpsRealtimeMonitoringEnabled,
 		OpsQueryModeDefault:                  updatedSettings.OpsQueryModeDefault,
 		OpsMetricsIntervalSeconds:            updatedSettings.OpsMetricsIntervalSeconds,
+		// Payment settings
+		PaymentEnabled:            updatedSettings.PaymentEnabled,
+		PaymentYiPayAPIURL:        updatedSettings.PaymentYiPayAPIURL,
+		PaymentYiPayPID:           updatedSettings.PaymentYiPayPID,
+		PaymentYiPayKeyConfigured: updatedSettings.PaymentYiPayKeyConfigured,
+		PaymentYiPayNotifyURL:     updatedSettings.PaymentYiPayNotifyURL,
+		PaymentYiPayReturnURL:     updatedSettings.PaymentYiPayReturnURL,
+		PaymentMinAmount:          updatedSettings.PaymentMinAmount,
+		PaymentMaxAmount:          updatedSettings.PaymentMaxAmount,
+		PaymentAuditThreshold:     updatedSettings.PaymentAuditThreshold,
+		PaymentCNYToValueRate:     updatedSettings.PaymentCNYToValueRate,
 	})
 }
 
@@ -481,6 +532,37 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.OpsMetricsIntervalSeconds != after.OpsMetricsIntervalSeconds {
 		changed = append(changed, "ops_metrics_interval_seconds")
+	}
+	// Payment settings
+	if before.PaymentEnabled != after.PaymentEnabled {
+		changed = append(changed, "payment_enabled")
+	}
+	if before.PaymentYiPayAPIURL != after.PaymentYiPayAPIURL {
+		changed = append(changed, "payment_yipay_api_url")
+	}
+	if before.PaymentYiPayPID != after.PaymentYiPayPID {
+		changed = append(changed, "payment_yipay_pid")
+	}
+	if req.PaymentYiPayKey != "" {
+		changed = append(changed, "payment_yipay_key")
+	}
+	if before.PaymentYiPayNotifyURL != after.PaymentYiPayNotifyURL {
+		changed = append(changed, "payment_yipay_notify_url")
+	}
+	if before.PaymentYiPayReturnURL != after.PaymentYiPayReturnURL {
+		changed = append(changed, "payment_yipay_return_url")
+	}
+	if before.PaymentMinAmount != after.PaymentMinAmount {
+		changed = append(changed, "payment_min_amount")
+	}
+	if before.PaymentMaxAmount != after.PaymentMaxAmount {
+		changed = append(changed, "payment_max_amount")
+	}
+	if before.PaymentAuditThreshold != after.PaymentAuditThreshold {
+		changed = append(changed, "payment_audit_threshold")
+	}
+	if before.PaymentCNYToValueRate != after.PaymentCNYToValueRate {
+		changed = append(changed, "payment_cny_to_value_rate")
 	}
 	return changed
 }

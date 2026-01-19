@@ -154,6 +154,31 @@ const (
 
 	// SettingKeyStreamTimeoutSettings stores JSON config for stream timeout handling.
 	SettingKeyStreamTimeoutSettings = "stream_timeout_settings"
+
+	// =========================
+	// Payment Settings
+	// =========================
+
+	// SettingKeyPaymentEnabled controls whether payment/recharge feature is enabled.
+	SettingKeyPaymentEnabled = "payment_enabled"
+	// SettingKeyPaymentYiPayAPIURL is the YiPay API endpoint URL.
+	SettingKeyPaymentYiPayAPIURL = "payment_yipay_api_url"
+	// SettingKeyPaymentYiPayPID is the YiPay merchant PID.
+	SettingKeyPaymentYiPayPID = "payment_yipay_pid"
+	// SettingKeyPaymentYiPayKey is the YiPay merchant key (encrypted).
+	SettingKeyPaymentYiPayKey = "payment_yipay_key"
+	// SettingKeyPaymentYiPayNotifyURL is the async callback URL for payment notification.
+	SettingKeyPaymentYiPayNotifyURL = "payment_yipay_notify_url"
+	// SettingKeyPaymentYiPayReturnURL is the sync redirect URL after payment.
+	SettingKeyPaymentYiPayReturnURL = "payment_yipay_return_url"
+	// SettingKeyPaymentMinAmount is the minimum payment amount in CNY.
+	SettingKeyPaymentMinAmount = "payment_min_amount"
+	// SettingKeyPaymentMaxAmount is the maximum payment amount in CNY.
+	SettingKeyPaymentMaxAmount = "payment_max_amount"
+	// SettingKeyPaymentAuditThreshold is the threshold in CNY above which orders need manual audit.
+	SettingKeyPaymentAuditThreshold = "payment_audit_threshold"
+	// SettingKeyPaymentCNYToValueRate is the conversion rate from CNY to USD balance.
+	SettingKeyPaymentCNYToValueRate = "payment_cny_to_value_rate"
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys (distinct from user "sk-" keys).

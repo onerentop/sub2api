@@ -53,6 +53,19 @@ type SystemSettings struct {
 	OpsRealtimeMonitoringEnabled bool
 	OpsQueryModeDefault          string
 	OpsMetricsIntervalSeconds    int
+
+	// Payment settings (YiPay)
+	PaymentEnabled            bool
+	PaymentYiPayAPIURL        string
+	PaymentYiPayPID           string
+	PaymentYiPayKey           string
+	PaymentYiPayKeyConfigured bool
+	PaymentYiPayNotifyURL     string
+	PaymentYiPayReturnURL     string
+	PaymentMinAmount          float64
+	PaymentMaxAmount          float64
+	PaymentAuditThreshold     float64
+	PaymentCNYToValueRate     float64
 }
 
 type PublicSettings struct {

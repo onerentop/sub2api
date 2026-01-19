@@ -50,6 +50,18 @@ type SystemSettings struct {
 	OpsRealtimeMonitoringEnabled bool   `json:"ops_realtime_monitoring_enabled"`
 	OpsQueryModeDefault          string `json:"ops_query_mode_default"`
 	OpsMetricsIntervalSeconds    int    `json:"ops_metrics_interval_seconds"`
+
+	// Payment settings (YiPay)
+	PaymentEnabled            bool    `json:"payment_enabled"`
+	PaymentYiPayAPIURL        string  `json:"payment_yipay_api_url"`
+	PaymentYiPayPID           string  `json:"payment_yipay_pid"`
+	PaymentYiPayKeyConfigured bool    `json:"payment_yipay_key_configured"`
+	PaymentYiPayNotifyURL     string  `json:"payment_yipay_notify_url"`
+	PaymentYiPayReturnURL     string  `json:"payment_yipay_return_url"`
+	PaymentMinAmount          float64 `json:"payment_min_amount"`
+	PaymentMaxAmount          float64 `json:"payment_max_amount"`
+	PaymentAuditThreshold     float64 `json:"payment_audit_threshold"`
+	PaymentCNYToValueRate     float64 `json:"payment_cny_to_value_rate"`
 }
 
 type PublicSettings struct {

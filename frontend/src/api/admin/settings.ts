@@ -59,6 +59,18 @@ export interface SystemSettings {
   ops_realtime_monitoring_enabled: boolean
   ops_query_mode_default: 'auto' | 'raw' | 'preagg' | string
   ops_metrics_interval_seconds: number
+
+  // Payment settings (YiPay)
+  payment_enabled: boolean
+  payment_yipay_api_url: string
+  payment_yipay_pid: string
+  payment_yipay_key_configured: boolean
+  payment_yipay_notify_url: string
+  payment_yipay_return_url: string
+  payment_min_amount: number
+  payment_max_amount: number
+  payment_audit_threshold: number
+  payment_cny_to_value_rate: number
 }
 
 export interface UpdateSettingsRequest {
@@ -99,6 +111,18 @@ export interface UpdateSettingsRequest {
   ops_realtime_monitoring_enabled?: boolean
   ops_query_mode_default?: 'auto' | 'raw' | 'preagg' | string
   ops_metrics_interval_seconds?: number
+
+  // Payment settings (YiPay)
+  payment_enabled?: boolean
+  payment_yipay_api_url?: string
+  payment_yipay_pid?: string
+  payment_yipay_key?: string
+  payment_yipay_notify_url?: string
+  payment_yipay_return_url?: string
+  payment_min_amount?: number
+  payment_max_amount?: number
+  payment_audit_threshold?: number
+  payment_cny_to_value_rate?: number
 }
 
 /**

@@ -24,6 +24,7 @@ type PaymentService struct {
 	yipayService        *YiPayService
 	entClient           *dbent.Client
 	billingCacheService *BillingCacheService
+	settingService      *SettingService
 }
 
 // NewPaymentService 创建支付服务实例
@@ -49,6 +50,22 @@ func NewPaymentService(
 	}
 }
 
+// SetSettingService 注入 SettingService 以支持动态配置
+func (s *PaymentService) SetSettingService(settingService *SettingService) {
+	s.settingService = settingService
+}
+
+// getConfig 获取支付配置（优先动态配置，回退静态配置）
+func (s *PaymentService) getConfig(ctx context.Context) *config.PaymentConfig {
+	if s.settingService != nil {
+		cfg, err := s.settingService.GetPaymentConfig(ctx)
+		if err == nil && cfg != nil {
+			return cfg
+		}
+	}
+	return s.config
+}
+
 // CreateOrderRequest 创建订单请求
 type CreateOrderRequest struct {
 	UserID        int64
@@ -68,7 +85,8 @@ type CreateOrderResponse struct {
 
 // CreateOrder 创建支付订单
 func (s *PaymentService) CreateOrder(ctx context.Context, req *CreateOrderRequest) (*CreateOrderResponse, error) {
-	if !s.config.Enabled {
+	cfg := s.getConfig(ctx)
+	if !cfg.Enabled {
 		return nil, fmt.Errorf("payment is not enabled")
 	}
 
@@ -104,14 +122,14 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req *CreateOrderReques
 		}
 	} else if req.CustomAmount > 0 {
 		// 自定义金额充值
-		if req.CustomAmount < s.config.MinAmount {
-			return nil, fmt.Errorf("minimum amount is %.2f", s.config.MinAmount)
+		if req.CustomAmount < cfg.MinAmount {
+			return nil, fmt.Errorf("minimum amount is %.2f", cfg.MinAmount)
 		}
-		if req.CustomAmount > s.config.MaxAmount {
-			return nil, fmt.Errorf("maximum amount is %.2f", s.config.MaxAmount)
+		if req.CustomAmount > cfg.MaxAmount {
+			return nil, fmt.Errorf("maximum amount is %.2f", cfg.MaxAmount)
 		}
 		amountCNY = req.CustomAmount
-		amountValue = req.CustomAmount * s.config.CNYToValueRate
+		amountValue = req.CustomAmount * cfg.CNYToValueRate
 		productName = fmt.Sprintf("余额充值 ¥%.2f", req.CustomAmount)
 	} else {
 		return nil, ErrPaymentAmountInvalid
@@ -125,7 +143,7 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req *CreateOrderReques
 
 	// 确定订单状态（大额订单需要审核）
 	status := PaymentOrderStatusPending
-	if amountCNY >= s.config.AuditThreshold {
+	if amountCNY >= cfg.AuditThreshold {
 		status = PaymentOrderStatusAuditing
 	}
 

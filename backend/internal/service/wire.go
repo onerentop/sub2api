@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"time"
 
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
@@ -194,6 +195,30 @@ func ProvideBalanceUsageQuerier(usageLogRepo UsageLogRepository) BalanceUsageQue
 	return usageLogRepo
 }
 
+// ProvideYiPayService 创建 YiPayService 并注入 SettingService
+func ProvideYiPayService(cfg *config.Config, settingService *SettingService) *YiPayService {
+	svc := NewYiPayService(cfg)
+	svc.SetSettingService(settingService)
+	return svc
+}
+
+// ProvidePaymentService 创建 PaymentService 并注入 SettingService
+func ProvidePaymentService(
+	cfg *config.Config,
+	orderRepo PaymentOrderRepository,
+	productRepo ProductRepository,
+	userRepo UserRepository,
+	subscriptionService *SubscriptionService,
+	yipayService *YiPayService,
+	entClient *dbent.Client,
+	billingCacheService *BillingCacheService,
+	settingService *SettingService,
+) *PaymentService {
+	svc := NewPaymentService(cfg, orderRepo, productRepo, userRepo, subscriptionService, yipayService, entClient, billingCacheService)
+	svc.SetSettingService(settingService)
+	return svc
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
@@ -259,7 +284,7 @@ var ProviderSet = wire.NewSet(
 	NewModel429Tracker,
 	NewRoundRobinSelector,
 	NewPublicAccountService,
-	NewYiPayService,
-	NewPaymentService,
+	ProvideYiPayService,
+	ProvidePaymentService,
 	NewSocialOAuthService,
 )

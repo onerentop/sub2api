@@ -225,6 +225,20 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		updates[SettingKeyOpsMetricsIntervalSeconds] = strconv.Itoa(settings.OpsMetricsIntervalSeconds)
 	}
 
+	// Payment settings (YiPay)
+	updates[SettingKeyPaymentEnabled] = strconv.FormatBool(settings.PaymentEnabled)
+	updates[SettingKeyPaymentYiPayAPIURL] = settings.PaymentYiPayAPIURL
+	updates[SettingKeyPaymentYiPayPID] = settings.PaymentYiPayPID
+	if settings.PaymentYiPayKey != "" {
+		updates[SettingKeyPaymentYiPayKey] = settings.PaymentYiPayKey
+	}
+	updates[SettingKeyPaymentYiPayNotifyURL] = settings.PaymentYiPayNotifyURL
+	updates[SettingKeyPaymentYiPayReturnURL] = settings.PaymentYiPayReturnURL
+	updates[SettingKeyPaymentMinAmount] = strconv.FormatFloat(settings.PaymentMinAmount, 'f', 2, 64)
+	updates[SettingKeyPaymentMaxAmount] = strconv.FormatFloat(settings.PaymentMaxAmount, 'f', 2, 64)
+	updates[SettingKeyPaymentAuditThreshold] = strconv.FormatFloat(settings.PaymentAuditThreshold, 'f', 2, 64)
+	updates[SettingKeyPaymentCNYToValueRate] = strconv.FormatFloat(settings.PaymentCNYToValueRate, 'f', 8, 64)
+
 	err := s.settingRepo.SetMultiple(ctx, updates)
 	if err == nil && s.onUpdate != nil {
 		s.onUpdate() // Invalidate cache after settings update
@@ -495,6 +509,82 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 			}
 			result.OpsMetricsIntervalSeconds = v
 		}
+	}
+
+	// Payment settings (YiPay)
+	// Priority: DB settings > config.yaml defaults
+	paymentBase := config.PaymentConfig{}
+	if s.cfg != nil {
+		paymentBase = s.cfg.Payment
+	}
+
+	if raw, ok := settings[SettingKeyPaymentEnabled]; ok && raw != "" {
+		result.PaymentEnabled = raw == "true"
+	} else {
+		result.PaymentEnabled = paymentBase.Enabled
+	}
+
+	if v, ok := settings[SettingKeyPaymentYiPayAPIURL]; ok && strings.TrimSpace(v) != "" {
+		result.PaymentYiPayAPIURL = strings.TrimSpace(v)
+	} else {
+		result.PaymentYiPayAPIURL = paymentBase.YiPay.APIURL
+	}
+
+	if v, ok := settings[SettingKeyPaymentYiPayPID]; ok && strings.TrimSpace(v) != "" {
+		result.PaymentYiPayPID = strings.TrimSpace(v)
+	} else {
+		result.PaymentYiPayPID = paymentBase.YiPay.PID
+	}
+
+	result.PaymentYiPayKey = strings.TrimSpace(settings[SettingKeyPaymentYiPayKey])
+	if result.PaymentYiPayKey == "" {
+		result.PaymentYiPayKey = strings.TrimSpace(paymentBase.YiPay.Key)
+	}
+	result.PaymentYiPayKeyConfigured = result.PaymentYiPayKey != ""
+
+	if v, ok := settings[SettingKeyPaymentYiPayNotifyURL]; ok && strings.TrimSpace(v) != "" {
+		result.PaymentYiPayNotifyURL = strings.TrimSpace(v)
+	} else {
+		result.PaymentYiPayNotifyURL = paymentBase.YiPay.NotifyURL
+	}
+
+	if v, ok := settings[SettingKeyPaymentYiPayReturnURL]; ok && strings.TrimSpace(v) != "" {
+		result.PaymentYiPayReturnURL = strings.TrimSpace(v)
+	} else {
+		result.PaymentYiPayReturnURL = paymentBase.YiPay.ReturnURL
+	}
+
+	// Payment amount settings (float64)
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentMinAmount], 64); err == nil && v > 0 {
+		result.PaymentMinAmount = v
+	} else if paymentBase.MinAmount > 0 {
+		result.PaymentMinAmount = paymentBase.MinAmount
+	} else {
+		result.PaymentMinAmount = 1.0 // default min
+	}
+
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentMaxAmount], 64); err == nil && v > 0 {
+		result.PaymentMaxAmount = v
+	} else if paymentBase.MaxAmount > 0 {
+		result.PaymentMaxAmount = paymentBase.MaxAmount
+	} else {
+		result.PaymentMaxAmount = 10000.0 // default max
+	}
+
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentAuditThreshold], 64); err == nil && v > 0 {
+		result.PaymentAuditThreshold = v
+	} else if paymentBase.AuditThreshold > 0 {
+		result.PaymentAuditThreshold = paymentBase.AuditThreshold
+	} else {
+		result.PaymentAuditThreshold = 500.0 // default threshold
+	}
+
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentCNYToValueRate], 64); err == nil && v > 0 {
+		result.PaymentCNYToValueRate = v
+	} else if paymentBase.CNYToValueRate > 0 {
+		result.PaymentCNYToValueRate = paymentBase.CNYToValueRate
+	} else {
+		result.PaymentCNYToValueRate = 0.14 // default rate (~1 CNY = 0.14 USD)
 	}
 
 	return result
@@ -824,4 +914,67 @@ func (s *SettingService) SetStreamTimeoutSettings(ctx context.Context, settings 
 	}
 
 	return s.settingRepo.Set(ctx, SettingKeyStreamTimeoutSettings, string(data))
+}
+
+// GetPaymentConfig 获取支付配置（优先数据库设置，回退到 config.yaml）
+func (s *SettingService) GetPaymentConfig(ctx context.Context) (*config.PaymentConfig, error) {
+	if s == nil || s.cfg == nil {
+		return nil, infraerrors.ServiceUnavailable("CONFIG_NOT_READY", "config not loaded")
+	}
+
+	// Start with config.yaml defaults
+	effective := s.cfg.Payment
+
+	// Fetch DB settings
+	keys := []string{
+		SettingKeyPaymentEnabled,
+		SettingKeyPaymentYiPayAPIURL,
+		SettingKeyPaymentYiPayPID,
+		SettingKeyPaymentYiPayKey,
+		SettingKeyPaymentYiPayNotifyURL,
+		SettingKeyPaymentYiPayReturnURL,
+		SettingKeyPaymentMinAmount,
+		SettingKeyPaymentMaxAmount,
+		SettingKeyPaymentAuditThreshold,
+		SettingKeyPaymentCNYToValueRate,
+	}
+	settings, err := s.settingRepo.GetMultiple(ctx, keys)
+	if err != nil {
+		return nil, fmt.Errorf("get payment settings: %w", err)
+	}
+
+	// Override with DB settings if present
+	if raw, ok := settings[SettingKeyPaymentEnabled]; ok && raw != "" {
+		effective.Enabled = raw == "true"
+	}
+	if v, ok := settings[SettingKeyPaymentYiPayAPIURL]; ok && strings.TrimSpace(v) != "" {
+		effective.YiPay.APIURL = strings.TrimSpace(v)
+	}
+	if v, ok := settings[SettingKeyPaymentYiPayPID]; ok && strings.TrimSpace(v) != "" {
+		effective.YiPay.PID = strings.TrimSpace(v)
+	}
+	if v, ok := settings[SettingKeyPaymentYiPayKey]; ok && strings.TrimSpace(v) != "" {
+		effective.YiPay.Key = strings.TrimSpace(v)
+	}
+	if v, ok := settings[SettingKeyPaymentYiPayNotifyURL]; ok && strings.TrimSpace(v) != "" {
+		effective.YiPay.NotifyURL = strings.TrimSpace(v)
+	}
+	if v, ok := settings[SettingKeyPaymentYiPayReturnURL]; ok && strings.TrimSpace(v) != "" {
+		effective.YiPay.ReturnURL = strings.TrimSpace(v)
+	}
+
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentMinAmount], 64); err == nil && v > 0 {
+		effective.MinAmount = v
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentMaxAmount], 64); err == nil && v > 0 {
+		effective.MaxAmount = v
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentAuditThreshold], 64); err == nil && v > 0 {
+		effective.AuditThreshold = v
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentCNYToValueRate], 64); err == nil && v > 0 {
+		effective.CNYToValueRate = v
+	}
+
+	return &effective, nil
 }
