@@ -345,7 +345,34 @@ func (s *RateLimitService) handleCustomErrorCode(ctx context.Context, account *A
 func (s *RateLimitService) handle429(ctx context.Context, account *Account, headers http.Header, responseBody []byte) {
 	// 解析重置时间戳
 	resetTimestamp := headers.Get("anthropic-ratelimit-unified-reset")
+
+	// 3. 如果响应头没有，尝试从响应体解析（OpenAI usage_limit_reached, Gemini）
 	if resetTimestamp == "" {
+		switch account.Platform {
+		case PlatformOpenAI:
+			// 尝试解析 OpenAI 的 usage_limit_reached 错误
+			if resetAt := parseOpenAIRateLimitResetTime(responseBody); resetAt != nil {
+				resetTime := time.Unix(*resetAt, 0)
+				if err := s.accountRepo.SetRateLimited(ctx, account.ID, resetTime); err != nil {
+					slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
+					return
+				}
+				slog.Info("account_rate_limited", "account_id", account.ID, "platform", account.Platform, "reset_at", resetTime, "reset_in", time.Until(resetTime).Truncate(time.Second))
+				return
+			}
+		case PlatformGemini, PlatformAntigravity:
+			// 尝试解析 Gemini 格式（用于其他平台）
+			if resetAt := ParseGeminiRateLimitResetTime(responseBody); resetAt != nil {
+				resetTime := time.Unix(*resetAt, 0)
+				if err := s.accountRepo.SetRateLimited(ctx, account.ID, resetTime); err != nil {
+					slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
+					return
+				}
+				slog.Info("account_rate_limited", "account_id", account.ID, "platform", account.Platform, "reset_at", resetTime, "reset_in", time.Until(resetTime).Truncate(time.Second))
+				return
+			}
+		}
+
 		// 没有重置时间，使用默认5分钟
 		resetAt := time.Now().Add(5 * time.Minute)
 		if s.shouldScopeClaudeSonnetRateLimit(account, responseBody) {

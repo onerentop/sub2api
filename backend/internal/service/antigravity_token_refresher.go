@@ -56,6 +56,7 @@ func (r *AntigravityTokenRefresher) Refresh(ctx context.Context, account *Accoun
 	}
 
 	newCredentials := r.antigravityOAuthService.BuildAccountCredentials(tokenInfo)
+	// 合并旧的 credentials，保留新 credentials 中不存在的字段
 	for k, v := range account.Credentials {
 		if _, exists := newCredentials[k]; !exists {
 			newCredentials[k] = v

@@ -223,6 +223,16 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	// TOTP 双因素认证参数验证
+	// 只有手动配置了加密密钥才允许启用 TOTP 功能
+	if req.TotpEnabled && !previousSettings.TotpEnabled {
+		// 尝试启用 TOTP，检查加密密钥是否已手动配置
+		if !h.settingService.IsTotpEncryptionKeyConfigured() {
+			response.BadRequest(c, "Cannot enable TOTP: TOTP_ENCRYPTION_KEY environment variable must be configured first. Generate a key with 'openssl rand -hex 32' and set it in your environment.")
+			return
+		}
+	}
+
 	// LinuxDo Connect 参数验证
 	if req.LinuxDoConnectEnabled {
 		req.LinuxDoConnectClientID = strings.TrimSpace(req.LinuxDoConnectClientID)
@@ -438,6 +448,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.EmailVerifyEnabled != after.EmailVerifyEnabled {
 		changed = append(changed, "email_verify_enabled")
+	}
+	if before.PasswordResetEnabled != after.PasswordResetEnabled {
+		changed = append(changed, "password_reset_enabled")
+	}
+	if before.TotpEnabled != after.TotpEnabled {
+		changed = append(changed, "totp_enabled")
 	}
 	if before.SMTPHost != after.SMTPHost {
 		changed = append(changed, "smtp_host")
