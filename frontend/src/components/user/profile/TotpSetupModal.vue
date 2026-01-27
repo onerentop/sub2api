@@ -378,7 +378,7 @@ const handleVerify = async () => {
 
   try {
     await totpAPI.enable({
-      totp_code: totpCode,
+      code: totpCode,
       setup_token: setupData.value.setup_token
     })
     appStore.showSuccess(t('profile.totp.enableSuccess'))

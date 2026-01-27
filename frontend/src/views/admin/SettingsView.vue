@@ -1316,6 +1316,7 @@ const form = reactive<SettingsForm>({
   registration_enabled: true,
   email_verify_enabled: false,
   promo_code_enabled: true,
+  password_reset_enabled: false,
   email_domain_whitelist: [] as string[],
   default_balance: 0,
   default_concurrency: 1,
@@ -1346,6 +1347,9 @@ const form = reactive<SettingsForm>({
   linuxdo_connect_client_secret: '',
   linuxdo_connect_client_secret_configured: false,
   linuxdo_connect_redirect_url: '',
+  // TOTP 2FA settings
+  totp_enabled: false,
+  totp_encryption_key_configured: false,
   // Model fallback
   enable_model_fallback: false,
   fallback_model_anthropic: 'claude-3-5-sonnet-20241022',

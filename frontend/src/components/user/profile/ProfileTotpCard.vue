@@ -136,9 +136,9 @@ const handleDisableSuccess = () => {
   loadStatus()
 }
 
-const formatDate = (timestamp: number) => {
-  // Backend returns Unix timestamp in seconds, convert to milliseconds
-  const date = new Date(timestamp * 1000)
+const formatDate = (timestamp: string) => {
+  // Backend returns ISO date string
+  const date = new Date(timestamp)
   return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'long',
