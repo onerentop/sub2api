@@ -47,6 +47,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 	response.Success(c, dto.SystemSettings{
 		RegistrationEnabled:                  settings.RegistrationEnabled,
 		EmailVerifyEnabled:                   settings.EmailVerifyEnabled,
+		PromoCodeEnabled:                     settings.PromoCodeEnabled,
 		EmailDomainWhitelist:                 settings.EmailDomainWhitelist,
 		SMTPHost:                             settings.SMTPHost,
 		SMTPPort:                             settings.SMTPPort,
@@ -69,6 +70,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ContactInfo:                          settings.ContactInfo,
 		DocURL:                               settings.DocURL,
 		HomeContent:                          settings.HomeContent,
+		HideCcsImportButton:                  settings.HideCcsImportButton,
 		DefaultConcurrency:                   settings.DefaultConcurrency,
 		DefaultBalance:                       settings.DefaultBalance,
 		EnableModelFallback:                  settings.EnableModelFallback,
@@ -101,6 +103,7 @@ type UpdateSettingsRequest struct {
 	// 注册设置
 	RegistrationEnabled bool `json:"registration_enabled"`
 	EmailVerifyEnabled  bool `json:"email_verify_enabled"`
+	PromoCodeEnabled    bool `json:"promo_code_enabled"`
 	EmailDomainWhitelist []string `json:"email_domain_whitelist"`
 
 	// 邮件服务设置
@@ -124,13 +127,14 @@ type UpdateSettingsRequest struct {
 	LinuxDoConnectRedirectURL  string `json:"linuxdo_connect_redirect_url"`
 
 	// OEM设置
-	SiteName     string `json:"site_name"`
-	SiteLogo     string `json:"site_logo"`
-	SiteSubtitle string `json:"site_subtitle"`
-	APIBaseURL   string `json:"api_base_url"`
-	ContactInfo  string `json:"contact_info"`
-	DocURL       string `json:"doc_url"`
-	HomeContent  string `json:"home_content"`
+	SiteName            string `json:"site_name"`
+	SiteLogo            string `json:"site_logo"`
+	SiteSubtitle        string `json:"site_subtitle"`
+	APIBaseURL          string `json:"api_base_url"`
+	ContactInfo         string `json:"contact_info"`
+	DocURL              string `json:"doc_url"`
+	HomeContent         string `json:"home_content"`
+	HideCcsImportButton bool   `json:"hide_ccs_import_button"`
 
 	// 默认配置
 	DefaultConcurrency int     `json:"default_concurrency"`
@@ -263,6 +267,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	settings := &service.SystemSettings{
 		RegistrationEnabled:        req.RegistrationEnabled,
 		EmailVerifyEnabled:         req.EmailVerifyEnabled,
+		PromoCodeEnabled:           req.PromoCodeEnabled,
 		EmailDomainWhitelist:       req.EmailDomainWhitelist,
 		SMTPHost:                   req.SMTPHost,
 		SMTPPort:                   req.SMTPPort,
@@ -285,6 +290,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ContactInfo:                req.ContactInfo,
 		DocURL:                     req.DocURL,
 		HomeContent:                req.HomeContent,
+		HideCcsImportButton:        req.HideCcsImportButton,
 		DefaultConcurrency:         req.DefaultConcurrency,
 		DefaultBalance:             req.DefaultBalance,
 		EnableModelFallback:        req.EnableModelFallback,
@@ -354,6 +360,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	response.Success(c, dto.SystemSettings{
 		RegistrationEnabled:                  updatedSettings.RegistrationEnabled,
 		EmailVerifyEnabled:                   updatedSettings.EmailVerifyEnabled,
+		PromoCodeEnabled:                     updatedSettings.PromoCodeEnabled,
 		EmailDomainWhitelist:                 updatedSettings.EmailDomainWhitelist,
 		SMTPHost:                             updatedSettings.SMTPHost,
 		SMTPPort:                             updatedSettings.SMTPPort,
@@ -376,6 +383,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ContactInfo:                          updatedSettings.ContactInfo,
 		DocURL:                               updatedSettings.DocURL,
 		HomeContent:                          updatedSettings.HomeContent,
+		HideCcsImportButton:                  updatedSettings.HideCcsImportButton,
 		DefaultConcurrency:                   updatedSettings.DefaultConcurrency,
 		DefaultBalance:                       updatedSettings.DefaultBalance,
 		EnableModelFallback:                  updatedSettings.EnableModelFallback,
@@ -493,6 +501,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.HomeContent != after.HomeContent {
 		changed = append(changed, "home_content")
+	}
+	if before.HideCcsImportButton != after.HideCcsImportButton {
+		changed = append(changed, "hide_ccs_import_button")
 	}
 	if before.DefaultConcurrency != after.DefaultConcurrency {
 		changed = append(changed, "default_concurrency")

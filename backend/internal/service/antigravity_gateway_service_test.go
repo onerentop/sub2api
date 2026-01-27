@@ -40,18 +40,20 @@ func TestStripSignatureSensitiveBlocksFromClaudeRequest(t *testing.T) {
 
 	require.Len(t, req.Messages, 2)
 
+	// stripSignatureSensitiveBlocksFromClaudeRequest:
+	// - removes thinking blocks entirely (CLIProxyAPI approach)
+	// - converts tool_use/tool_result to text
 	var blocks0 []map[string]any
 	require.NoError(t, json.Unmarshal(req.Messages[0].Content, &blocks0))
-	require.Len(t, blocks0, 2)
+	require.Len(t, blocks0, 1) // thinking removed, tool_use converted to text
 	require.Equal(t, "text", blocks0[0]["type"])
-	require.Equal(t, "secret plan", blocks0[0]["text"])
-	require.Equal(t, "text", blocks0[1]["type"])
+	require.Contains(t, blocks0[0]["text"], "(tool_use)")
 
 	var blocks1 []map[string]any
 	require.NoError(t, json.Unmarshal(req.Messages[1].Content, &blocks1))
-	require.Len(t, blocks1, 1)
+	require.Len(t, blocks1, 1) // tool_result converted to text, redacted_thinking removed
 	require.Equal(t, "text", blocks1[0]["type"])
-	require.NotEmpty(t, blocks1[0]["text"])
+	require.Contains(t, blocks1[0]["text"], "(tool_result)")
 }
 
 func TestStripThinkingFromClaudeRequest_DoesNotDowngradeTools(t *testing.T) {
@@ -74,10 +76,11 @@ func TestStripThinkingFromClaudeRequest_DoesNotDowngradeTools(t *testing.T) {
 	require.True(t, changed)
 	require.Nil(t, req.Thinking)
 
+	// stripThinkingFromClaudeRequest:
+	// - removes thinking blocks entirely (CLIProxyAPI approach)
+	// - preserves tool_use blocks unchanged
 	var blocks []map[string]any
 	require.NoError(t, json.Unmarshal(req.Messages[0].Content, &blocks))
-	require.Len(t, blocks, 2)
-	require.Equal(t, "text", blocks[0]["type"])
-	require.Equal(t, "secret plan", blocks[0]["text"])
-	require.Equal(t, "tool_use", blocks[1]["type"])
+	require.Len(t, blocks, 1) // thinking removed, tool_use preserved
+	require.Equal(t, "tool_use", blocks[0]["type"])
 }

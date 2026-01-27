@@ -40,6 +40,9 @@ type CreateGroupRequest struct {
 	ImagePrice4K    *float64 `json:"image_price_4k"`
 	ClaudeCodeOnly  bool     `json:"claude_code_only"`
 	FallbackGroupID *int64   `json:"fallback_group_id"`
+	// 模型路由配置（仅 anthropic 平台使用）
+	ModelRouting        map[string][]int64 `json:"model_routing"`
+	ModelRoutingEnabled bool               `json:"model_routing_enabled"`
 	// 余额计费模式限额（standard 类型分组使用）
 	BalanceDailyQuota  *float64 `json:"balance_daily_quota"`
 	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota"`
@@ -63,6 +66,9 @@ type UpdateGroupRequest struct {
 	ImagePrice4K    *float64 `json:"image_price_4k"`
 	ClaudeCodeOnly  *bool    `json:"claude_code_only"`
 	FallbackGroupID *int64   `json:"fallback_group_id"`
+	// 模型路由配置（仅 anthropic 平台使用）
+	ModelRouting        map[string][]int64 `json:"model_routing"`
+	ModelRoutingEnabled *bool              `json:"model_routing_enabled"`
 	// 余额计费模式限额（standard 类型分组使用）
 	BalanceDailyQuota  *float64 `json:"balance_daily_quota"`
 	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota"`
@@ -94,9 +100,9 @@ func (h *GroupHandler) List(c *gin.Context) {
 		return
 	}
 
-	outGroups := make([]dto.Group, 0, len(groups))
+	outGroups := make([]dto.AdminGroup, 0, len(groups))
 	for i := range groups {
-		outGroups = append(outGroups, *dto.GroupFromService(&groups[i]))
+		outGroups = append(outGroups, *dto.GroupFromServiceAdmin(&groups[i]))
 	}
 	response.Paginated(c, outGroups, total, page, pageSize)
 }
@@ -120,9 +126,9 @@ func (h *GroupHandler) GetAll(c *gin.Context) {
 		return
 	}
 
-	outGroups := make([]dto.Group, 0, len(groups))
+	outGroups := make([]dto.AdminGroup, 0, len(groups))
 	for i := range groups {
-		outGroups = append(outGroups, *dto.GroupFromService(&groups[i]))
+		outGroups = append(outGroups, *dto.GroupFromServiceAdmin(&groups[i]))
 	}
 	response.Success(c, outGroups)
 }
@@ -142,7 +148,7 @@ func (h *GroupHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, dto.GroupFromService(group))
+	response.Success(c, dto.GroupFromServiceAdmin(group))
 }
 
 // Create handles creating a new group
@@ -169,6 +175,8 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		ImagePrice4K:       req.ImagePrice4K,
 		ClaudeCodeOnly:     req.ClaudeCodeOnly,
 		FallbackGroupID:    req.FallbackGroupID,
+		ModelRouting:        req.ModelRouting,
+		ModelRoutingEnabled: req.ModelRoutingEnabled,
 		BalanceDailyQuota:  req.BalanceDailyQuota,
 		BalanceWeeklyQuota: req.BalanceWeeklyQuota,
 	})
@@ -177,7 +185,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, dto.GroupFromService(group))
+	response.Success(c, dto.GroupFromServiceAdmin(group))
 }
 
 // Update handles updating a group
@@ -211,6 +219,8 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		ImagePrice4K:       req.ImagePrice4K,
 		ClaudeCodeOnly:     req.ClaudeCodeOnly,
 		FallbackGroupID:    req.FallbackGroupID,
+		ModelRouting:        req.ModelRouting,
+		ModelRoutingEnabled: req.ModelRoutingEnabled,
 		BalanceDailyQuota:  req.BalanceDailyQuota,
 		BalanceWeeklyQuota: req.BalanceWeeklyQuota,
 	})
@@ -219,7 +229,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, dto.GroupFromService(group))
+	response.Success(c, dto.GroupFromServiceAdmin(group))
 }
 
 // Delete handles deleting a group

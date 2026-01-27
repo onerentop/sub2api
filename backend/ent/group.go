@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -55,9 +56,13 @@ type Group struct {
 	ClaudeCodeOnly bool `json:"claude_code_only,omitempty"`
 	// 非 Claude Code 请求降级使用的分组 ID
 	FallbackGroupID *int64 `json:"fallback_group_id,omitempty"`
-	// 余额计费模式的每日限额（金额）
+	// 模型路由配置：模型模式 -> 优先账号ID列表
+	ModelRouting map[string][]int64 `json:"model_routing,omitempty"`
+	// 是否启用模型路由配置
+	ModelRoutingEnabled bool `json:"model_routing_enabled,omitempty"`
+	// 分组每日限额（余额计费模式）
 	BalanceDailyQuota *float64 `json:"balance_daily_quota,omitempty"`
-	// 余额计费模式的每周限额（金额）
+	// 分组每周限额（余额计费模式）
 	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GroupQuery when eager-loading is set.
@@ -176,7 +181,9 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case group.FieldIsExclusive, group.FieldClaudeCodeOnly:
+		case group.FieldModelRouting:
+			values[i] = new([]byte)
+		case group.FieldIsExclusive, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled:
 			values[i] = new(sql.NullBool)
 		case group.FieldRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k, group.FieldBalanceDailyQuota, group.FieldBalanceWeeklyQuota:
 			values[i] = new(sql.NullFloat64)
@@ -329,6 +336,20 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.FallbackGroupID = new(int64)
 				*_m.FallbackGroupID = value.Int64
+			}
+		case group.FieldModelRouting:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field model_routing", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ModelRouting); err != nil {
+					return fmt.Errorf("unmarshal field model_routing: %w", err)
+				}
+			}
+		case group.FieldModelRoutingEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field model_routing_enabled", values[i])
+			} else if value.Valid {
+				_m.ModelRoutingEnabled = value.Bool
 			}
 		case group.FieldBalanceDailyQuota:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -499,6 +520,12 @@ func (_m *Group) String() string {
 		builder.WriteString("fallback_group_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("model_routing=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ModelRouting))
+	builder.WriteString(", ")
+	builder.WriteString("model_routing_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ModelRoutingEnabled))
 	builder.WriteString(", ")
 	if v := _m.BalanceDailyQuota; v != nil {
 		builder.WriteString("balance_daily_quota=")

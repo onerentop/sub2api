@@ -44,6 +44,7 @@ type AdminService interface {
 	DeleteAccount(ctx context.Context, id int64) error
 	RefreshAccountCredentials(ctx context.Context, id int64) (*Account, error)
 	ClearAccountError(ctx context.Context, id int64) (*Account, error)
+	SetAccountError(ctx context.Context, id int64, errorMsg string) error
 	SetAccountSchedulable(ctx context.Context, id int64, schedulable bool) (*Account, error)
 	BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error)
 
@@ -149,6 +150,9 @@ type CreateGroupInput struct {
 	ImagePrice4K    *float64
 	ClaudeCodeOnly  bool   // 仅允许 Claude Code 客户端
 	FallbackGroupID *int64 // 降级分组 ID
+	// 模型路由配置（仅 anthropic 平台使用）
+	ModelRouting        map[string][]int64
+	ModelRoutingEnabled bool // 是否启用模型路由
 	// 余额计费模式限额
 	BalanceDailyQuota  *float64 // 余额每日限额（金额）
 	BalanceWeeklyQuota *float64 // 余额每周限额（金额）
@@ -171,6 +175,9 @@ type UpdateGroupInput struct {
 	ImagePrice4K    *float64
 	ClaudeCodeOnly  *bool  // 仅允许 Claude Code 客户端
 	FallbackGroupID *int64 // 降级分组 ID
+	// 模型路由配置（仅 anthropic 平台使用）
+	ModelRouting        map[string][]int64
+	ModelRoutingEnabled *bool // 是否启用模型路由
 	// 余额计费模式限额
 	BalanceDailyQuota  *float64 // 余额每日限额（金额）
 	BalanceWeeklyQuota *float64 // 余额每周限额（金额）
@@ -765,6 +772,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		ImagePrice4K:       imagePrice4K,
 		ClaudeCodeOnly:     input.ClaudeCodeOnly,
 		FallbackGroupID:    input.FallbackGroupID,
+		ModelRouting:     input.ModelRouting,
 		BalanceDailyQuota:  balanceDailyQuota,
 		BalanceWeeklyQuota: balanceWeeklyQuota,
 	}
@@ -893,6 +901,14 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 			// 传入 0 或负数表示清除降级分组
 			group.FallbackGroupID = nil
 		}
+	}
+
+	// 模型路由配置
+	if input.ModelRouting != nil {
+		group.ModelRouting = input.ModelRouting
+	}
+	if input.ModelRoutingEnabled != nil {
+		group.ModelRoutingEnabled = *input.ModelRoutingEnabled
 	}
 
 	// 余额限额字段：0 和 nil 都表示"无限制"，正数表示具体限额
@@ -1278,6 +1294,10 @@ func (s *adminServiceImpl) ClearAccountError(ctx context.Context, id int64) (*Ac
 		return nil, err
 	}
 	return account, nil
+}
+
+func (s *adminServiceImpl) SetAccountError(ctx context.Context, id int64, errorMsg string) error {
+	return s.accountRepo.SetError(ctx, id, errorMsg)
 }
 
 func (s *adminServiceImpl) SetAccountSchedulable(ctx context.Context, id int64, schedulable bool) (*Account, error) {

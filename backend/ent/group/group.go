@@ -53,6 +53,10 @@ const (
 	FieldClaudeCodeOnly = "claude_code_only"
 	// FieldFallbackGroupID holds the string denoting the fallback_group_id field in the database.
 	FieldFallbackGroupID = "fallback_group_id"
+	// FieldModelRouting holds the string denoting the model_routing field in the database.
+	FieldModelRouting = "model_routing"
+	// FieldModelRoutingEnabled holds the string denoting the model_routing_enabled field in the database.
+	FieldModelRoutingEnabled = "model_routing_enabled"
 	// FieldBalanceDailyQuota holds the string denoting the balance_daily_quota field in the database.
 	FieldBalanceDailyQuota = "balance_daily_quota"
 	// FieldBalanceWeeklyQuota holds the string denoting the balance_weekly_quota field in the database.
@@ -160,6 +164,8 @@ var Columns = []string{
 	FieldImagePrice4k,
 	FieldClaudeCodeOnly,
 	FieldFallbackGroupID,
+	FieldModelRouting,
+	FieldModelRoutingEnabled,
 	FieldBalanceDailyQuota,
 	FieldBalanceWeeklyQuota,
 }
@@ -219,6 +225,8 @@ var (
 	DefaultDefaultValidityDays int
 	// DefaultClaudeCodeOnly holds the default value on creation for the "claude_code_only" field.
 	DefaultClaudeCodeOnly bool
+	// DefaultModelRoutingEnabled holds the default value on creation for the "model_routing_enabled" field.
+	DefaultModelRoutingEnabled bool
 )
 
 // OrderOption defines the ordering options for the Group queries.
@@ -322,6 +330,11 @@ func ByClaudeCodeOnly(opts ...sql.OrderTermOption) OrderOption {
 // ByFallbackGroupID orders the results by the fallback_group_id field.
 func ByFallbackGroupID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFallbackGroupID, opts...).ToFunc()
+}
+
+// ByModelRoutingEnabled orders the results by the model_routing_enabled field.
+func ByModelRoutingEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModelRoutingEnabled, opts...).ToFunc()
 }
 
 // ByBalanceDailyQuota orders the results by the balance_daily_quota field.

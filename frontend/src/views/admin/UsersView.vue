@@ -514,7 +514,7 @@ import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
 import { adminAPI } from '@/api/admin'
-import type { User, UserAttributeDefinition } from '@/types'
+import type { AdminUser, UserAttributeDefinition } from '@/types'
 import type { BatchUserUsageStats } from '@/api/admin/dashboard'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -662,7 +662,7 @@ const columns = computed<Column[]>(() =>
   )
 )
 
-const users = ref<User[]>([])
+const users = ref<AdminUser[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
 
@@ -766,16 +766,16 @@ const showEditModal = ref(false)
 const showDeleteDialog = ref(false)
 const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
-const editingUser = ref<User | null>(null)
-const deletingUser = ref<User | null>(null)
-const viewingUser = ref<User | null>(null)
+const editingUser = ref<AdminUser | null>(null)
+const deletingUser = ref<AdminUser | null>(null)
+const viewingUser = ref<AdminUser | null>(null)
 let abortController: AbortController | null = null
 
 // Action Menu State
 const activeMenuId = ref<number | null>(null)
 const menuPosition = ref<{ top: number; left: number } | null>(null)
 
-const openActionMenu = (user: User, e: MouseEvent) => {
+const openActionMenu = (user: AdminUser, e: MouseEvent) => {
   if (activeMenuId.value === user.id) {
     closeActionMenu()
   } else {
@@ -851,11 +851,11 @@ const handleClickOutside = (event: MouseEvent) => {
 
 // Allowed groups modal state
 const showAllowedGroupsModal = ref(false)
-const allowedGroupsUser = ref<User | null>(null)
+const allowedGroupsUser = ref<AdminUser | null>(null)
 
 // Balance (Deposit/Withdraw) modal state
 const showBalanceModal = ref(false)
-const balanceUser = ref<User | null>(null)
+const balanceUser = ref<AdminUser | null>(null)
 const balanceOperation = ref<'add' | 'subtract'>('add')
 
 // 计算剩余天数
@@ -1028,7 +1028,7 @@ const applyFilter = () => {
   loadUsers()
 }
 
-const handleEdit = (user: User) => {
+const handleEdit = (user: AdminUser) => {
   editingUser.value = user
   showEditModal.value = true
 }
@@ -1038,7 +1038,7 @@ const closeEditModal = () => {
   editingUser.value = null
 }
 
-const handleToggleStatus = async (user: User) => {
+const handleToggleStatus = async (user: AdminUser) => {
   const newStatus = user.status === 'active' ? 'disabled' : 'active'
   try {
     await adminAPI.users.toggleStatus(user.id, newStatus)
@@ -1052,7 +1052,7 @@ const handleToggleStatus = async (user: User) => {
   }
 }
 
-const handleViewApiKeys = (user: User) => {
+const handleViewApiKeys = (user: AdminUser) => {
   viewingUser.value = user
   showApiKeysModal.value = true
 }
@@ -1062,7 +1062,7 @@ const closeApiKeysModal = () => {
   viewingUser.value = null
 }
 
-const handleAllowedGroups = (user: User) => {
+const handleAllowedGroups = (user: AdminUser) => {
   allowedGroupsUser.value = user
   showAllowedGroupsModal.value = true
 }
@@ -1072,7 +1072,7 @@ const closeAllowedGroupsModal = () => {
   allowedGroupsUser.value = null
 }
 
-const handleDelete = (user: User) => {
+const handleDelete = (user: AdminUser) => {
   deletingUser.value = user
   showDeleteDialog.value = true
 }
@@ -1091,13 +1091,13 @@ const confirmDelete = async () => {
   }
 }
 
-const handleDeposit = (user: User) => {
+const handleDeposit = (user: AdminUser) => {
   balanceUser.value = user
   balanceOperation.value = 'add'
   showBalanceModal.value = true
 }
 
-const handleWithdraw = (user: User) => {
+const handleWithdraw = (user: AdminUser) => {
   balanceUser.value = user
   balanceOperation.value = 'subtract'
   showBalanceModal.value = true

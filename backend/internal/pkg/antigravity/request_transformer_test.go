@@ -5,6 +5,9 @@ import (
 	"testing"
 )
 
+// validTestSignature is a signature with at least MinValidSignatureLen (50) characters
+const validTestSignature = "sig_valid_test_signature_with_more_than_fifty_characters_for_testing_purposes"
+
 // TestBuildParts_ThinkingBlockWithoutSignature 测试thinking block无signature时的处理
 func TestBuildParts_ThinkingBlockWithoutSignature(t *testing.T) {
 	tests := []struct {
@@ -15,26 +18,26 @@ func TestBuildParts_ThinkingBlockWithoutSignature(t *testing.T) {
 		description       string
 	}{
 		{
-			name: "Claude model - downgrade thinking to text without signature",
+			name: "Claude model - drop thinking without signature",
 			content: `[
 				{"type": "text", "text": "Hello"},
 				{"type": "thinking", "thinking": "Let me think...", "signature": ""},
 				{"type": "text", "text": "World"}
 			]`,
 			allowDummyThought: false,
-			expectedParts:     3, // thinking 内容降级为普通 text part
-			description:       "Claude模型缺少signature时应将thinking降级为text，并在上层禁用thinking mode",
+			expectedParts:     2, // thinking 被直接丢弃（CLIProxyAPI 方式），只保留两个 text blocks
+			description:       "Claude模型缺少signature时应丢弃thinking block",
 		},
 		{
-			name: "Claude model - preserve thinking block with signature",
+			name: "Claude model - preserve thinking block with valid signature",
 			content: `[
 				{"type": "text", "text": "Hello"},
-				{"type": "thinking", "thinking": "Let me think...", "signature": "sig_real_123"},
+				{"type": "thinking", "thinking": "Let me think...", "signature": "` + validTestSignature + `"},
 				{"type": "text", "text": "World"}
 			]`,
 			allowDummyThought: false,
 			expectedParts:     3,
-			description:       "Claude模型应透传带 signature 的 thinking block（用于 Vertex 签名链路）",
+			description:       "Claude模型应透传带有效 signature 的 thinking block（用于 Vertex 签名链路）",
 		},
 		{
 			name: "Gemini model - use dummy signature",
@@ -52,7 +55,7 @@ func TestBuildParts_ThinkingBlockWithoutSignature(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			toolIDToName := make(map[string]string)
-			parts, _, err := buildParts(json.RawMessage(tt.content), toolIDToName, tt.allowDummyThought)
+			parts, _, err := buildParts(json.RawMessage(tt.content), toolIDToName, tt.allowDummyThought, "")
 
 			if err != nil {
 				t.Fatalf("buildParts() error = %v", err)
@@ -63,24 +66,25 @@ func TestBuildParts_ThinkingBlockWithoutSignature(t *testing.T) {
 			}
 
 			switch tt.name {
-			case "Claude model - preserve thinking block with signature":
+			case "Claude model - preserve thinking block with valid signature":
 				if len(parts) != 3 {
 					t.Fatalf("expected 3 parts, got %d", len(parts))
 				}
-				if !parts[1].Thought || parts[1].ThoughtSignature != "sig_real_123" {
-					t.Fatalf("expected thought part with signature sig_real_123, got thought=%v signature=%q",
+				if !parts[1].Thought || parts[1].ThoughtSignature != validTestSignature {
+					t.Fatalf("expected thought part with valid signature, got thought=%v signature=%q",
 						parts[1].Thought, parts[1].ThoughtSignature)
 				}
-			case "Claude model - downgrade thinking to text without signature":
-				if len(parts) != 3 {
-					t.Fatalf("expected 3 parts, got %d", len(parts))
+			case "Claude model - drop thinking without signature":
+				// thinking block 被丢弃，只剩下两个 text blocks
+				if len(parts) != 2 {
+					t.Fatalf("expected 2 parts (thinking dropped), got %d", len(parts))
 				}
-				if parts[1].Thought {
-					t.Fatalf("expected downgraded text part, got thought=%v signature=%q",
-						parts[1].Thought, parts[1].ThoughtSignature)
+				// 验证剩余的是两个 text parts
+				if parts[0].Text != "Hello" {
+					t.Fatalf("expected first part text %q, got %q", "Hello", parts[0].Text)
 				}
-				if parts[1].Text != "Let me think..." {
-					t.Fatalf("expected downgraded text %q, got %q", "Let me think...", parts[1].Text)
+				if parts[1].Text != "World" {
+					t.Fatalf("expected second part text %q, got %q", "World", parts[1].Text)
 				}
 			case "Gemini model - use dummy signature":
 				if len(parts) != 3 {
@@ -96,13 +100,15 @@ func TestBuildParts_ThinkingBlockWithoutSignature(t *testing.T) {
 }
 
 func TestBuildParts_ToolUseSignatureHandling(t *testing.T) {
-	content := `[
-		{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "ls"}, "signature": "sig_tool_abc"}
-	]`
+	// 使用有效长度的 signature (>=50 characters)
+	validToolSignature := validTestSignature
 
-	t.Run("Gemini uses dummy tool_use signature", func(t *testing.T) {
+	t.Run("Gemini uses dummy tool_use signature when no valid signature", func(t *testing.T) {
+		content := `[
+			{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "ls"}, "signature": "short_sig"}
+		]`
 		toolIDToName := make(map[string]string)
-		parts, _, err := buildParts(json.RawMessage(content), toolIDToName, true)
+		parts, _, err := buildParts(json.RawMessage(content), toolIDToName, true, "")
 		if err != nil {
 			t.Fatalf("buildParts() error = %v", err)
 		}
@@ -115,8 +121,11 @@ func TestBuildParts_ToolUseSignatureHandling(t *testing.T) {
 	})
 
 	t.Run("Claude model - preserve valid signature for tool_use", func(t *testing.T) {
+		content := `[
+			{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "ls"}, "signature": "` + validToolSignature + `"}
+		]`
 		toolIDToName := make(map[string]string)
-		parts, _, err := buildParts(json.RawMessage(content), toolIDToName, false)
+		parts, _, err := buildParts(json.RawMessage(content), toolIDToName, false, "")
 		if err != nil {
 			t.Fatalf("buildParts() error = %v", err)
 		}
@@ -124,8 +133,26 @@ func TestBuildParts_ToolUseSignatureHandling(t *testing.T) {
 			t.Fatalf("expected 1 functionCall part, got %+v", parts)
 		}
 		// Claude 模型应透传有效的 signature（Vertex/Google 需要完整签名链路）
-		if parts[0].ThoughtSignature != "sig_tool_abc" {
-			t.Fatalf("expected preserved tool signature %q, got %q", "sig_tool_abc", parts[0].ThoughtSignature)
+		if parts[0].ThoughtSignature != validToolSignature {
+			t.Fatalf("expected preserved tool signature %q, got %q", validToolSignature, parts[0].ThoughtSignature)
+		}
+	})
+
+	t.Run("Claude model - uses dummy signature when tool_use has invalid signature", func(t *testing.T) {
+		content := `[
+			{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "ls"}, "signature": "too_short"}
+		]`
+		toolIDToName := make(map[string]string)
+		parts, _, err := buildParts(json.RawMessage(content), toolIDToName, false, "")
+		if err != nil {
+			t.Fatalf("buildParts() error = %v", err)
+		}
+		if len(parts) != 1 || parts[0].FunctionCall == nil {
+			t.Fatalf("expected 1 functionCall part, got %+v", parts)
+		}
+		// 无效 signature 时使用 dummy signature
+		if parts[0].ThoughtSignature != dummyThoughtSignature {
+			t.Fatalf("expected dummy signature %q, got %q", dummyThoughtSignature, parts[0].ThoughtSignature)
 		}
 	})
 }

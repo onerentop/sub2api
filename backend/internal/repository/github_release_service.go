@@ -98,18 +98,22 @@ func (c *githubReleaseClient) DownloadFile(ctx context.Context, url, dest string
 	if err != nil {
 		return err
 	}
-	defer func() { _ = out.Close() }()
 
 	// SECURITY: Use LimitReader to enforce max download size even if Content-Length is missing/wrong
 	limited := io.LimitReader(resp.Body, maxSize+1)
 	written, err := io.Copy(out, limited)
+
+	// Close file before potential removal (required on Windows)
+	_ = out.Close()
+
 	if err != nil {
+		_ = os.Remove(dest) // Clean up partial file on error
 		return err
 	}
 
 	// Check if we hit the limit (downloaded more than maxSize)
 	if written > maxSize {
-		_ = os.Remove(dest) // Clean up partial file (best-effort)
+		_ = os.Remove(dest) // Clean up oversized file
 		return fmt.Errorf("download exceeded maximum size of %d bytes", maxSize)
 	}
 

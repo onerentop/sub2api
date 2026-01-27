@@ -32,9 +32,8 @@ const (
 		"https://www.googleapis.com/auth/cclog " +
 		"https://www.googleapis.com/auth/experimentsandconfigs"
 
-	// User-Agent（与 CLIProxyAPI/Antigravity CLI 保持一致）
-	// 格式：antigravity/{version} {os}/{arch}
-	UserAgent = "antigravity/1.104.0 linux/amd64"
+	// User-Agent（与 Antigravity-Manager 保持一致）
+	UserAgent = "antigravity/1.11.9 windows/amd64"
 
 	// Session 过期时间
 	SessionTTL = 30 * time.Minute
@@ -46,6 +45,7 @@ const (
 	URLAvailabilityTTL = 5 * time.Minute
 )
 
+// BaseURLs 定义 Antigravity API 端点（与 Antigravity-Manager 保持一致）
 // BaseURLs 定义 Antigravity API 端点，按优先级排序
 // 参考 CLIProxyAPI: sandbox-daily → daily → prod（sandbox 限流更宽松，优先使用）
 var BaseURLs = []string{
@@ -57,11 +57,12 @@ var BaseURLs = []string{
 // BaseURL 默认 URL（保持向后兼容，使用 sandbox-daily）
 var BaseURL = BaseURLs[0]
 
-// URLAvailability 管理 URL 可用性状态（带 TTL 自动恢复）
+// URLAvailability 管理 URL 可用性状态（带 TTL 自动恢复和动态优先级）
 type URLAvailability struct {
 	mu          sync.RWMutex
 	unavailable map[string]time.Time // URL -> 恢复时间
 	ttl         time.Duration
+	lastSuccess string // 最近成功请求的 URL，优先使用
 }
 
 // DefaultURLAvailability 全局 URL 可用性管理器
@@ -82,6 +83,15 @@ func (u *URLAvailability) MarkUnavailable(url string) {
 	u.unavailable[url] = time.Now().Add(u.ttl)
 }
 
+// MarkSuccess 标记 URL 请求成功，将其设为优先使用
+func (u *URLAvailability) MarkSuccess(url string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.lastSuccess = url
+	// 成功后清除该 URL 的不可用标记
+	delete(u.unavailable, url)
+}
+
 // IsAvailable 检查 URL 是否可用
 func (u *URLAvailability) IsAvailable(url string) bool {
 	u.mu.RLock()
@@ -93,13 +103,35 @@ func (u *URLAvailability) IsAvailable(url string) bool {
 	return time.Now().After(expiry)
 }
 
-// GetAvailableURLs 返回可用的 URL 列表（保持优先级顺序）
-// 注意：参考 CLIProxyAPI，每个请求都独立尝试所有 URL，不再过滤不可用的 URL
-// 这样可以避免所有 URL 被标记为不可用后无法恢复的问题
+// GetAvailableURLs 返回可用的 URL 列表
+// 最近成功的 URL 优先，其他按默认顺序
 func (u *URLAvailability) GetAvailableURLs() []string {
-	// 直接返回所有 URL，不进行可用性过滤
-	// CLIProxyAPI 的做法是每个请求都独立尝试所有 URL
-	return BaseURLs
+	u.mu.RLock()
+	defer u.mu.RUnlock()
+
+	now := time.Now()
+	result := make([]string, 0, len(BaseURLs))
+
+	// 如果有最近成功的 URL 且可用，放在最前面
+	if u.lastSuccess != "" {
+		expiry, exists := u.unavailable[u.lastSuccess]
+		if !exists || now.After(expiry) {
+			result = append(result, u.lastSuccess)
+		}
+	}
+
+	// 添加其他可用的 URL（按默认顺序）
+	for _, url := range BaseURLs {
+		// 跳过已添加的 lastSuccess
+		if url == u.lastSuccess {
+			continue
+		}
+		expiry, exists := u.unavailable[url]
+		if !exists || now.After(expiry) {
+			result = append(result, url)
+		}
+	}
+	return result
 }
 
 // OAuthSession 保存 OAuth 授权流程的临时状态
@@ -283,23 +315,11 @@ func BuildAuthorizationURL(state, codeChallenge string) string {
 	return fmt.Sprintf("%s?%s", AuthorizeURL, params.Encode())
 }
 
-// GenerateMockProjectID 生成随机 project_id（当 API 不返回时使用）
-// 格式：{形容词}-{名词}-{5位随机字符}
+// GenerateMockProjectID 生成模拟的 project_id（用于 OAuth 获取 project_id 失败时的兜底）
 func GenerateMockProjectID() string {
-	adjectives := []string{"useful", "bright", "swift", "calm", "bold"}
-	nouns := []string{"fuze", "wave", "spark", "flow", "core"}
-
-	randBytes, _ := GenerateRandomBytes(7)
-
-	adj := adjectives[int(randBytes[0])%len(adjectives)]
-	noun := nouns[int(randBytes[1])%len(nouns)]
-
-	// 生成 5 位随机字符（a-z0-9）
-	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
-	suffix := make([]byte, 5)
-	for i := 0; i < 5; i++ {
-		suffix[i] = charset[int(randBytes[i+2])%len(charset)]
+	bytes, err := GenerateRandomBytes(16)
+	if err != nil {
+		return "mock-project-" + fmt.Sprintf("%d", time.Now().UnixNano())
 	}
-
-	return fmt.Sprintf("%s-%s-%s", adj, noun, string(suffix))
+	return "mock-project-" + hex.EncodeToString(bytes)
 }

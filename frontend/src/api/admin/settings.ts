@@ -12,6 +12,7 @@ export interface SystemSettings {
   // Registration settings
   registration_enabled: boolean
   email_verify_enabled: boolean
+  promo_code_enabled: boolean
   email_domain_whitelist: string[]
   // Default settings
   default_balance: number
@@ -24,6 +25,7 @@ export interface SystemSettings {
   contact_info: string
   doc_url: string
   home_content: string
+  hide_ccs_import_button: boolean
   // SMTP settings
   smtp_host: string
   smtp_port: number
@@ -76,6 +78,7 @@ export interface SystemSettings {
 export interface UpdateSettingsRequest {
   registration_enabled?: boolean
   email_verify_enabled?: boolean
+  promo_code_enabled?: boolean
   email_domain_whitelist?: string[]
   default_balance?: number
   default_concurrency?: number
@@ -86,6 +89,7 @@ export interface UpdateSettingsRequest {
   contact_info?: string
   doc_url?: string
   home_content?: string
+  hide_ccs_import_button?: boolean
   smtp_host?: string
   smtp_port?: number
   smtp_username?: string

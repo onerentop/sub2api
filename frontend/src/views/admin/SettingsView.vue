@@ -335,6 +335,21 @@
                 :hint="t('admin.settings.registration.emailDomainWhitelistHint')"
               />
             </div>
+
+            <!-- Promo Code -->
+            <div
+              class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">{{
+                  t('admin.settings.registration.promoCode')
+                }}</label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.registration.promoCodeHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.promo_code_enabled" />
+            </div>
           </div>
         </div>
 
@@ -949,6 +964,21 @@
                 {{ t('admin.settings.site.homeContentIframeWarning') }}
               </p>
             </div>
+
+            <!-- Hide CCS Import Button -->
+            <div
+              class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">{{
+                  t('admin.settings.site.hideCcsImportButton')
+                }}</label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.site.hideCcsImportButtonHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.hide_ccs_import_button" />
+            </div>
           </div>
         </div>
 
@@ -1229,6 +1259,7 @@ type SettingsForm = SystemSettings & {
 const form = reactive<SettingsForm>({
   registration_enabled: true,
   email_verify_enabled: false,
+  promo_code_enabled: true,
   email_domain_whitelist: [] as string[],
   default_balance: 0,
   default_concurrency: 1,
@@ -1239,6 +1270,7 @@ const form = reactive<SettingsForm>({
   contact_info: '',
   doc_url: '',
   home_content: '',
+  hide_ccs_import_button: false,
   smtp_host: '',
   smtp_port: 587,
   smtp_username: '',
@@ -1411,6 +1443,7 @@ async function saveSettings() {
     const payload: UpdateSettingsRequest = {
       registration_enabled: form.registration_enabled,
       email_verify_enabled: form.email_verify_enabled,
+      promo_code_enabled: form.promo_code_enabled,
       email_domain_whitelist: form.email_domain_whitelist,
       default_balance: form.default_balance,
       default_concurrency: form.default_concurrency,
@@ -1421,6 +1454,7 @@ async function saveSettings() {
       contact_info: form.contact_info,
       doc_url: form.doc_url,
       home_content: form.home_content,
+      hide_ccs_import_button: form.hide_ccs_import_button,
       smtp_host: form.smtp_host,
       smtp_port: form.smtp_port,
       smtp_username: form.smtp_username,

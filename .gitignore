@@ -112,6 +112,20 @@ deploy/config.yaml
 backend/.installed
 
 # ===================
+# 工具配置目录（不提交）
+# ===================
+.zcf/
+.spec-workflow/
+
+# ===================
+# NPM/PNPM 缓存（绝对不要提交）
+# ===================
+**/npm-cache/
+**/_cacache/
+**/AppData/
+%USERPROFILE%/
+
+# ===================
 # 其他
 # ===================
 tests

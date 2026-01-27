@@ -222,12 +222,13 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	if sessionHash != "" {
 		sessionKey = "gemini:" + sessionHash
 	}
+	_ = h.maxAccountSwitchesGemini // Reserved for future use
 	const maxCooldownWait = 60 * time.Second
 	failedAccountIDs := make(map[int64]struct{})
 	lastFailoverStatus := 0
 
 	for {
-		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, modelName, failedAccountIDs)
+		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, modelName, failedAccountIDs, "") // Gemini 不使用会话限制
 		if err != nil {
 			// Check for cooldown error - wait if within threshold
 			var cooldownErr *service.AllAccountsCoolingDownError
