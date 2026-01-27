@@ -1167,3 +1167,54 @@ export interface AnnouncementSortItem {
   id: number
   sort_order: number
 }
+
+// ==================== TOTP Types ====================
+
+export interface TotpStatus {
+  enabled: boolean
+  enabled_at: string | null
+  feature_enabled: boolean
+}
+
+export interface TotpSetupRequest {
+  email_code?: string
+  password?: string
+}
+
+export interface TotpSetupResponse {
+  secret: string
+  qr_code_url: string
+  setup_token: string
+}
+
+export interface TotpEnableRequest {
+  code: string
+  setup_token: string
+}
+
+export interface TotpEnableResponse {
+  success: boolean
+  enabled_at: string
+}
+
+export interface TotpDisableRequest {
+  email_code?: string
+  password?: string
+}
+
+export interface TotpVerificationMethod {
+  method: 'email' | 'password'
+}
+
+export interface TotpLoginResponse {
+  requires_2fa: boolean
+  temp_token?: string
+  user?: User & { run_mode?: 'standard' | 'simple' }
+  access_token?: string
+  token_type?: string
+}
+
+export interface TotpLogin2FARequest {
+  temp_token: string
+  totp_code: string
+}

@@ -13,6 +13,7 @@ export interface SystemSettings {
   registration_enabled: boolean
   email_verify_enabled: boolean
   promo_code_enabled: boolean
+  password_reset_enabled: boolean
   email_domain_whitelist: string[]
   // Default settings
   default_balance: number
@@ -44,6 +45,10 @@ export interface SystemSettings {
   linuxdo_connect_client_id: string
   linuxdo_connect_client_secret_configured: boolean
   linuxdo_connect_redirect_url: string
+
+  // TOTP 2FA settings
+  totp_enabled: boolean
+  totp_encryption_key_configured: boolean
 
   // Model fallback configuration
   enable_model_fallback: boolean
@@ -79,6 +84,7 @@ export interface UpdateSettingsRequest {
   registration_enabled?: boolean
   email_verify_enabled?: boolean
   promo_code_enabled?: boolean
+  password_reset_enabled?: boolean
   email_domain_whitelist?: string[]
   default_balance?: number
   default_concurrency?: number
@@ -104,6 +110,7 @@ export interface UpdateSettingsRequest {
   linuxdo_connect_client_id?: string
   linuxdo_connect_client_secret?: string
   linuxdo_connect_redirect_url?: string
+  totp_enabled?: boolean
   enable_model_fallback?: boolean
   fallback_model_anthropic?: string
   fallback_model_openai?: string
