@@ -74,6 +74,7 @@ export interface PublicSettings {
   registration_enabled: boolean
   email_verify_enabled: boolean
   promo_code_enabled: boolean
+  password_reset_enabled: boolean
   turnstile_enabled: boolean
   turnstile_site_key: string
   site_name: string
@@ -85,6 +86,7 @@ export interface PublicSettings {
   home_content: string
   hide_ccs_import_button: boolean
   linuxdo_oauth_enabled: boolean
+  totp_enabled: boolean
   version: string
 }
 
@@ -1209,6 +1211,7 @@ export interface TotpVerificationMethod {
 export interface TotpLoginResponse {
   requires_2fa: boolean
   temp_token?: string
+  user_email_masked?: string
   user?: User & { run_mode?: 'standard' | 'simple' }
   access_token?: string
   token_type?: string
