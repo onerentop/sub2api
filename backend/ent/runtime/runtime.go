@@ -919,6 +919,10 @@ func init() {
 	userDescTokenVersion := userFields[10].Descriptor()
 	// user.DefaultTokenVersion holds the default value on creation for the token_version field.
 	user.DefaultTokenVersion = userDescTokenVersion.Default.(int64)
+	// userDescTotpEnabled is the schema descriptor for totp_enabled field.
+	userDescTotpEnabled := userFields[12].Descriptor()
+	// user.DefaultTotpEnabled holds the default value on creation for the totp_enabled field.
+	user.DefaultTotpEnabled = userDescTotpEnabled.Default.(bool)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()
 	_ = userallowedgroupFields
 	// userallowedgroupDescCreatedAt is the schema descriptor for created_at field.

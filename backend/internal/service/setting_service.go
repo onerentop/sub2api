@@ -16,8 +16,7 @@ import (
 
 var (
 	ErrRegistrationDisabled = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")
-	ErrSettingNotFound       = infraerrors.NotFound("SETTING_NOT_FOUND", "setting not found")
-	ErrEmailDomainNotAllowed = infraerrors.BadRequest("EMAIL_DOMAIN_NOT_ALLOWED", "email domain not allowed for registration")
+	ErrSettingNotFound      = infraerrors.NotFound("SETTING_NOT_FOUND", "setting not found")
 )
 
 type SettingRepository interface {
@@ -62,7 +61,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyRegistrationEnabled,
 		SettingKeyEmailVerifyEnabled,
 		SettingKeyPromoCodeEnabled,
-		SettingKeyEmailDomainWhitelist,
+		SettingKeyPasswordResetEnabled,
+		SettingKeyTotpEnabled,
 		SettingKeyTurnstileEnabled,
 		SettingKeyTurnstileSiteKey,
 		SettingKeySiteName,
@@ -88,25 +88,27 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		linuxDoEnabled = s.cfg != nil && s.cfg.LinuxDo.Enabled
 	}
 
-	// 检查白名单是否启用（非空即启用）
-	whitelistEnabled := strings.TrimSpace(settings[SettingKeyEmailDomainWhitelist]) != ""
+	// Password reset requires email verification to be enabled
+	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
+	passwordResetEnabled := emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true"
 
 	return &PublicSettings{
-		RegistrationEnabled:         settings[SettingKeyRegistrationEnabled] == "true",
-		EmailVerifyEnabled:          settings[SettingKeyEmailVerifyEnabled] == "true",
-		PromoCodeEnabled:    settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
-		EmailDomainWhitelistEnabled: whitelistEnabled,
-		TurnstileEnabled:            settings[SettingKeyTurnstileEnabled] == "true",
-		TurnstileSiteKey:            settings[SettingKeyTurnstileSiteKey],
-		SiteName:            s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
-		SiteLogo:            settings[SettingKeySiteLogo],
-		SiteSubtitle:        s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
-		APIBaseURL:          settings[SettingKeyAPIBaseURL],
-		ContactInfo:         settings[SettingKeyContactInfo],
-		DocURL:              settings[SettingKeyDocURL],
-		HomeContent:         settings[SettingKeyHomeContent],
-		HideCcsImportButton: settings[SettingKeyHideCcsImportButton] == "true",
-		LinuxDoOAuthEnabled: linuxDoEnabled,
+		RegistrationEnabled:  settings[SettingKeyRegistrationEnabled] == "true",
+		EmailVerifyEnabled:   emailVerifyEnabled,
+		PromoCodeEnabled:     settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
+		PasswordResetEnabled: passwordResetEnabled,
+		TotpEnabled:          settings[SettingKeyTotpEnabled] == "true",
+		TurnstileEnabled:     settings[SettingKeyTurnstileEnabled] == "true",
+		TurnstileSiteKey:     settings[SettingKeyTurnstileSiteKey],
+		SiteName:             s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
+		SiteLogo:             settings[SettingKeySiteLogo],
+		SiteSubtitle:         s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
+		APIBaseURL:           settings[SettingKeyAPIBaseURL],
+		ContactInfo:          settings[SettingKeyContactInfo],
+		DocURL:               settings[SettingKeyDocURL],
+		HomeContent:          settings[SettingKeyHomeContent],
+		HideCcsImportButton:  settings[SettingKeyHideCcsImportButton] == "true",
+		LinuxDoOAuthEnabled:  linuxDoEnabled,
 	}, nil
 }
 
@@ -131,37 +133,41 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 
 	// Return a struct that matches the frontend's expected format
 	return &struct {
-		RegistrationEnabled bool   `json:"registration_enabled"`
-		EmailVerifyEnabled  bool   `json:"email_verify_enabled"`
-		PromoCodeEnabled    bool   `json:"promo_code_enabled"`
-		TurnstileEnabled    bool   `json:"turnstile_enabled"`
-		TurnstileSiteKey    string `json:"turnstile_site_key,omitempty"`
-		SiteName            string `json:"site_name"`
-		SiteLogo            string `json:"site_logo,omitempty"`
-		SiteSubtitle        string `json:"site_subtitle,omitempty"`
-		APIBaseURL          string `json:"api_base_url,omitempty"`
-		ContactInfo         string `json:"contact_info,omitempty"`
-		DocURL              string `json:"doc_url,omitempty"`
-		HomeContent         string `json:"home_content,omitempty"`
-		HideCcsImportButton bool   `json:"hide_ccs_import_button"`
-		LinuxDoOAuthEnabled bool   `json:"linuxdo_oauth_enabled"`
-		Version             string `json:"version,omitempty"`
+		RegistrationEnabled  bool   `json:"registration_enabled"`
+		EmailVerifyEnabled   bool   `json:"email_verify_enabled"`
+		PromoCodeEnabled     bool   `json:"promo_code_enabled"`
+		PasswordResetEnabled bool   `json:"password_reset_enabled"`
+		TotpEnabled          bool   `json:"totp_enabled"`
+		TurnstileEnabled     bool   `json:"turnstile_enabled"`
+		TurnstileSiteKey     string `json:"turnstile_site_key,omitempty"`
+		SiteName             string `json:"site_name"`
+		SiteLogo             string `json:"site_logo,omitempty"`
+		SiteSubtitle         string `json:"site_subtitle,omitempty"`
+		APIBaseURL           string `json:"api_base_url,omitempty"`
+		ContactInfo          string `json:"contact_info,omitempty"`
+		DocURL               string `json:"doc_url,omitempty"`
+		HomeContent          string `json:"home_content,omitempty"`
+		HideCcsImportButton  bool   `json:"hide_ccs_import_button"`
+		LinuxDoOAuthEnabled  bool   `json:"linuxdo_oauth_enabled"`
+		Version              string `json:"version,omitempty"`
 	}{
-		RegistrationEnabled: settings.RegistrationEnabled,
-		EmailVerifyEnabled:  settings.EmailVerifyEnabled,
-		PromoCodeEnabled:    settings.PromoCodeEnabled,
-		TurnstileEnabled:    settings.TurnstileEnabled,
-		TurnstileSiteKey:    settings.TurnstileSiteKey,
-		SiteName:            settings.SiteName,
-		SiteLogo:            settings.SiteLogo,
-		SiteSubtitle:        settings.SiteSubtitle,
-		APIBaseURL:          settings.APIBaseURL,
-		ContactInfo:         settings.ContactInfo,
-		DocURL:              settings.DocURL,
-		HomeContent:         settings.HomeContent,
-		HideCcsImportButton: settings.HideCcsImportButton,
-		LinuxDoOAuthEnabled: settings.LinuxDoOAuthEnabled,
-		Version:             s.version,
+		RegistrationEnabled:  settings.RegistrationEnabled,
+		EmailVerifyEnabled:   settings.EmailVerifyEnabled,
+		PromoCodeEnabled:     settings.PromoCodeEnabled,
+		PasswordResetEnabled: settings.PasswordResetEnabled,
+		TotpEnabled:          settings.TotpEnabled,
+		TurnstileEnabled:     settings.TurnstileEnabled,
+		TurnstileSiteKey:     settings.TurnstileSiteKey,
+		SiteName:             settings.SiteName,
+		SiteLogo:             settings.SiteLogo,
+		SiteSubtitle:         settings.SiteSubtitle,
+		APIBaseURL:           settings.APIBaseURL,
+		ContactInfo:          settings.ContactInfo,
+		DocURL:               settings.DocURL,
+		HomeContent:          settings.HomeContent,
+		HideCcsImportButton:  settings.HideCcsImportButton,
+		LinuxDoOAuthEnabled:  settings.LinuxDoOAuthEnabled,
+		Version:              s.version,
 	}, nil
 }
 
@@ -173,8 +179,8 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyRegistrationEnabled] = strconv.FormatBool(settings.RegistrationEnabled)
 	updates[SettingKeyEmailVerifyEnabled] = strconv.FormatBool(settings.EmailVerifyEnabled)
 	updates[SettingKeyPromoCodeEnabled] = strconv.FormatBool(settings.PromoCodeEnabled)
-	// 邮箱域名白名单（逗号分隔存储）
-	updates[SettingKeyEmailDomainWhitelist] = strings.Join(settings.EmailDomainWhitelist, ",")
+	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
+	updates[SettingKeyTotpEnabled] = strconv.FormatBool(settings.TotpEnabled)
 
 	// 邮件服务设置（只有非空才更新密码）
 	updates[SettingKeySMTPHost] = settings.SMTPHost
@@ -235,20 +241,6 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		updates[SettingKeyOpsMetricsIntervalSeconds] = strconv.Itoa(settings.OpsMetricsIntervalSeconds)
 	}
 
-	// Payment settings (YiPay)
-	updates[SettingKeyPaymentEnabled] = strconv.FormatBool(settings.PaymentEnabled)
-	updates[SettingKeyPaymentYiPayAPIURL] = settings.PaymentYiPayAPIURL
-	updates[SettingKeyPaymentYiPayPID] = settings.PaymentYiPayPID
-	if settings.PaymentYiPayKey != "" {
-		updates[SettingKeyPaymentYiPayKey] = settings.PaymentYiPayKey
-	}
-	updates[SettingKeyPaymentYiPayNotifyURL] = settings.PaymentYiPayNotifyURL
-	updates[SettingKeyPaymentYiPayReturnURL] = settings.PaymentYiPayReturnURL
-	updates[SettingKeyPaymentMinAmount] = strconv.FormatFloat(settings.PaymentMinAmount, 'f', 2, 64)
-	updates[SettingKeyPaymentMaxAmount] = strconv.FormatFloat(settings.PaymentMaxAmount, 'f', 2, 64)
-	updates[SettingKeyPaymentAuditThreshold] = strconv.FormatFloat(settings.PaymentAuditThreshold, 'f', 2, 64)
-	updates[SettingKeyPaymentCNYToValueRate] = strconv.FormatFloat(settings.PaymentCNYToValueRate, 'f', 8, 64)
-
 	err := s.settingRepo.SetMultiple(ctx, updates)
 	if err == nil && s.onUpdate != nil {
 		s.onUpdate() // Invalidate cache after settings update
@@ -284,52 +276,33 @@ func (s *SettingService) IsPromoCodeEnabled(ctx context.Context) bool {
 	return value != "false"
 }
 
-// GetEmailDomainWhitelist 获取邮箱域名白名单
-func (s *SettingService) GetEmailDomainWhitelist(ctx context.Context) []string {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyEmailDomainWhitelist)
-	if err != nil || value == "" {
-		return nil
+// IsPasswordResetEnabled 检查是否启用密码重置功能
+// 要求：必须同时开启邮件验证
+func (s *SettingService) IsPasswordResetEnabled(ctx context.Context) bool {
+	// Password reset requires email verification to be enabled
+	if !s.IsEmailVerifyEnabled(ctx) {
+		return false
 	}
-	domains := strings.Split(value, ",")
-	result := make([]string, 0, len(domains))
-	for _, d := range domains {
-		d = strings.TrimSpace(strings.ToLower(d))
-		if d != "" {
-			result = append(result, d)
-		}
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyPasswordResetEnabled)
+	if err != nil {
+		return false // 默认关闭
 	}
-	return result
+	return value == "true"
 }
 
-// ValidateEmailDomain 验证邮箱域名是否在白名单中
-func (s *SettingService) ValidateEmailDomain(ctx context.Context, email string) error {
-	whitelist := s.GetEmailDomainWhitelist(ctx)
-	// 空白名单 = 允许所有邮箱
-	if len(whitelist) == 0 {
-		return nil
+// IsTotpEnabled 检查是否启用 TOTP 双因素认证功能
+func (s *SettingService) IsTotpEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyTotpEnabled)
+	if err != nil {
+		return false // 默认关闭
 	}
-
-	// 提取邮箱域名
-	parts := strings.Split(email, "@")
-	if len(parts) != 2 {
-		return s.emailDomainNotAllowedError(whitelist)
-	}
-	domain := strings.TrimSpace(strings.ToLower(parts[1]))
-
-	// 检查是否在白名单中
-	for _, allowed := range whitelist {
-		if domain == allowed {
-			return nil
-		}
-	}
-	return s.emailDomainNotAllowedError(whitelist)
+	return value == "true"
 }
 
-// emailDomainNotAllowedError 生成邮箱域名不允许的错误（包含允许的域名列表）
-func (s *SettingService) emailDomainNotAllowedError(whitelist []string) error {
-	allowedDomains := strings.Join(whitelist, ", ")
-	return infraerrors.BadRequest("EMAIL_DOMAIN_NOT_ALLOWED",
-		"该邮箱域名不允许注册。允许的邮箱后缀: "+allowedDomains)
+// IsTotpEncryptionKeyConfigured 检查 TOTP 加密密钥是否已手动配置
+// 只有手动配置了密钥才允许在管理后台启用 TOTP 功能
+func (s *SettingService) IsTotpEncryptionKeyConfigured() bool {
+	return s.cfg.Totp.EncryptionKeyConfigured
 }
 
 // GetSiteName 获取网站名称
@@ -410,22 +383,13 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 // parseSettings 解析设置到结构体
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
-	// 解析邮箱域名白名单
-	var emailDomainWhitelist []string
-	if raw := strings.TrimSpace(settings[SettingKeyEmailDomainWhitelist]); raw != "" {
-		for _, d := range strings.Split(raw, ",") {
-			d = strings.TrimSpace(strings.ToLower(d))
-			if d != "" {
-				emailDomainWhitelist = append(emailDomainWhitelist, d)
-			}
-		}
-	}
-
+	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
 	result := &SystemSettings{
 		RegistrationEnabled:          settings[SettingKeyRegistrationEnabled] == "true",
-		EmailVerifyEnabled:           settings[SettingKeyEmailVerifyEnabled] == "true",
+		EmailVerifyEnabled:           emailVerifyEnabled,
 		PromoCodeEnabled:             settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
-		EmailDomainWhitelist:         emailDomainWhitelist,
+		PasswordResetEnabled:         emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
+		TotpEnabled:                  settings[SettingKeyTotpEnabled] == "true",
 		SMTPHost:                     settings[SettingKeySMTPHost],
 		SMTPUsername:                 settings[SettingKeySMTPUsername],
 		SMTPFrom:                     settings[SettingKeySMTPFrom],
@@ -501,6 +465,19 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	result.LinuxDoConnectClientSecretConfigured = result.LinuxDoConnectClientSecret != ""
 
+	// Email domain whitelist (逗号分隔的字符串转为切片)
+	if v := settings[SettingKeyEmailDomainWhitelist]; v != "" {
+		parts := strings.Split(v, ",")
+		whitelist := make([]string, 0, len(parts))
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				whitelist = append(whitelist, p)
+			}
+		}
+		result.EmailDomainWhitelist = whitelist
+	}
+
 	// Model fallback settings
 	result.EnableModelFallback = settings[SettingKeyEnableModelFallback] == "true"
 	result.FallbackModelAnthropic = s.getStringOrDefault(settings, SettingKeyFallbackModelAnthropic, "claude-3-5-sonnet-20241022")
@@ -533,80 +510,25 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		}
 	}
 
-	// Payment settings (YiPay)
-	// Priority: DB settings > config.yaml defaults
-	paymentBase := config.PaymentConfig{}
-	if s.cfg != nil {
-		paymentBase = s.cfg.Payment
-	}
-
-	if raw, ok := settings[SettingKeyPaymentEnabled]; ok && raw != "" {
-		result.PaymentEnabled = raw == "true"
-	} else {
-		result.PaymentEnabled = paymentBase.Enabled
-	}
-
-	if v, ok := settings[SettingKeyPaymentYiPayAPIURL]; ok && strings.TrimSpace(v) != "" {
-		result.PaymentYiPayAPIURL = strings.TrimSpace(v)
-	} else {
-		result.PaymentYiPayAPIURL = paymentBase.YiPay.APIURL
-	}
-
-	if v, ok := settings[SettingKeyPaymentYiPayPID]; ok && strings.TrimSpace(v) != "" {
-		result.PaymentYiPayPID = strings.TrimSpace(v)
-	} else {
-		result.PaymentYiPayPID = paymentBase.YiPay.PID
-	}
-
-	result.PaymentYiPayKey = strings.TrimSpace(settings[SettingKeyPaymentYiPayKey])
-	if result.PaymentYiPayKey == "" {
-		result.PaymentYiPayKey = strings.TrimSpace(paymentBase.YiPay.Key)
-	}
-	result.PaymentYiPayKeyConfigured = result.PaymentYiPayKey != ""
-
-	if v, ok := settings[SettingKeyPaymentYiPayNotifyURL]; ok && strings.TrimSpace(v) != "" {
-		result.PaymentYiPayNotifyURL = strings.TrimSpace(v)
-	} else {
-		result.PaymentYiPayNotifyURL = paymentBase.YiPay.NotifyURL
-	}
-
-	if v, ok := settings[SettingKeyPaymentYiPayReturnURL]; ok && strings.TrimSpace(v) != "" {
-		result.PaymentYiPayReturnURL = strings.TrimSpace(v)
-	} else {
-		result.PaymentYiPayReturnURL = paymentBase.YiPay.ReturnURL
-	}
-
-	// Payment amount settings (float64)
-	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentMinAmount], 64); err == nil && v > 0 {
+	// Payment settings
+	result.PaymentEnabled = settings[SettingKeyPaymentEnabled] == "true"
+	result.PaymentYiPayAPIURL = settings[SettingKeyPaymentYiPayAPIURL]
+	result.PaymentYiPayPID = settings[SettingKeyPaymentYiPayPID]
+	result.PaymentYiPayKey = settings[SettingKeyPaymentYiPayKey]
+	result.PaymentYiPayKeyConfigured = settings[SettingKeyPaymentYiPayKey] != ""
+	result.PaymentYiPayNotifyURL = settings[SettingKeyPaymentYiPayNotifyURL]
+	result.PaymentYiPayReturnURL = settings[SettingKeyPaymentYiPayReturnURL]
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentMinAmount], 64); err == nil {
 		result.PaymentMinAmount = v
-	} else if paymentBase.MinAmount > 0 {
-		result.PaymentMinAmount = paymentBase.MinAmount
-	} else {
-		result.PaymentMinAmount = 1.0 // default min
 	}
-
-	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentMaxAmount], 64); err == nil && v > 0 {
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentMaxAmount], 64); err == nil {
 		result.PaymentMaxAmount = v
-	} else if paymentBase.MaxAmount > 0 {
-		result.PaymentMaxAmount = paymentBase.MaxAmount
-	} else {
-		result.PaymentMaxAmount = 10000.0 // default max
 	}
-
-	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentAuditThreshold], 64); err == nil && v > 0 {
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentAuditThreshold], 64); err == nil {
 		result.PaymentAuditThreshold = v
-	} else if paymentBase.AuditThreshold > 0 {
-		result.PaymentAuditThreshold = paymentBase.AuditThreshold
-	} else {
-		result.PaymentAuditThreshold = 500.0 // default threshold
 	}
-
-	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentCNYToValueRate], 64); err == nil && v > 0 {
+	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentCNYToValueRate], 64); err == nil {
 		result.PaymentCNYToValueRate = v
-	} else if paymentBase.CNYToValueRate > 0 {
-		result.PaymentCNYToValueRate = paymentBase.CNYToValueRate
-	} else {
-		result.PaymentCNYToValueRate = 0.14 // default rate (~1 CNY = 0.14 USD)
 	}
 
 	return result
@@ -938,16 +860,8 @@ func (s *SettingService) SetStreamTimeoutSettings(ctx context.Context, settings 
 	return s.settingRepo.Set(ctx, SettingKeyStreamTimeoutSettings, string(data))
 }
 
-// GetPaymentConfig 获取支付配置（优先数据库设置，回退到 config.yaml）
+// GetPaymentConfig 获取支付配置（优先从数据库，回退到配置文件）
 func (s *SettingService) GetPaymentConfig(ctx context.Context) (*config.PaymentConfig, error) {
-	if s == nil || s.cfg == nil {
-		return nil, infraerrors.ServiceUnavailable("CONFIG_NOT_READY", "config not loaded")
-	}
-
-	// Start with config.yaml defaults
-	effective := s.cfg.Payment
-
-	// Fetch DB settings
 	keys := []string{
 		SettingKeyPaymentEnabled,
 		SettingKeyPaymentYiPayAPIURL,
@@ -960,43 +874,48 @@ func (s *SettingService) GetPaymentConfig(ctx context.Context) (*config.PaymentC
 		SettingKeyPaymentAuditThreshold,
 		SettingKeyPaymentCNYToValueRate,
 	}
+
 	settings, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
 		return nil, fmt.Errorf("get payment settings: %w", err)
 	}
 
-	// Override with DB settings if present
-	if raw, ok := settings[SettingKeyPaymentEnabled]; ok && raw != "" {
-		effective.Enabled = raw == "true"
-	}
-	if v, ok := settings[SettingKeyPaymentYiPayAPIURL]; ok && strings.TrimSpace(v) != "" {
-		effective.YiPay.APIURL = strings.TrimSpace(v)
-	}
-	if v, ok := settings[SettingKeyPaymentYiPayPID]; ok && strings.TrimSpace(v) != "" {
-		effective.YiPay.PID = strings.TrimSpace(v)
-	}
-	if v, ok := settings[SettingKeyPaymentYiPayKey]; ok && strings.TrimSpace(v) != "" {
-		effective.YiPay.Key = strings.TrimSpace(v)
-	}
-	if v, ok := settings[SettingKeyPaymentYiPayNotifyURL]; ok && strings.TrimSpace(v) != "" {
-		effective.YiPay.NotifyURL = strings.TrimSpace(v)
-	}
-	if v, ok := settings[SettingKeyPaymentYiPayReturnURL]; ok && strings.TrimSpace(v) != "" {
-		effective.YiPay.ReturnURL = strings.TrimSpace(v)
+	// 如果没有设置，返回 nil 让调用者回退到静态配置
+	if len(settings) == 0 {
+		return nil, nil
 	}
 
-	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentMinAmount], 64); err == nil && v > 0 {
-		effective.MinAmount = v
-	}
-	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentMaxAmount], 64); err == nil && v > 0 {
-		effective.MaxAmount = v
-	}
-	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentAuditThreshold], 64); err == nil && v > 0 {
-		effective.AuditThreshold = v
-	}
-	if v, err := strconv.ParseFloat(settings[SettingKeyPaymentCNYToValueRate], 64); err == nil && v > 0 {
-		effective.CNYToValueRate = v
+	cfg := &config.PaymentConfig{
+		Enabled: settings[SettingKeyPaymentEnabled] == "true",
+		YiPay: config.YiPayConfig{
+			APIURL:    settings[SettingKeyPaymentYiPayAPIURL],
+			PID:       settings[SettingKeyPaymentYiPayPID],
+			Key:       settings[SettingKeyPaymentYiPayKey],
+			NotifyURL: settings[SettingKeyPaymentYiPayNotifyURL],
+			ReturnURL: settings[SettingKeyPaymentYiPayReturnURL],
+		},
 	}
 
-	return &effective, nil
+	if v, ok := settings[SettingKeyPaymentMinAmount]; ok && v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			cfg.MinAmount = f
+		}
+	}
+	if v, ok := settings[SettingKeyPaymentMaxAmount]; ok && v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			cfg.MaxAmount = f
+		}
+	}
+	if v, ok := settings[SettingKeyPaymentAuditThreshold]; ok && v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			cfg.AuditThreshold = f
+		}
+	}
+	if v, ok := settings[SettingKeyPaymentCNYToValueRate]; ok && v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			cfg.CNYToValueRate = f
+		}
+	}
+
+	return cfg, nil
 }

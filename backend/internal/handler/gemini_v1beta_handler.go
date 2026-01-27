@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -245,6 +246,14 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	const maxCooldownWait = 60 * time.Second
 	failedAccountIDs := make(map[int64]struct{})
 	lastFailoverStatus := 0
+
+	// 粘性会话相关变量
+	var sessionBoundAccountID int64
+	if sessionKey != "" {
+		sessionBoundAccountID, _ = h.gatewayService.GetCachedSessionAccountID(c.Request.Context(), apiKey.GroupID, sessionKey)
+	}
+	isCLI := isGeminiCLIRequest(c, body)
+	cleanedForUnknownBinding := false
 
 	for {
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, modelName, failedAccountIDs, "") // Gemini 不使用会话限制

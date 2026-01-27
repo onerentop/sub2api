@@ -309,4 +309,5 @@ var ProviderSet = wire.NewSet(
 	ProvideYiPayService,
 	ProvidePaymentService,
 	NewSocialOAuthService,
+	NewTotpService,
 )

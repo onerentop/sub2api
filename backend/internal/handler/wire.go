@@ -82,6 +82,7 @@ func ProvideHandlers(
 	publicAntigravityOAuthHandler *PublicAntigravityOAuthHandler,
 	socialOAuthHandler *SocialOAuthHandler,
 	paymentHandler *PaymentHandler,
+	totpHandler *TotpHandler,
 ) *Handlers {
 	return &Handlers{
 		Auth:                   authHandler,
@@ -98,6 +99,7 @@ func ProvideHandlers(
 		PublicAntigravityOAuth: publicAntigravityOAuthHandler,
 		SocialOAuth:            socialOAuthHandler,
 		Payment:                paymentHandler,
+		Totp:                   totpHandler,
 	}
 }
 

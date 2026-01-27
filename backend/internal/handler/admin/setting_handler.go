@@ -101,9 +101,10 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 // UpdateSettingsRequest 更新设置请求
 type UpdateSettingsRequest struct {
 	// 注册设置
-	RegistrationEnabled bool `json:"registration_enabled"`
-	EmailVerifyEnabled  bool `json:"email_verify_enabled"`
-	PromoCodeEnabled    bool `json:"promo_code_enabled"`
+	RegistrationEnabled  bool     `json:"registration_enabled"`
+	EmailVerifyEnabled   bool     `json:"email_verify_enabled"`
+	PromoCodeEnabled     bool     `json:"promo_code_enabled"`
+	TotpEnabled          bool     `json:"totp_enabled"` // TOTP 双因素认证
 	EmailDomainWhitelist []string `json:"email_domain_whitelist"`
 
 	// 邮件服务设置

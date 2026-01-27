@@ -25,6 +25,11 @@ type User struct {
 	BalanceDailyQuota  *float64 `json:"balance_daily_quota,omitempty"`
 	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
 
+	// TOTP 双因素认证字段
+	TotpSecretEncrypted *string    `json:"-"` // Never expose TOTP secret to JSON
+	TotpEnabled         bool       `json:"totp_enabled"`
+	TotpEnabledAt       *time.Time `json:"totp_enabled_at,omitempty"`
+
 	APIKeys       []APIKey           `json:"api_keys,omitempty"`
 	Subscriptions []UserSubscription `json:"subscriptions,omitempty"`
 }

@@ -391,20 +391,23 @@ func userEntityToService(u *dbent.User) *service.User {
 		return nil
 	}
 	return &service.User{
-		ID:                 u.ID,
-		Email:              u.Email,
-		Username:           u.Username,
-		Notes:              u.Notes,
-		PasswordHash:       u.PasswordHash,
-		Role:               u.Role,
-		Balance:            u.Balance,
-		Concurrency:        u.Concurrency,
-		Status:             u.Status,
-		BalanceDailyQuota:  u.BalanceDailyQuota,
-		BalanceWeeklyQuota: u.BalanceWeeklyQuota,
-		TokenVersion:       u.TokenVersion,
-		CreatedAt:          u.CreatedAt,
-		UpdatedAt:          u.UpdatedAt,
+		ID:                  u.ID,
+		Email:               u.Email,
+		Username:            u.Username,
+		Notes:               u.Notes,
+		PasswordHash:        u.PasswordHash,
+		Role:                u.Role,
+		Balance:             u.Balance,
+		Concurrency:         u.Concurrency,
+		Status:              u.Status,
+		BalanceDailyQuota:   u.BalanceDailyQuota,
+		BalanceWeeklyQuota:  u.BalanceWeeklyQuota,
+		TokenVersion:        u.TokenVersion,
+		TotpSecretEncrypted: u.TotpSecretEncrypted,
+		TotpEnabled:         u.TotpEnabled,
+		TotpEnabledAt:       u.TotpEnabledAt,
+		CreatedAt:           u.CreatedAt,
+		UpdatedAt:           u.UpdatedAt,
 	}
 }
 

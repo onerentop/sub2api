@@ -324,6 +324,14 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 		days = -MaxValidityDays
 	}
 
+	now := time.Now()
+	isExpired := !sub.ExpiresAt.After(now)
+
+	// 如果订阅已过期，不允许负向调整
+	if isExpired && days < 0 {
+		return nil, infraerrors.BadRequest("CANNOT_SHORTEN_EXPIRED", "cannot shorten an expired subscription")
+	}
+
 	// 计算新的过期时间
 	var newExpiresAt time.Time
 	if isExpired {
@@ -339,7 +347,6 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 	}
 
 	// 检查新的过期时间必须大于当前时间
-	now := time.Now()
 	if !newExpiresAt.After(now) {
 		return nil, ErrAdjustWouldExpire
 	}

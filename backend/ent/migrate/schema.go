@@ -808,6 +808,9 @@ var (
 		{Name: "balance_daily_quota", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "balance_weekly_quota", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "token_version", Type: field.TypeInt64, Default: 0},
+		{Name: "totp_secret_encrypted", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "totp_enabled", Type: field.TypeBool, Default: false},
+		{Name: "totp_enabled_at", Type: field.TypeTime, Nullable: true},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{

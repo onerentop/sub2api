@@ -78,6 +78,17 @@ func (User) Fields() []ent.Field {
 		field.Int64("token_version").
 			Default(0).
 			Comment("Token version, incremented on password change to invalidate existing JWTs"),
+
+		// TOTP 双因素认证字段
+		field.String("totp_secret_encrypted").
+			SchemaType(map[string]string{dialect.Postgres: "text"}).
+			Optional().
+			Nillable(),
+		field.Bool("totp_enabled").
+			Default(false),
+		field.Time("totp_enabled_at").
+			Optional().
+			Nillable(),
 	}
 }
 

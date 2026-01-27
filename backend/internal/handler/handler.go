@@ -45,6 +45,7 @@ type Handlers struct {
 	PublicAntigravityOAuth *PublicAntigravityOAuthHandler
 	SocialOAuth            *SocialOAuthHandler
 	Payment                *PaymentHandler
+	Totp                   *TotpHandler
 }
 
 // BuildInfo contains build-time information

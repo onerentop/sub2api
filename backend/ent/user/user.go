@@ -43,6 +43,12 @@ const (
 	FieldBalanceWeeklyQuota = "balance_weekly_quota"
 	// FieldTokenVersion holds the string denoting the token_version field in the database.
 	FieldTokenVersion = "token_version"
+	// FieldTotpSecretEncrypted holds the string denoting the totp_secret_encrypted field in the database.
+	FieldTotpSecretEncrypted = "totp_secret_encrypted"
+	// FieldTotpEnabled holds the string denoting the totp_enabled field in the database.
+	FieldTotpEnabled = "totp_enabled"
+	// FieldTotpEnabledAt holds the string denoting the totp_enabled_at field in the database.
+	FieldTotpEnabledAt = "totp_enabled_at"
 	// EdgeAPIKeys holds the string denoting the api_keys edge name in mutations.
 	EdgeAPIKeys = "api_keys"
 	// EdgeRedeemCodes holds the string denoting the redeem_codes edge name in mutations.
@@ -161,6 +167,9 @@ var Columns = []string{
 	FieldBalanceDailyQuota,
 	FieldBalanceWeeklyQuota,
 	FieldTokenVersion,
+	FieldTotpSecretEncrypted,
+	FieldTotpEnabled,
+	FieldTotpEnabledAt,
 }
 
 var (
@@ -217,6 +226,8 @@ var (
 	DefaultNotes string
 	// DefaultTokenVersion holds the default value on creation for the "token_version" field.
 	DefaultTokenVersion int64
+	// DefaultTotpEnabled holds the default value on creation for the "totp_enabled" field.
+	DefaultTotpEnabled bool
 )
 
 // OrderOption defines the ordering options for the User queries.
@@ -295,6 +306,21 @@ func ByBalanceWeeklyQuota(opts ...sql.OrderTermOption) OrderOption {
 // ByTokenVersion orders the results by the token_version field.
 func ByTokenVersion(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTokenVersion, opts...).ToFunc()
+}
+
+// ByTotpSecretEncrypted orders the results by the totp_secret_encrypted field.
+func ByTotpSecretEncrypted(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotpSecretEncrypted, opts...).ToFunc()
+}
+
+// ByTotpEnabled orders the results by the totp_enabled field.
+func ByTotpEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotpEnabled, opts...).ToFunc()
+}
+
+// ByTotpEnabledAt orders the results by the totp_enabled_at field.
+func ByTotpEnabledAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotpEnabledAt, opts...).ToFunc()
 }
 
 // ByAPIKeysCount orders the results by api_keys count.
