@@ -2968,7 +2968,12 @@ export default {
         promoCodeHint: 'Allow users to use promo codes during registration',
         emailDomainWhitelist: 'Email Domain Whitelist',
         emailDomainWhitelistPlaceholder: 'Type a domain and press Enter to add...',
-        emailDomainWhitelistHint: 'Restrict registration to specific email domains. Leave empty to allow all domains. Select from presets or enter custom domains.'
+        emailDomainWhitelistHint: 'Restrict registration to specific email domains. Leave empty to allow all domains. Select from presets or enter custom domains.',
+        passwordReset: 'Password Reset',
+        passwordResetHint: 'Allow users to reset password via email',
+        totp: 'TOTP Two-Factor Authentication',
+        totpHint: 'Allow users to enable Time-based One-Time Password (TOTP) for two-factor authentication',
+        totpKeyNotConfigured: 'Warning: TOTP encryption key is not configured. Please set totp_encryption_key in config.yaml.'
       },
       turnstile: {
         title: 'Cloudflare Turnstile',

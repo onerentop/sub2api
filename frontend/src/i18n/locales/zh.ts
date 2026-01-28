@@ -3122,7 +3122,12 @@ export default {
         promoCodeHint: '允许用户在注册时使用优惠码',
         emailDomainWhitelist: '邮箱域名白名单',
         emailDomainWhitelistPlaceholder: '输入域名后按回车添加...',
-        emailDomainWhitelistHint: '限制允许注册的邮箱域名。留空则不限制。支持从预设中选择或手动输入。'
+        emailDomainWhitelistHint: '限制允许注册的邮箱域名。留空则不限制。支持从预设中选择或手动输入。',
+        passwordReset: '密码重置',
+        passwordResetHint: '允许用户通过邮箱重置密码',
+        totp: 'TOTP 两步验证',
+        totpHint: '允许用户启用基于时间的一次性密码 (TOTP) 进行两步验证',
+        totpKeyNotConfigured: '警告：未配置 TOTP 加密密钥。请在 config.yaml 中设置 totp_encryption_key。'
       },
       turnstile: {
         title: 'Cloudflare Turnstile',
