@@ -32,8 +32,8 @@ const (
 		"https://www.googleapis.com/auth/cclog " +
 		"https://www.googleapis.com/auth/experimentsandconfigs"
 
-	// User-Agent（与 Antigravity-Manager 保持一致）
-	UserAgent = "antigravity/1.11.9 windows/amd64"
+	// User-Agent（与最新 Antigravity 客户端保持一致）
+	UserAgent = "antigravity/1.104.0 darwin/arm64"
 
 	// Session 过期时间
 	SessionTTL = 30 * time.Minute
