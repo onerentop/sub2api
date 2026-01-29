@@ -1504,6 +1504,8 @@ async function saveSettings() {
       registration_enabled: form.registration_enabled,
       email_verify_enabled: form.email_verify_enabled,
       promo_code_enabled: form.promo_code_enabled,
+      password_reset_enabled: form.password_reset_enabled,
+      totp_enabled: form.totp_enabled,
       email_domain_whitelist: form.email_domain_whitelist,
       default_balance: form.default_balance,
       default_concurrency: form.default_concurrency,

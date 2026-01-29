@@ -48,6 +48,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		RegistrationEnabled:                  settings.RegistrationEnabled,
 		EmailVerifyEnabled:                   settings.EmailVerifyEnabled,
 		PromoCodeEnabled:                     settings.PromoCodeEnabled,
+		PasswordResetEnabled:                 settings.PasswordResetEnabled,
+		TotpEnabled:                          settings.TotpEnabled,
+		TotpEncryptionKeyConfigured:          h.settingService.IsTotpEncryptionKeyConfigured(),
 		EmailDomainWhitelist:                 settings.EmailDomainWhitelist,
 		SMTPHost:                             settings.SMTPHost,
 		SMTPPort:                             settings.SMTPPort,
@@ -104,6 +107,7 @@ type UpdateSettingsRequest struct {
 	RegistrationEnabled  bool     `json:"registration_enabled"`
 	EmailVerifyEnabled   bool     `json:"email_verify_enabled"`
 	PromoCodeEnabled     bool     `json:"promo_code_enabled"`
+	PasswordResetEnabled bool     `json:"password_reset_enabled"`
 	TotpEnabled          bool     `json:"totp_enabled"` // TOTP 双因素认证
 	EmailDomainWhitelist []string `json:"email_domain_whitelist"`
 
@@ -279,6 +283,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		RegistrationEnabled:        req.RegistrationEnabled,
 		EmailVerifyEnabled:         req.EmailVerifyEnabled,
 		PromoCodeEnabled:           req.PromoCodeEnabled,
+		PasswordResetEnabled:       req.PasswordResetEnabled,
+		TotpEnabled:                req.TotpEnabled,
 		EmailDomainWhitelist:       req.EmailDomainWhitelist,
 		SMTPHost:                   req.SMTPHost,
 		SMTPPort:                   req.SMTPPort,
@@ -372,6 +378,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		RegistrationEnabled:                  updatedSettings.RegistrationEnabled,
 		EmailVerifyEnabled:                   updatedSettings.EmailVerifyEnabled,
 		PromoCodeEnabled:                     updatedSettings.PromoCodeEnabled,
+		PasswordResetEnabled:                 updatedSettings.PasswordResetEnabled,
+		TotpEnabled:                          updatedSettings.TotpEnabled,
+		TotpEncryptionKeyConfigured:          h.settingService.IsTotpEncryptionKeyConfigured(),
 		EmailDomainWhitelist:                 updatedSettings.EmailDomainWhitelist,
 		SMTPHost:                             updatedSettings.SMTPHost,
 		SMTPPort:                             updatedSettings.SMTPPort,

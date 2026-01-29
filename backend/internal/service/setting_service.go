@@ -181,6 +181,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyPromoCodeEnabled] = strconv.FormatBool(settings.PromoCodeEnabled)
 	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
 	updates[SettingKeyTotpEnabled] = strconv.FormatBool(settings.TotpEnabled)
+	updates[SettingKeyEmailDomainWhitelist] = strings.Join(settings.EmailDomainWhitelist, ",")
 
 	// 邮件服务设置（只有非空才更新密码）
 	updates[SettingKeySMTPHost] = settings.SMTPHost
@@ -240,6 +241,20 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	if settings.OpsMetricsIntervalSeconds > 0 {
 		updates[SettingKeyOpsMetricsIntervalSeconds] = strconv.Itoa(settings.OpsMetricsIntervalSeconds)
 	}
+
+	// Payment settings (YiPay)
+	updates[SettingKeyPaymentEnabled] = strconv.FormatBool(settings.PaymentEnabled)
+	updates[SettingKeyPaymentYiPayAPIURL] = settings.PaymentYiPayAPIURL
+	updates[SettingKeyPaymentYiPayPID] = settings.PaymentYiPayPID
+	if settings.PaymentYiPayKey != "" {
+		updates[SettingKeyPaymentYiPayKey] = settings.PaymentYiPayKey
+	}
+	updates[SettingKeyPaymentYiPayNotifyURL] = settings.PaymentYiPayNotifyURL
+	updates[SettingKeyPaymentYiPayReturnURL] = settings.PaymentYiPayReturnURL
+	updates[SettingKeyPaymentMinAmount] = strconv.FormatFloat(settings.PaymentMinAmount, 'f', 8, 64)
+	updates[SettingKeyPaymentMaxAmount] = strconv.FormatFloat(settings.PaymentMaxAmount, 'f', 8, 64)
+	updates[SettingKeyPaymentAuditThreshold] = strconv.FormatFloat(settings.PaymentAuditThreshold, 'f', 8, 64)
+	updates[SettingKeyPaymentCNYToValueRate] = strconv.FormatFloat(settings.PaymentCNYToValueRate, 'f', 8, 64)
 
 	err := s.settingRepo.SetMultiple(ctx, updates)
 	if err == nil && s.onUpdate != nil {

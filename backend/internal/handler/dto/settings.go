@@ -4,7 +4,10 @@ package dto
 type SystemSettings struct {
 	RegistrationEnabled  bool     `json:"registration_enabled"`
 	EmailVerifyEnabled   bool     `json:"email_verify_enabled"`
-	PromoCodeEnabled    bool `json:"promo_code_enabled"`
+	PromoCodeEnabled     bool     `json:"promo_code_enabled"`
+	PasswordResetEnabled bool     `json:"password_reset_enabled"`
+	TotpEnabled          bool     `json:"totp_enabled"`
+	TotpEncryptionKeyConfigured bool `json:"totp_encryption_key_configured"`
 	EmailDomainWhitelist []string `json:"email_domain_whitelist"`
 
 	SMTPHost               string `json:"smtp_host"`
