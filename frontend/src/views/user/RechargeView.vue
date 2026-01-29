@@ -90,7 +90,7 @@
                   ]"
                 >
                   <div class="text-lg font-bold text-gray-900 dark:text-white">
-                    ¥{{ product.price_cny.toFixed(0) }}
+                    ¥{{ product.price_cny.toFixed(2) }}
                   </div>
                   <div class="mt-1 text-sm text-gray-500 dark:text-dark-400">
                     {{ t('recharge.getValue') }} ${{ product.value.toFixed(2) }}
@@ -133,7 +133,7 @@
                     </div>
                     <div class="text-right">
                       <div class="text-xl font-bold text-primary-600 dark:text-primary-400">
-                        ¥{{ product.price_cny.toFixed(0) }}
+                        ¥{{ product.price_cny.toFixed(2) }}
                       </div>
                       <div v-if="product.group" class="mt-1 text-xs text-gray-400">
                         {{ product.group.name }}
@@ -430,10 +430,10 @@ const subscriptionProducts = computed(() =>
 
 const displayAmount = computed(() => {
   if (selectedProduct.value) {
-    return `¥${selectedProduct.value.price_cny.toFixed(0)}`
+    return `¥${selectedProduct.value.price_cny.toFixed(2)}`
   }
   if (customAmount.value && customAmount.value > 0) {
-    return `¥${customAmount.value.toFixed(0)}`
+    return `¥${customAmount.value.toFixed(2)}`
   }
   return '¥0'
 })
