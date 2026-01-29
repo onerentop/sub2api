@@ -192,7 +192,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	publicAccountService := service.NewPublicAccountService(accountRepository, groupRepository, antigravityOAuthService, httpUpstream)
 	publicAntigravityOAuthHandler := handler.NewPublicAntigravityOAuthHandler(publicAccountService)
 	handlerSocialOAuthHandler := handler.NewSocialOAuthHandler(socialOAuthService)
-	paymentHandler := handler.NewPaymentHandler(paymentService, productRepository, configConfig)
+	paymentHandler := handler.NewPaymentHandler(paymentService, productRepository, settingService, configConfig)
 	totpHandler := handler.NewTotpHandler(totpService)
 	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, publicAntigravityOAuthHandler, handlerSocialOAuthHandler, paymentHandler, totpHandler)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService)

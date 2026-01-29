@@ -14,6 +14,7 @@ import (
 type PaymentHandler struct {
 	paymentService *service.PaymentService
 	productRepo    service.ProductRepository
+	settingService *service.SettingService
 	config         *config.PaymentConfig
 }
 
@@ -21,11 +22,13 @@ type PaymentHandler struct {
 func NewPaymentHandler(
 	paymentService *service.PaymentService,
 	productRepo service.ProductRepository,
+	settingService *service.SettingService,
 	cfg *config.Config,
 ) *PaymentHandler {
 	return &PaymentHandler{
 		paymentService: paymentService,
 		productRepo:    productRepo,
+		settingService: settingService,
 		config:         &cfg.Payment,
 	}
 }
@@ -37,10 +40,21 @@ type CreateOrderRequest struct {
 	PaymentMethod string  `json:"payment_method" binding:"required,oneof=alipay wechat"`
 }
 
+// getConfig 获取支付配置（优先动态配置，回退静态配置）
+func (h *PaymentHandler) getConfig(c *gin.Context) *config.PaymentConfig {
+	if h.settingService != nil {
+		cfg, err := h.settingService.GetPaymentConfig(c.Request.Context())
+		if err == nil && cfg != nil {
+			return cfg
+		}
+	}
+	return h.config
+}
+
 // GetProducts 获取商品列表（上架的商品）
 // GET /api/v1/payment/products
 func (h *PaymentHandler) GetProducts(c *gin.Context) {
-	if !h.config.Enabled {
+	if !h.getConfig(c).Enabled {
 		response.BadRequest(c, "Payment is not enabled")
 		return
 	}
@@ -57,7 +71,7 @@ func (h *PaymentHandler) GetProducts(c *gin.Context) {
 // CreateOrder 创建支付订单
 // POST /api/v1/payment/orders
 func (h *PaymentHandler) CreateOrder(c *gin.Context) {
-	if !h.config.Enabled {
+	if !h.getConfig(c).Enabled {
 		response.BadRequest(c, "Payment is not enabled")
 		return
 	}
@@ -99,7 +113,7 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 // GetOrderStatus 查询订单状态
 // GET /api/v1/payment/orders/:order_no/status
 func (h *PaymentHandler) GetOrderStatus(c *gin.Context) {
-	if !h.config.Enabled {
+	if !h.getConfig(c).Enabled {
 		response.BadRequest(c, "Payment is not enabled")
 		return
 	}
@@ -139,7 +153,7 @@ func (h *PaymentHandler) GetOrderStatus(c *gin.Context) {
 // ListOrders 获取用户订单列表
 // GET /api/v1/payment/orders
 func (h *PaymentHandler) ListOrders(c *gin.Context) {
-	if !h.config.Enabled {
+	if !h.getConfig(c).Enabled {
 		response.BadRequest(c, "Payment is not enabled")
 		return
 	}
@@ -164,7 +178,7 @@ func (h *PaymentHandler) ListOrders(c *gin.Context) {
 // Callback 处理易支付回调
 // POST /api/v1/payment/callback
 func (h *PaymentHandler) Callback(c *gin.Context) {
-	if !h.config.Enabled {
+	if !h.getConfig(c).Enabled {
 		c.String(200, "fail")
 		return
 	}
@@ -215,12 +229,13 @@ func (h *PaymentHandler) Return(c *gin.Context) {
 // GetPaymentConfig 获取支付配置（公开信息）
 // GET /api/v1/payment/config
 func (h *PaymentHandler) GetPaymentConfig(c *gin.Context) {
+	cfg := h.getConfig(c)
 	response.Success(c, gin.H{
-		"enabled":         h.config.Enabled,
-		"min_amount":      h.config.MinAmount,
-		"max_amount":      h.config.MaxAmount,
-		"audit_threshold": h.config.AuditThreshold,
+		"enabled":         cfg.Enabled,
+		"min_amount":      cfg.MinAmount,
+		"max_amount":      cfg.MaxAmount,
+		"audit_threshold": cfg.AuditThreshold,
 		"payment_methods": []string{"alipay", "wechat"},
-		"cny_usd_rate":    h.config.CNYToValueRate,
+		"cny_usd_rate":    cfg.CNYToValueRate,
 	})
 }
