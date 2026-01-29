@@ -39,7 +39,7 @@ type CreateProductRequest struct {
 type UpdateProductRequest struct {
 	Name        string  `json:"name" binding:"required,max=100"`
 	Description *string `json:"description"`
-	Type        string  `json:"type" binding:"required,oneof=balance subscription"`
+	Type        *string `json:"type" binding:"omitempty,oneof=balance subscription"` // 可选，不传则保持原类型
 	PriceCNY    float64 `json:"price_cny" binding:"required,gt=0"`
 	Value       float64 `json:"value" binding:"required,gt=0"`
 	GroupID     *int64  `json:"group_id"`
@@ -141,12 +141,6 @@ func (h *ProductHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// 订阅类型必须关联分组
-	if req.Type == service.ProductTypeSubscription && req.GroupID == nil {
-		response.BadRequest(c, "Subscription product must have group_id")
-		return
-	}
-
 	// 获取现有商品
 	product, err := h.productRepo.GetByID(c.Request.Context(), id)
 	if err != nil {
@@ -154,10 +148,22 @@ func (h *ProductHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// 确定最终类型（如果传了就用新的，否则保持原类型）
+	finalType := product.Type
+	if req.Type != nil {
+		finalType = *req.Type
+	}
+
+	// 订阅类型必须关联分组
+	if finalType == service.ProductTypeSubscription && req.GroupID == nil {
+		response.BadRequest(c, "Subscription product must have group_id")
+		return
+	}
+
 	// 更新字段
 	product.Name = req.Name
 	product.Description = req.Description
-	product.Type = req.Type
+	product.Type = finalType
 	product.PriceCNY = req.PriceCNY
 	product.Value = req.Value
 	product.GroupID = req.GroupID
