@@ -270,14 +270,9 @@ func (s *PaymentService) processOrderFulfillment(ctx context.Context, order *Pay
 }
 
 // addUserBalance 增加用户余额
+// 注意：UpdateBalance 内部使用 AddBalance 原子操作，直接传入增量即可
 func (s *PaymentService) addUserBalance(ctx context.Context, userID int64, amount float64) error {
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	newBalance := user.Balance + amount
-	if err := s.userRepo.UpdateBalance(ctx, userID, newBalance); err != nil {
+	if err := s.userRepo.UpdateBalance(ctx, userID, amount); err != nil {
 		return err
 	}
 
