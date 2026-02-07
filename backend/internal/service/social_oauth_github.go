@@ -12,10 +12,10 @@ import (
 
 // GitHub OAuth 端点
 const (
-	githubAuthURL     = "https://github.com/login/oauth/authorize"
-	githubTokenURL    = "https://github.com/login/oauth/access_token"
-	githubUserURL     = "https://api.github.com/user"
-	githubEmailsURL   = "https://api.github.com/user/emails"
+	githubAuthURL       = "https://github.com/login/oauth/authorize"
+	githubTokenURL      = "https://github.com/login/oauth/access_token"
+	githubUserURL       = "https://api.github.com/user"
+	githubEmailsURL     = "https://api.github.com/user/emails"
 	githubDefaultScopes = "read:user user:email"
 )
 

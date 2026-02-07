@@ -97,12 +97,12 @@ type UpdateConfig struct {
 
 // PaymentConfig 支付配置
 type PaymentConfig struct {
-	Enabled        bool            `mapstructure:"enabled"`          // 是否启用充值功能
-	YiPay          YiPayConfig     `mapstructure:"yipay"`            // 易支付配置
-	MinAmount      float64         `mapstructure:"min_amount"`       // 最低充值金额（元）
-	MaxAmount      float64         `mapstructure:"max_amount"`       // 最高充值金额（元）
-	AuditThreshold float64         `mapstructure:"audit_threshold"`  // 超过此金额需人工审核
-	CNYToValueRate float64         `mapstructure:"cny_to_value_rate"` // CNY 转余额比例（1:1）
+	Enabled        bool        `mapstructure:"enabled"`           // 是否启用充值功能
+	YiPay          YiPayConfig `mapstructure:"yipay"`             // 易支付配置
+	MinAmount      float64     `mapstructure:"min_amount"`        // 最低充值金额（元）
+	MaxAmount      float64     `mapstructure:"max_amount"`        // 最高充值金额（元）
+	AuditThreshold float64     `mapstructure:"audit_threshold"`   // 超过此金额需人工审核
+	CNYToValueRate float64     `mapstructure:"cny_to_value_rate"` // CNY 转余额比例（1:1）
 }
 
 // YiPayConfig 易支付配置

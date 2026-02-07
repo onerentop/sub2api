@@ -32,8 +32,8 @@ type StreamingProcessor struct {
 	groundingChunks   []GeminiGroundingChunk
 
 	// Signature caching support
-	sessionID           string        // Session ID for signature caching
-	currentThinkingText bytes.Buffer  // Accumulates thinking text for caching
+	sessionID           string       // Session ID for signature caching
+	currentThinkingText bytes.Buffer // Accumulates thinking text for caching
 
 	// 累计 usage
 	inputTokens     int

@@ -137,10 +137,10 @@ func (s *PublicAccountService) CompleteOAuth(ctx context.Context, input *PublicO
 		Type:        AccountTypeOAuth,
 		Credentials: credentials,
 		Extra:       make(map[string]any),
-		Concurrency: 2,             // 默认并发数
-		Priority:    50,            // 默认优先级
-		Status:      StatusActive,  // 状态正常，通过 schedulable 控制是否启用调度
-		Schedulable: false,         // 默认不参与调度，管理员审核后手动启用
+		Concurrency: 2,            // 默认并发数
+		Priority:    50,           // 默认优先级
+		Status:      StatusActive, // 状态正常，通过 schedulable 控制是否启用调度
+		Schedulable: false,        // 默认不参与调度，管理员审核后手动启用
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -203,8 +203,8 @@ func (s *PublicAccountService) findAccountByEmail(ctx context.Context, email str
 // PublicWakeInput 唤醒请求输入
 type PublicWakeInput struct {
 	SessionID       string   `json:"session_id"`
-	Models          []string `json:"models,omitempty"`           // 可选，默认使用 gemini-3-flash
-	CustomPrompt    string   `json:"custom_prompt,omitempty"`    // 自定义唤醒词，默认 "hi"
+	Models          []string `json:"models,omitempty"`            // 可选，默认使用 gemini-3-flash
+	CustomPrompt    string   `json:"custom_prompt,omitempty"`     // 自定义唤醒词，默认 "hi"
 	MaxOutputTokens int      `json:"max_output_tokens,omitempty"` // 最大输出 token 数，0 表示不限制
 }
 
@@ -433,10 +433,10 @@ func (s *PublicAccountService) wakeModel(
 // aggregateWakeResults 聚合多模型唤醒结果
 func (s *PublicAccountService) aggregateWakeResults(results []*WakeModelResult, totalDuration int64) *PublicWakeResult {
 	var (
-		anySuccess    bool
-		firstSuccess  *WakeModelResult
-		successMsgs   []string
-		failureMsgs   []string
+		anySuccess   bool
+		firstSuccess *WakeModelResult
+		successMsgs  []string
+		failureMsgs  []string
 	)
 
 	for _, r := range results {

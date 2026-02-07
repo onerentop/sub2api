@@ -143,10 +143,10 @@ func (h *PaymentHandler) GetOrderStatus(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{
-		"order_no":  order.OrderNo,
-		"status":    order.Status,
-		"amount":    order.AmountCNY,
-		"paid_at":   order.PaidAt,
+		"order_no": order.OrderNo,
+		"status":   order.Status,
+		"amount":   order.AmountCNY,
+		"paid_at":  order.PaidAt,
 	})
 }
 

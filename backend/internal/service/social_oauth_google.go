@@ -10,9 +10,9 @@ import (
 
 // Google OAuth 端点
 const (
-	googleAuthURL     = "https://accounts.google.com/o/oauth2/v2/auth"
-	googleTokenURL    = "https://oauth2.googleapis.com/token"
-	googleUserInfoURL = "https://www.googleapis.com/oauth2/v2/userinfo"
+	googleAuthURL       = "https://accounts.google.com/o/oauth2/v2/auth"
+	googleTokenURL      = "https://oauth2.googleapis.com/token"
+	googleUserInfoURL   = "https://www.googleapis.com/oauth2/v2/userinfo"
 	googleDefaultScopes = "openid email profile"
 )
 

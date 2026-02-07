@@ -72,15 +72,15 @@ type CreatePaymentResponse struct {
 
 // CallbackData 回调数据
 type CallbackData struct {
-	TradeNo       string  // 易支付订单号
-	OutTradeNo    string  // 商户订单号
-	Type          string  // 支付类型
-	Name          string  // 商品名称
-	Money         float64 // 金额
-	TradeStatus   string  // 交易状态
-	Sign          string  // 签名
-	SignType      string  // 签名类型
-	RawData       map[string]string
+	TradeNo     string  // 易支付订单号
+	OutTradeNo  string  // 商户订单号
+	Type        string  // 支付类型
+	Name        string  // 商品名称
+	Money       float64 // 金额
+	TradeStatus string  // 交易状态
+	Sign        string  // 签名
+	SignType    string  // 签名类型
+	RawData     map[string]string
 }
 
 // IsEnabled 是否启用支付功能（使用 background context，适用于无 context 的检查场景）

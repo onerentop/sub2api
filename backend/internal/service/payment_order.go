@@ -10,13 +10,13 @@ import (
 
 // 支付相关错误定义
 var (
-	ErrProductNotFound           = infraerrors.NotFound("PRODUCT_NOT_FOUND", "product not found")
-	ErrPaymentOrderNotFound      = infraerrors.NotFound("PAYMENT_ORDER_NOT_FOUND", "payment order not found")
-	ErrPaymentOrderPending       = infraerrors.Conflict("PAYMENT_ORDER_PENDING", "payment order is pending")
-	ErrPaymentOrderPaid          = infraerrors.Conflict("PAYMENT_ORDER_PAID", "payment order already paid")
-	ErrPaymentAmountInvalid      = infraerrors.BadRequest("PAYMENT_AMOUNT_INVALID", "payment amount is invalid")
-	ErrPaymentSignInvalid        = infraerrors.BadRequest("PAYMENT_SIGN_INVALID", "payment signature is invalid")
-	ErrPaymentOrderCannotDelete  = infraerrors.Conflict("PAYMENT_ORDER_CANNOT_DELETE", "only pending, auditing or failed orders can be deleted")
+	ErrProductNotFound          = infraerrors.NotFound("PRODUCT_NOT_FOUND", "product not found")
+	ErrPaymentOrderNotFound     = infraerrors.NotFound("PAYMENT_ORDER_NOT_FOUND", "payment order not found")
+	ErrPaymentOrderPending      = infraerrors.Conflict("PAYMENT_ORDER_PENDING", "payment order is pending")
+	ErrPaymentOrderPaid         = infraerrors.Conflict("PAYMENT_ORDER_PAID", "payment order already paid")
+	ErrPaymentAmountInvalid     = infraerrors.BadRequest("PAYMENT_AMOUNT_INVALID", "payment amount is invalid")
+	ErrPaymentSignInvalid       = infraerrors.BadRequest("PAYMENT_SIGN_INVALID", "payment signature is invalid")
+	ErrPaymentOrderCannotDelete = infraerrors.Conflict("PAYMENT_ORDER_CANNOT_DELETE", "only pending, auditing or failed orders can be deleted")
 )
 
 // PaymentOrder 支付订单领域模型

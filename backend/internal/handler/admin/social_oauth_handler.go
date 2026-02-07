@@ -124,13 +124,13 @@ func (h *SocialOAuthHandler) GetProvider(c *gin.Context) {
 	for _, p := range providers {
 		if p.Name == name {
 			response.Success(c, OAuthProviderDetailResponse{
-				Name:         p.Name,
-				DisplayName:  p.DisplayName,
-				ClientID:     p.ClientID,
-				Enabled:      p.Enabled,
-				Config:       p.Config,
-				CreatedAt:    p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-				UpdatedAt:    p.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				Name:        p.Name,
+				DisplayName: p.DisplayName,
+				ClientID:    p.ClientID,
+				Enabled:     p.Enabled,
+				Config:      p.Config,
+				CreatedAt:   p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				UpdatedAt:   p.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			})
 			return
 		}

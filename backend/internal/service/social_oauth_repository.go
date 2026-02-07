@@ -7,15 +7,15 @@ import (
 )
 
 var (
-	ErrOAuthProviderNotFound  = infraerrors.NotFound("OAUTH_PROVIDER_NOT_FOUND", "oauth provider not found")
-	ErrOAuthProviderDisabled  = infraerrors.BadRequest("OAUTH_PROVIDER_DISABLED", "oauth provider is disabled")
-	ErrOAuthBindingExists     = infraerrors.Conflict("OAUTH_BINDING_EXISTS", "oauth binding already exists")
-	ErrOAuthBindingNotFound   = infraerrors.NotFound("OAUTH_BINDING_NOT_FOUND", "oauth binding not found")
-	ErrOAuthCannotUnbindLast  = infraerrors.BadRequest("OAUTH_CANNOT_UNBIND_LAST", "cannot unbind the last login method")
-	ErrOAuthAccountBound      = infraerrors.Conflict("OAUTH_ACCOUNT_BOUND", "this account is already bound to another user")
-	ErrOAuthStateMismatch     = infraerrors.BadRequest("OAUTH_STATE_MISMATCH", "oauth state mismatch")
+	ErrOAuthProviderNotFound   = infraerrors.NotFound("OAUTH_PROVIDER_NOT_FOUND", "oauth provider not found")
+	ErrOAuthProviderDisabled   = infraerrors.BadRequest("OAUTH_PROVIDER_DISABLED", "oauth provider is disabled")
+	ErrOAuthBindingExists      = infraerrors.Conflict("OAUTH_BINDING_EXISTS", "oauth binding already exists")
+	ErrOAuthBindingNotFound    = infraerrors.NotFound("OAUTH_BINDING_NOT_FOUND", "oauth binding not found")
+	ErrOAuthCannotUnbindLast   = infraerrors.BadRequest("OAUTH_CANNOT_UNBIND_LAST", "cannot unbind the last login method")
+	ErrOAuthAccountBound       = infraerrors.Conflict("OAUTH_ACCOUNT_BOUND", "this account is already bound to another user")
+	ErrOAuthStateMismatch      = infraerrors.BadRequest("OAUTH_STATE_MISMATCH", "oauth state mismatch")
 	ErrOAuthCodeExchangeFailed = infraerrors.BadRequest("OAUTH_CODE_EXCHANGE_FAILED", "failed to exchange oauth code")
-	ErrOAuthUserInfoFailed    = infraerrors.BadRequest("OAUTH_USERINFO_FAILED", "failed to get user info from oauth provider")
+	ErrOAuthUserInfoFailed     = infraerrors.BadRequest("OAUTH_USERINFO_FAILED", "failed to get user info from oauth provider")
 )
 
 // OAuthProviderRepository OAuth 提供商仓储接口

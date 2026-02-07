@@ -7,8 +7,8 @@ import (
 // OAuthProvider OAuth 提供商配置
 type OAuthProvider struct {
 	ID           int64
-	Name         string         // google, github, qq, wechat
-	DisplayName  string         // Google, GitHub
+	Name         string // google, github, qq, wechat
+	DisplayName  string // Google, GitHub
 	ClientID     string
 	ClientSecret string
 	Enabled      bool

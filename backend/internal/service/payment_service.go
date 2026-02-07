@@ -422,9 +422,9 @@ func (s *PaymentService) ManualFulfillOrder(ctx context.Context, orderID int64, 
 
 	// 标记为已支付
 	callbackJSON := map[string]any{
-		"manual":      true,
-		"fulfill_at":  time.Now().Format(time.RFC3339),
-		"admin_note":  "Manual fulfillment",
+		"manual":     true,
+		"fulfill_at": time.Now().Format(time.RFC3339),
+		"admin_note": "Manual fulfillment",
 	}
 
 	if err := s.orderRepo.MarkAsPaid(ctx, order.ID, tradeNo, callbackJSON); err != nil {

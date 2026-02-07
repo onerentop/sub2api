@@ -9,9 +9,9 @@ import (
 
 // Backoff constants for quota-related 429s
 const (
-	quotaBackoffBase     = 1 * time.Second  // Initial backoff: 1s
-	quotaBackoffMax      = 30 * time.Minute // Max backoff: 30min
-	cleanupInterval      = 5 * time.Minute  // Cleanup interval for expired entries
+	quotaBackoffBase = 1 * time.Second  // Initial backoff: 1s
+	quotaBackoffMax  = 30 * time.Minute // Max backoff: 30min
+	cleanupInterval  = 5 * time.Minute  // Cleanup interval for expired entries
 )
 
 // Model429State tracks 429 state for a specific (accountID, model) pair

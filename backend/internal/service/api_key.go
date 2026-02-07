@@ -25,8 +25,8 @@ type APIKey struct {
 	Group       *Group    `json:"group,omitempty"`
 
 	// Quota fields
-	Quota     float64    `json:"quota"`      // Quota limit in USD (0 = unlimited)
-	QuotaUsed float64    `json:"quota_used"` // Used quota amount
+	Quota     float64    `json:"quota"`                // Quota limit in USD (0 = unlimited)
+	QuotaUsed float64    `json:"quota_used"`           // Used quota amount
 	ExpiresAt *time.Time `json:"expires_at,omitempty"` // Expiration time (nil = never expires)
 }
 

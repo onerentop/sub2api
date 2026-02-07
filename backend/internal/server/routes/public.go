@@ -21,8 +21,8 @@ func RegisterPublicRoutes(router *gin.Engine, h *handler.Handlers) {
 		payment := public.Group("/payment")
 		{
 			payment.POST("/callback", h.Payment.Callback)
-			payment.GET("/callback", h.Payment.Callback)  // 部分易支付使用 GET 回调
-			payment.GET("/return", h.Payment.Return)      // 支付成功后同步跳转
+			payment.GET("/callback", h.Payment.Callback) // 部分易支付使用 GET 回调
+			payment.GET("/return", h.Payment.Return)     // 支付成功后同步跳转
 		}
 	}
 }
