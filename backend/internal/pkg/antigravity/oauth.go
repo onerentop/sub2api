@@ -32,55 +32,30 @@ const (
 		"https://www.googleapis.com/auth/cclog " +
 		"https://www.googleapis.com/auth/experimentsandconfigs"
 
-	// User-Agent（与 Antigravity-Manager 保持一致）
-	UserAgent = "antigravity/1.15.8 windows/amd64"
+	// User-Agent（与最新 Antigravity 客户端保持一致）
+	UserAgent = "antigravity/1.104.0 darwin/arm64"
 
 	// Session 过期时间
 	SessionTTL = 30 * time.Minute
 
+	// WakeSessionTTL 唤醒 session 过期时间（OAuth 完成后延长有效期）
+	WakeSessionTTL = 24 * time.Hour
+
 	// URL 可用性 TTL（不可用 URL 的恢复时间）
 	URLAvailabilityTTL = 5 * time.Minute
-
-	// Antigravity API 端点
-	antigravityProdBaseURL  = "https://cloudcode-pa.googleapis.com"
-	antigravityDailyBaseURL = "https://daily-cloudcode-pa.sandbox.googleapis.com"
 )
 
 // BaseURLs 定义 Antigravity API 端点（与 Antigravity-Manager 保持一致）
+// BaseURLs 定义 Antigravity API 端点，按优先级排序
+// 参考 CLIProxyAPI: sandbox-daily → daily → prod（sandbox 限流更宽松，优先使用）
 var BaseURLs = []string{
-	antigravityProdBaseURL,  // prod (优先)
-	antigravityDailyBaseURL, // daily sandbox (备用)
+	"https://daily-cloudcode-pa.sandbox.googleapis.com", // sandbox-daily（优先！限流最宽松）
+	"https://daily-cloudcode-pa.googleapis.com",         // daily（中间）
+	"https://cloudcode-pa.googleapis.com",               // prod（最后！限流最严格）
 }
 
-// BaseURL 默认 URL（保持向后兼容）
+// BaseURL 默认 URL（保持向后兼容，使用 sandbox-daily）
 var BaseURL = BaseURLs[0]
-
-// ForwardBaseURLs 返回 API 转发用的 URL 顺序（daily 优先）
-func ForwardBaseURLs() []string {
-	if len(BaseURLs) == 0 {
-		return nil
-	}
-	urls := append([]string(nil), BaseURLs...)
-	dailyIndex := -1
-	for i, url := range urls {
-		if url == antigravityDailyBaseURL {
-			dailyIndex = i
-			break
-		}
-	}
-	if dailyIndex <= 0 {
-		return urls
-	}
-	reordered := make([]string, 0, len(urls))
-	reordered = append(reordered, urls[dailyIndex])
-	for i, url := range urls {
-		if i == dailyIndex {
-			continue
-		}
-		reordered = append(reordered, url)
-	}
-	return reordered
-}
 
 // URLAvailability 管理 URL 可用性状态（带 TTL 自动恢复和动态优先级）
 type URLAvailability struct {
@@ -131,37 +106,22 @@ func (u *URLAvailability) IsAvailable(url string) bool {
 // GetAvailableURLs 返回可用的 URL 列表
 // 最近成功的 URL 优先，其他按默认顺序
 func (u *URLAvailability) GetAvailableURLs() []string {
-	return u.GetAvailableURLsWithBase(BaseURLs)
-}
-
-// GetAvailableURLsWithBase 返回可用的 URL 列表（使用自定义顺序）
-// 最近成功的 URL 优先，其他按传入顺序
-func (u *URLAvailability) GetAvailableURLsWithBase(baseURLs []string) []string {
 	u.mu.RLock()
 	defer u.mu.RUnlock()
 
 	now := time.Now()
-	result := make([]string, 0, len(baseURLs))
+	result := make([]string, 0, len(BaseURLs))
 
 	// 如果有最近成功的 URL 且可用，放在最前面
 	if u.lastSuccess != "" {
-		found := false
-		for _, url := range baseURLs {
-			if url == u.lastSuccess {
-				found = true
-				break
-			}
-		}
-		if found {
-			expiry, exists := u.unavailable[u.lastSuccess]
-			if !exists || now.After(expiry) {
-				result = append(result, u.lastSuccess)
-			}
+		expiry, exists := u.unavailable[u.lastSuccess]
+		if !exists || now.After(expiry) {
+			result = append(result, u.lastSuccess)
 		}
 	}
 
-	// 添加其他可用的 URL（按传入顺序）
-	for _, url := range baseURLs {
+	// 添加其他可用的 URL（按默认顺序）
+	for _, url := range BaseURLs {
 		// 跳过已添加的 lastSuccess
 		if url == u.lastSuccess {
 			continue
@@ -180,6 +140,18 @@ type OAuthSession struct {
 	CodeVerifier string    `json:"code_verifier"`
 	ProxyURL     string    `json:"proxy_url,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
+
+	// Token 信息（OAuth 完成后填充，用于后续唤醒请求）
+	AccessToken  string `json:"access_token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	ExpiresAt    int64  `json:"expires_at,omitempty"`
+	Email        string `json:"email,omitempty"`
+	ProjectID    string `json:"project_id,omitempty"`
+}
+
+// HasToken 检查 session 是否已完成 OAuth 并包含 token
+func (s *OAuthSession) HasToken() bool {
+	return s.AccessToken != ""
 }
 
 // SessionStore OAuth session 存储
@@ -223,6 +195,34 @@ func (s *SessionStore) Delete(sessionID string) {
 	delete(s.sessions, sessionID)
 }
 
+// Update 更新 session 并延长有效期（用于 OAuth 完成后存储 token）
+func (s *SessionStore) Update(sessionID string, session *OAuthSession) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// 重置创建时间以延长有效期
+	session.CreatedAt = time.Now()
+	s.sessions[sessionID] = session
+}
+
+// GetWithWakeTTL 获取 session，使用唤醒 TTL 判断过期
+func (s *SessionStore) GetWithWakeTTL(sessionID string) (*OAuthSession, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	session, ok := s.sessions[sessionID]
+	if !ok {
+		return nil, false
+	}
+	// 对于已完成 OAuth 的 session，使用更长的 TTL
+	ttl := SessionTTL
+	if session.HasToken() {
+		ttl = WakeSessionTTL
+	}
+	if time.Since(session.CreatedAt) > ttl {
+		return nil, false
+	}
+	return session, true
+}
+
 func (s *SessionStore) Stop() {
 	select {
 	case <-s.stopCh:
@@ -242,7 +242,12 @@ func (s *SessionStore) cleanup() {
 		case <-ticker.C:
 			s.mu.Lock()
 			for id, session := range s.sessions {
-				if time.Since(session.CreatedAt) > SessionTTL {
+				// 对于已完成 OAuth 的 session，使用更长的 TTL
+				ttl := SessionTTL
+				if session.HasToken() {
+					ttl = WakeSessionTTL
+				}
+				if time.Since(session.CreatedAt) > ttl {
 					delete(s.sessions, id)
 				}
 			}
@@ -308,4 +313,13 @@ func BuildAuthorizationURL(state, codeChallenge string) string {
 	params.Set("include_granted_scopes", "true")
 
 	return fmt.Sprintf("%s?%s", AuthorizeURL, params.Encode())
+}
+
+// GenerateMockProjectID 生成模拟的 project_id（用于 OAuth 获取 project_id 失败时的兜底）
+func GenerateMockProjectID() string {
+	bytes, err := GenerateRandomBytes(16)
+	if err != nil {
+		return "mock-project-" + fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return "mock-project-" + hex.EncodeToString(bytes)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/product"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
@@ -320,6 +321,34 @@ func (_c *GroupCreate) SetNillableModelRoutingEnabled(v *bool) *GroupCreate {
 	return _c
 }
 
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (_c *GroupCreate) SetBalanceDailyQuota(v float64) *GroupCreate {
+	_c.mutation.SetBalanceDailyQuota(v)
+	return _c
+}
+
+// SetNillableBalanceDailyQuota sets the "balance_daily_quota" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableBalanceDailyQuota(v *float64) *GroupCreate {
+	if v != nil {
+		_c.SetBalanceDailyQuota(*v)
+	}
+	return _c
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (_c *GroupCreate) SetBalanceWeeklyQuota(v float64) *GroupCreate {
+	_c.mutation.SetBalanceWeeklyQuota(v)
+	return _c
+}
+
+// SetNillableBalanceWeeklyQuota sets the "balance_weekly_quota" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableBalanceWeeklyQuota(v *float64) *GroupCreate {
+	if v != nil {
+		_c.SetBalanceWeeklyQuota(*v)
+	}
+	return _c
+}
+
 // SetMcpXMLInject sets the "mcp_xml_inject" field.
 func (_c *GroupCreate) SetMcpXMLInject(v bool) *GroupCreate {
 	_c.mutation.SetMcpXMLInject(v)
@@ -398,6 +427,21 @@ func (_c *GroupCreate) AddUsageLogs(v ...*UsageLog) *GroupCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddUsageLogIDs(ids...)
+}
+
+// AddProductIDs adds the "products" edge to the Product entity by IDs.
+func (_c *GroupCreate) AddProductIDs(ids ...int64) *GroupCreate {
+	_c.mutation.AddProductIDs(ids...)
+	return _c
+}
+
+// AddProducts adds the "products" edges to the Product entity.
+func (_c *GroupCreate) AddProducts(v ...*Product) *GroupCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddProductIDs(ids...)
 }
 
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
@@ -700,6 +744,14 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		_spec.SetField(group.FieldModelRoutingEnabled, field.TypeBool, value)
 		_node.ModelRoutingEnabled = value
 	}
+	if value, ok := _c.mutation.BalanceDailyQuota(); ok {
+		_spec.SetField(group.FieldBalanceDailyQuota, field.TypeFloat64, value)
+		_node.BalanceDailyQuota = &value
+	}
+	if value, ok := _c.mutation.BalanceWeeklyQuota(); ok {
+		_spec.SetField(group.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
+		_node.BalanceWeeklyQuota = &value
+	}
 	if value, ok := _c.mutation.McpXMLInject(); ok {
 		_spec.SetField(group.FieldMcpXMLInject, field.TypeBool, value)
 		_node.McpXMLInject = value
@@ -765,6 +817,22 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProductsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   group.ProductsTable,
+			Columns: []string{group.ProductsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(product.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -1239,6 +1307,54 @@ func (u *GroupUpsert) SetModelRoutingEnabled(v bool) *GroupUpsert {
 // UpdateModelRoutingEnabled sets the "model_routing_enabled" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateModelRoutingEnabled() *GroupUpsert {
 	u.SetExcluded(group.FieldModelRoutingEnabled)
+	return u
+}
+
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (u *GroupUpsert) SetBalanceDailyQuota(v float64) *GroupUpsert {
+	u.Set(group.FieldBalanceDailyQuota, v)
+	return u
+}
+
+// UpdateBalanceDailyQuota sets the "balance_daily_quota" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateBalanceDailyQuota() *GroupUpsert {
+	u.SetExcluded(group.FieldBalanceDailyQuota)
+	return u
+}
+
+// AddBalanceDailyQuota adds v to the "balance_daily_quota" field.
+func (u *GroupUpsert) AddBalanceDailyQuota(v float64) *GroupUpsert {
+	u.Add(group.FieldBalanceDailyQuota, v)
+	return u
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (u *GroupUpsert) ClearBalanceDailyQuota() *GroupUpsert {
+	u.SetNull(group.FieldBalanceDailyQuota)
+	return u
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (u *GroupUpsert) SetBalanceWeeklyQuota(v float64) *GroupUpsert {
+	u.Set(group.FieldBalanceWeeklyQuota, v)
+	return u
+}
+
+// UpdateBalanceWeeklyQuota sets the "balance_weekly_quota" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateBalanceWeeklyQuota() *GroupUpsert {
+	u.SetExcluded(group.FieldBalanceWeeklyQuota)
+	return u
+}
+
+// AddBalanceWeeklyQuota adds v to the "balance_weekly_quota" field.
+func (u *GroupUpsert) AddBalanceWeeklyQuota(v float64) *GroupUpsert {
+	u.Add(group.FieldBalanceWeeklyQuota, v)
+	return u
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (u *GroupUpsert) ClearBalanceWeeklyQuota() *GroupUpsert {
+	u.SetNull(group.FieldBalanceWeeklyQuota)
 	return u
 }
 
@@ -1749,6 +1865,62 @@ func (u *GroupUpsertOne) SetModelRoutingEnabled(v bool) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateModelRoutingEnabled() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateModelRoutingEnabled()
+	})
+}
+
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (u *GroupUpsertOne) SetBalanceDailyQuota(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBalanceDailyQuota(v)
+	})
+}
+
+// AddBalanceDailyQuota adds v to the "balance_daily_quota" field.
+func (u *GroupUpsertOne) AddBalanceDailyQuota(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddBalanceDailyQuota(v)
+	})
+}
+
+// UpdateBalanceDailyQuota sets the "balance_daily_quota" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateBalanceDailyQuota() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBalanceDailyQuota()
+	})
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (u *GroupUpsertOne) ClearBalanceDailyQuota() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearBalanceDailyQuota()
+	})
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (u *GroupUpsertOne) SetBalanceWeeklyQuota(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBalanceWeeklyQuota(v)
+	})
+}
+
+// AddBalanceWeeklyQuota adds v to the "balance_weekly_quota" field.
+func (u *GroupUpsertOne) AddBalanceWeeklyQuota(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddBalanceWeeklyQuota(v)
+	})
+}
+
+// UpdateBalanceWeeklyQuota sets the "balance_weekly_quota" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateBalanceWeeklyQuota() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBalanceWeeklyQuota()
+	})
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (u *GroupUpsertOne) ClearBalanceWeeklyQuota() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearBalanceWeeklyQuota()
 	})
 }
 
@@ -2429,6 +2601,62 @@ func (u *GroupUpsertBulk) SetModelRoutingEnabled(v bool) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateModelRoutingEnabled() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateModelRoutingEnabled()
+	})
+}
+
+// SetBalanceDailyQuota sets the "balance_daily_quota" field.
+func (u *GroupUpsertBulk) SetBalanceDailyQuota(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBalanceDailyQuota(v)
+	})
+}
+
+// AddBalanceDailyQuota adds v to the "balance_daily_quota" field.
+func (u *GroupUpsertBulk) AddBalanceDailyQuota(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddBalanceDailyQuota(v)
+	})
+}
+
+// UpdateBalanceDailyQuota sets the "balance_daily_quota" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateBalanceDailyQuota() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBalanceDailyQuota()
+	})
+}
+
+// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
+func (u *GroupUpsertBulk) ClearBalanceDailyQuota() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearBalanceDailyQuota()
+	})
+}
+
+// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
+func (u *GroupUpsertBulk) SetBalanceWeeklyQuota(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBalanceWeeklyQuota(v)
+	})
+}
+
+// AddBalanceWeeklyQuota adds v to the "balance_weekly_quota" field.
+func (u *GroupUpsertBulk) AddBalanceWeeklyQuota(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddBalanceWeeklyQuota(v)
+	})
+}
+
+// UpdateBalanceWeeklyQuota sets the "balance_weekly_quota" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateBalanceWeeklyQuota() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBalanceWeeklyQuota()
+	})
+}
+
+// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
+func (u *GroupUpsertBulk) ClearBalanceWeeklyQuota() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearBalanceWeeklyQuota()
 	})
 }
 

@@ -193,10 +193,6 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		users.GET("/:id/usage", h.Admin.User.GetUserUsage)
 		users.GET("/:id/balance-history", h.Admin.User.GetBalanceHistory)
 
-		// Bulk operations
-		users.POST("/bulk-update", h.Admin.User.BulkUpdate)
-		users.POST("/batch-delete", h.Admin.User.BatchDelete)
-
 		// User attribute values
 		users.GET("/:id/attributes", h.Admin.UserAttribute.GetUserAttributes)
 		users.PUT("/:id/attributes", h.Admin.UserAttribute.UpdateUserAttributes)
@@ -257,18 +253,6 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.POST("/exchange-setup-token-code", h.Admin.OAuth.ExchangeSetupTokenCode)
 		accounts.POST("/cookie-auth", h.Admin.OAuth.CookieAuth)
 		accounts.POST("/setup-token-cookie-auth", h.Admin.OAuth.SetupTokenCookieAuth)
-	}
-}
-
-func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	announcements := admin.Group("/announcements")
-	{
-		announcements.GET("", h.Admin.Announcement.List)
-		announcements.POST("", h.Admin.Announcement.Create)
-		announcements.GET("/:id", h.Admin.Announcement.GetByID)
-		announcements.PUT("/:id", h.Admin.Announcement.Update)
-		announcements.DELETE("/:id", h.Admin.Announcement.Delete)
-		announcements.GET("/:id/read-status", h.Admin.Announcement.ListReadStatus)
 	}
 }
 

@@ -304,7 +304,6 @@ var ProviderSet = wire.NewSet(
 	NewAntigravityQuotaFetcher,
 	NewUserAttributeService,
 	NewUsageCache,
-	NewAnnouncementService,
 	NewModel429Tracker,
 	NewRoundRobinSelector,
 	NewPublicAccountService,

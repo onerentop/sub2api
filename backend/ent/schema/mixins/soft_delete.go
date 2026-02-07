@@ -13,7 +13,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/mixin"
-	"github.com/Wei-Shaw/sub2api/ent/intercept"
 )
 
 // SoftDeleteMixin 实现基于 deleted_at 时间戳的软删除功能。
@@ -76,19 +75,28 @@ func SkipSoftDelete(parent context.Context) context.Context {
 	return context.WithValue(parent, softDeleteKey{}, true)
 }
 
+// softDeleteQuery 是用于软删除拦截器的通用接口
+type softDeleteQuery interface {
+	WhereP(...func(*sql.Selector))
+}
+
 // Interceptors 返回查询拦截器列表。
 // 拦截器会自动为所有查询添加 deleted_at IS NULL 条件，
 // 确保软删除的记录不会出现在普通查询结果中。
 func (d SoftDeleteMixin) Interceptors() []ent.Interceptor {
 	return []ent.Interceptor{
-		intercept.TraverseFunc(func(ctx context.Context, q intercept.Query) error {
-			// 检查是否需要跳过软删除过滤
-			if skip, _ := ctx.Value(softDeleteKey{}).(bool); skip {
-				return nil
-			}
-			// 为查询添加 deleted_at IS NULL 条件
-			d.applyPredicate(q)
-			return nil
+		ent.InterceptFunc(func(next ent.Querier) ent.Querier {
+			return ent.QuerierFunc(func(ctx context.Context, query ent.Query) (ent.Value, error) {
+				// 检查是否需要跳过软删除过滤
+				if skip, _ := ctx.Value(softDeleteKey{}).(bool); skip {
+					return next.Query(ctx, query)
+				}
+				// 为查询添加 deleted_at IS NULL 条件
+				if q, ok := query.(softDeleteQuery); ok {
+					d.applyPredicate(q)
+				}
+				return next.Query(ctx, query)
+			})
 		}),
 	}
 }

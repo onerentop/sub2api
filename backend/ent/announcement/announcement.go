@@ -3,10 +3,10 @@
 package announcement
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -18,33 +18,24 @@ const (
 	FieldTitle = "title"
 	// FieldContent holds the string denoting the content field in the database.
 	FieldContent = "content"
-	// FieldStatus holds the string denoting the status field in the database.
-	FieldStatus = "status"
-	// FieldTargeting holds the string denoting the targeting field in the database.
-	FieldTargeting = "targeting"
-	// FieldStartsAt holds the string denoting the starts_at field in the database.
-	FieldStartsAt = "starts_at"
-	// FieldEndsAt holds the string denoting the ends_at field in the database.
-	FieldEndsAt = "ends_at"
-	// FieldCreatedBy holds the string denoting the created_by field in the database.
-	FieldCreatedBy = "created_by"
-	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
-	FieldUpdatedBy = "updated_by"
+	// FieldType holds the string denoting the type field in the database.
+	FieldType = "type"
+	// FieldSortOrder holds the string denoting the sort_order field in the database.
+	FieldSortOrder = "sort_order"
+	// FieldEnabled holds the string denoting the enabled field in the database.
+	FieldEnabled = "enabled"
+	// FieldStartTime holds the string denoting the start_time field in the database.
+	FieldStartTime = "start_time"
+	// FieldEndTime holds the string denoting the end_time field in the database.
+	FieldEndTime = "end_time"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
-	// EdgeReads holds the string denoting the reads edge name in mutations.
-	EdgeReads = "reads"
+	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
+	FieldDeletedAt = "deleted_at"
 	// Table holds the table name of the announcement in the database.
 	Table = "announcements"
-	// ReadsTable is the table that holds the reads relation/edge.
-	ReadsTable = "announcement_reads"
-	// ReadsInverseTable is the table name for the AnnouncementRead entity.
-	// It exists in this package in order to avoid circular dependency with the "announcementread" package.
-	ReadsInverseTable = "announcement_reads"
-	// ReadsColumn is the table column denoting the reads relation/edge.
-	ReadsColumn = "announcement_id"
 )
 
 // Columns holds all SQL columns for announcement fields.
@@ -52,14 +43,14 @@ var Columns = []string{
 	FieldID,
 	FieldTitle,
 	FieldContent,
-	FieldStatus,
-	FieldTargeting,
-	FieldStartsAt,
-	FieldEndsAt,
-	FieldCreatedBy,
-	FieldUpdatedBy,
+	FieldType,
+	FieldSortOrder,
+	FieldEnabled,
+	FieldStartTime,
+	FieldEndTime,
 	FieldCreatedAt,
 	FieldUpdatedAt,
+	FieldDeletedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -77,10 +68,10 @@ var (
 	TitleValidator func(string) error
 	// ContentValidator is a validator for the "content" field. It is called by the builders before save.
 	ContentValidator func(string) error
-	// DefaultStatus holds the default value on creation for the "status" field.
-	DefaultStatus string
-	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
-	StatusValidator func(string) error
+	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
+	DefaultSortOrder int
+	// DefaultEnabled holds the default value on creation for the "enabled" field.
+	DefaultEnabled bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -88,6 +79,34 @@ var (
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
 )
+
+// Type defines the type for the "type" enum field.
+type Type string
+
+// TypeInfo is the default value of the Type enum.
+const DefaultType = TypeInfo
+
+// Type values.
+const (
+	TypeInfo    Type = "info"
+	TypeSuccess Type = "success"
+	TypeWarning Type = "warning"
+	TypeError   Type = "error"
+)
+
+func (_type Type) String() string {
+	return string(_type)
+}
+
+// TypeValidator is a validator for the "type" field enum values. It is called by the builders before save.
+func TypeValidator(_type Type) error {
+	switch _type {
+	case TypeInfo, TypeSuccess, TypeWarning, TypeError:
+		return nil
+	default:
+		return fmt.Errorf("announcement: invalid enum value for type field: %q", _type)
+	}
+}
 
 // OrderOption defines the ordering options for the Announcement queries.
 type OrderOption func(*sql.Selector)
@@ -107,29 +126,29 @@ func ByContent(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContent, opts...).ToFunc()
 }
 
-// ByStatus orders the results by the status field.
-func ByStatus(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+// ByType orders the results by the type field.
+func ByType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldType, opts...).ToFunc()
 }
 
-// ByStartsAt orders the results by the starts_at field.
-func ByStartsAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStartsAt, opts...).ToFunc()
+// BySortOrder orders the results by the sort_order field.
+func BySortOrder(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSortOrder, opts...).ToFunc()
 }
 
-// ByEndsAt orders the results by the ends_at field.
-func ByEndsAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldEndsAt, opts...).ToFunc()
+// ByEnabled orders the results by the enabled field.
+func ByEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEnabled, opts...).ToFunc()
 }
 
-// ByCreatedBy orders the results by the created_by field.
-func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCreatedBy, opts...).ToFunc()
+// ByStartTime orders the results by the start_time field.
+func ByStartTime(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStartTime, opts...).ToFunc()
 }
 
-// ByUpdatedBy orders the results by the updated_by field.
-func ByUpdatedBy(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUpdatedBy, opts...).ToFunc()
+// ByEndTime orders the results by the end_time field.
+func ByEndTime(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEndTime, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.
@@ -142,23 +161,7 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }
 
-// ByReadsCount orders the results by reads count.
-func ByReadsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newReadsStep(), opts...)
-	}
-}
-
-// ByReads orders the results by reads terms.
-func ByReads(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newReadsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-func newReadsStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(ReadsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, ReadsTable, ReadsColumn),
-	)
+// ByDeletedAt orders the results by the deleted_at field.
+func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
 }
