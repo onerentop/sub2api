@@ -175,6 +175,18 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'userSubscriptions.description'
     }
   },
+  {
+    path: '/purchase',
+    name: 'PurchaseSubscription',
+    component: () => import('@/views/user/PurchaseSubscriptionView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Purchase Subscription',
+      titleKey: 'purchase.title',
+      descriptionKey: 'purchase.description'
+    }
+  },
 
   // ==================== Admin Routes ====================
   {
@@ -251,6 +263,18 @@ const routes: RouteRecordRaw[] = [
       title: 'Account Management',
       titleKey: 'admin.accounts.title',
       descriptionKey: 'admin.accounts.description'
+    }
+  },
+  {
+    path: '/admin/announcements',
+    name: 'AdminAnnouncements',
+    component: () => import('@/views/admin/AnnouncementsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Announcements',
+      titleKey: 'admin.announcements.title',
+      descriptionKey: 'admin.announcements.description'
     }
   },
   {
