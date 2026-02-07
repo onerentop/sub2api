@@ -19,7 +19,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func newUsageCleanupEntRepo(t *testing.T) (*usageCleanupRepository, *dbent.Client) {
+func newUsageCleanupEntRepo(t *testing.T) (*usageCleanupRepository, *dbent.Client, *sql.DB) {
 	t.Helper()
 	db, err := sql.Open("sqlite", "file:usage_cleanup?mode=memory&cache=shared")
 	require.NoError(t, err)
@@ -32,11 +32,11 @@ func newUsageCleanupEntRepo(t *testing.T) (*usageCleanupRepository, *dbent.Clien
 	t.Cleanup(func() { _ = client.Close() })
 
 	repo := &usageCleanupRepository{client: client, sql: db}
-	return repo, client
+	return repo, client, db
 }
 
 func TestUsageCleanupRepositoryEntCreateAndList(t *testing.T) {
-	repo, _ := newUsageCleanupEntRepo(t)
+	repo, _, _ := newUsageCleanupEntRepo(t)
 
 	start := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 	end := start.Add(24 * time.Hour)
@@ -65,7 +65,7 @@ func TestUsageCleanupRepositoryEntCreateAndList(t *testing.T) {
 }
 
 func TestUsageCleanupRepositoryEntListEmpty(t *testing.T) {
-	repo, _ := newUsageCleanupEntRepo(t)
+	repo, _, _ := newUsageCleanupEntRepo(t)
 
 	tasks, result, err := repo.ListTasks(context.Background(), pagination.PaginationParams{Page: 1, PageSize: 10})
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestUsageCleanupRepositoryEntListEmpty(t *testing.T) {
 }
 
 func TestUsageCleanupRepositoryEntGetStatusAndProgress(t *testing.T) {
-	repo, client := newUsageCleanupEntRepo(t)
+	repo, client, _ := newUsageCleanupEntRepo(t)
 
 	task := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusPending,
@@ -97,7 +97,7 @@ func TestUsageCleanupRepositoryEntGetStatusAndProgress(t *testing.T) {
 }
 
 func TestUsageCleanupRepositoryEntCancelAndFinish(t *testing.T) {
-	repo, client := newUsageCleanupEntRepo(t)
+	repo, client, _ := newUsageCleanupEntRepo(t)
 
 	task := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusPending,
@@ -127,7 +127,7 @@ func TestUsageCleanupRepositoryEntCancelAndFinish(t *testing.T) {
 }
 
 func TestUsageCleanupRepositoryEntCancelError(t *testing.T) {
-	repo, client := newUsageCleanupEntRepo(t)
+	repo, client, _ := newUsageCleanupEntRepo(t)
 
 	task := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusPending,
@@ -142,7 +142,7 @@ func TestUsageCleanupRepositoryEntCancelError(t *testing.T) {
 }
 
 func TestUsageCleanupRepositoryEntMarkResults(t *testing.T) {
-	repo, client := newUsageCleanupEntRepo(t)
+	repo, client, _ := newUsageCleanupEntRepo(t)
 
 	task := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusRunning,
@@ -173,7 +173,7 @@ func TestUsageCleanupRepositoryEntMarkResults(t *testing.T) {
 }
 
 func TestUsageCleanupRepositoryEntInvalidStatus(t *testing.T) {
-	repo, _ := newUsageCleanupEntRepo(t)
+	repo, _, _ := newUsageCleanupEntRepo(t)
 
 	task := &service.UsageCleanupTask{
 		Status:    "invalid",
@@ -184,12 +184,10 @@ func TestUsageCleanupRepositoryEntInvalidStatus(t *testing.T) {
 }
 
 func TestUsageCleanupRepositoryEntListInvalidFilters(t *testing.T) {
-	repo, client := newUsageCleanupEntRepo(t)
+	repo, _, db := newUsageCleanupEntRepo(t)
 
 	now := time.Now().UTC()
-	driver, ok := client.Driver().(*entsql.Driver)
-	require.True(t, ok)
-	_, err := driver.DB().ExecContext(
+	_, err := db.ExecContext(
 		context.Background(),
 		`INSERT INTO usage_cleanup_tasks (status, filters, created_by, deleted_rows, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)`,
