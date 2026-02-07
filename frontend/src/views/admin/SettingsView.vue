@@ -351,21 +351,6 @@
               <Toggle v-model="form.promo_code_enabled" />
             </div>
 
-            <!-- Promo Code -->
-            <div
-              class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
-            >
-              <div>
-                <label class="font-medium text-gray-900 dark:text-white">{{
-                  t('admin.settings.registration.promoCode')
-                }}</label>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ t('admin.settings.registration.promoCodeHint') }}
-                </p>
-              </div>
-              <Toggle v-model="form.promo_code_enabled" />
-            </div>
-
             <!-- Invitation Code -->
             <div
               class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
