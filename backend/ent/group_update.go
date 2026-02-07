@@ -10,12 +10,12 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
-	"github.com/Wei-Shaw/sub2api/ent/product"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
@@ -396,6 +396,33 @@ func (_u *GroupUpdate) ClearFallbackGroupID() *GroupUpdate {
 	return _u
 }
 
+// SetFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field.
+func (_u *GroupUpdate) SetFallbackGroupIDOnInvalidRequest(v int64) *GroupUpdate {
+	_u.mutation.ResetFallbackGroupIDOnInvalidRequest()
+	_u.mutation.SetFallbackGroupIDOnInvalidRequest(v)
+	return _u
+}
+
+// SetNillableFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableFallbackGroupIDOnInvalidRequest(v *int64) *GroupUpdate {
+	if v != nil {
+		_u.SetFallbackGroupIDOnInvalidRequest(*v)
+	}
+	return _u
+}
+
+// AddFallbackGroupIDOnInvalidRequest adds value to the "fallback_group_id_on_invalid_request" field.
+func (_u *GroupUpdate) AddFallbackGroupIDOnInvalidRequest(v int64) *GroupUpdate {
+	_u.mutation.AddFallbackGroupIDOnInvalidRequest(v)
+	return _u
+}
+
+// ClearFallbackGroupIDOnInvalidRequest clears the value of the "fallback_group_id_on_invalid_request" field.
+func (_u *GroupUpdate) ClearFallbackGroupIDOnInvalidRequest() *GroupUpdate {
+	_u.mutation.ClearFallbackGroupIDOnInvalidRequest()
+	return _u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_u *GroupUpdate) SetModelRouting(v map[string][]int64) *GroupUpdate {
 	_u.mutation.SetModelRouting(v)
@@ -422,57 +449,29 @@ func (_u *GroupUpdate) SetNillableModelRoutingEnabled(v *bool) *GroupUpdate {
 	return _u
 }
 
-// SetBalanceDailyQuota sets the "balance_daily_quota" field.
-func (_u *GroupUpdate) SetBalanceDailyQuota(v float64) *GroupUpdate {
-	_u.mutation.ResetBalanceDailyQuota()
-	_u.mutation.SetBalanceDailyQuota(v)
+// SetMcpXMLInject sets the "mcp_xml_inject" field.
+func (_u *GroupUpdate) SetMcpXMLInject(v bool) *GroupUpdate {
+	_u.mutation.SetMcpXMLInject(v)
 	return _u
 }
 
-// SetNillableBalanceDailyQuota sets the "balance_daily_quota" field if the given value is not nil.
-func (_u *GroupUpdate) SetNillableBalanceDailyQuota(v *float64) *GroupUpdate {
+// SetNillableMcpXMLInject sets the "mcp_xml_inject" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableMcpXMLInject(v *bool) *GroupUpdate {
 	if v != nil {
-		_u.SetBalanceDailyQuota(*v)
+		_u.SetMcpXMLInject(*v)
 	}
 	return _u
 }
 
-// AddBalanceDailyQuota adds value to the "balance_daily_quota" field.
-func (_u *GroupUpdate) AddBalanceDailyQuota(v float64) *GroupUpdate {
-	_u.mutation.AddBalanceDailyQuota(v)
+// SetSupportedModelScopes sets the "supported_model_scopes" field.
+func (_u *GroupUpdate) SetSupportedModelScopes(v []string) *GroupUpdate {
+	_u.mutation.SetSupportedModelScopes(v)
 	return _u
 }
 
-// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
-func (_u *GroupUpdate) ClearBalanceDailyQuota() *GroupUpdate {
-	_u.mutation.ClearBalanceDailyQuota()
-	return _u
-}
-
-// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
-func (_u *GroupUpdate) SetBalanceWeeklyQuota(v float64) *GroupUpdate {
-	_u.mutation.ResetBalanceWeeklyQuota()
-	_u.mutation.SetBalanceWeeklyQuota(v)
-	return _u
-}
-
-// SetNillableBalanceWeeklyQuota sets the "balance_weekly_quota" field if the given value is not nil.
-func (_u *GroupUpdate) SetNillableBalanceWeeklyQuota(v *float64) *GroupUpdate {
-	if v != nil {
-		_u.SetBalanceWeeklyQuota(*v)
-	}
-	return _u
-}
-
-// AddBalanceWeeklyQuota adds value to the "balance_weekly_quota" field.
-func (_u *GroupUpdate) AddBalanceWeeklyQuota(v float64) *GroupUpdate {
-	_u.mutation.AddBalanceWeeklyQuota(v)
-	return _u
-}
-
-// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
-func (_u *GroupUpdate) ClearBalanceWeeklyQuota() *GroupUpdate {
-	_u.mutation.ClearBalanceWeeklyQuota()
+// AppendSupportedModelScopes appends value to the "supported_model_scopes" field.
+func (_u *GroupUpdate) AppendSupportedModelScopes(v []string) *GroupUpdate {
+	_u.mutation.AppendSupportedModelScopes(v)
 	return _u
 }
 
@@ -534,21 +533,6 @@ func (_u *GroupUpdate) AddUsageLogs(v ...*UsageLog) *GroupUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddUsageLogIDs(ids...)
-}
-
-// AddProductIDs adds the "products" edge to the Product entity by IDs.
-func (_u *GroupUpdate) AddProductIDs(ids ...int64) *GroupUpdate {
-	_u.mutation.AddProductIDs(ids...)
-	return _u
-}
-
-// AddProducts adds the "products" edges to the Product entity.
-func (_u *GroupUpdate) AddProducts(v ...*Product) *GroupUpdate {
-	ids := make([]int64, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddProductIDs(ids...)
 }
 
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
@@ -668,27 +652,6 @@ func (_u *GroupUpdate) RemoveUsageLogs(v ...*UsageLog) *GroupUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
-}
-
-// ClearProducts clears all "products" edges to the Product entity.
-func (_u *GroupUpdate) ClearProducts() *GroupUpdate {
-	_u.mutation.ClearProducts()
-	return _u
-}
-
-// RemoveProductIDs removes the "products" edge to Product entities by IDs.
-func (_u *GroupUpdate) RemoveProductIDs(ids ...int64) *GroupUpdate {
-	_u.mutation.RemoveProductIDs(ids...)
-	return _u
-}
-
-// RemoveProducts removes "products" edges to Product entities.
-func (_u *GroupUpdate) RemoveProducts(v ...*Product) *GroupUpdate {
-	ids := make([]int64, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveProductIDs(ids...)
 }
 
 // ClearAccounts clears all "accounts" edges to the Account entity.
@@ -920,6 +883,15 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.FallbackGroupIDCleared() {
 		_spec.ClearField(group.FieldFallbackGroupID, field.TypeInt64)
 	}
+	if value, ok := _u.mutation.FallbackGroupIDOnInvalidRequest(); ok {
+		_spec.SetField(group.FieldFallbackGroupIDOnInvalidRequest, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedFallbackGroupIDOnInvalidRequest(); ok {
+		_spec.AddField(group.FieldFallbackGroupIDOnInvalidRequest, field.TypeInt64, value)
+	}
+	if _u.mutation.FallbackGroupIDOnInvalidRequestCleared() {
+		_spec.ClearField(group.FieldFallbackGroupIDOnInvalidRequest, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
 	}
@@ -929,23 +901,16 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.ModelRoutingEnabled(); ok {
 		_spec.SetField(group.FieldModelRoutingEnabled, field.TypeBool, value)
 	}
-	if value, ok := _u.mutation.BalanceDailyQuota(); ok {
-		_spec.SetField(group.FieldBalanceDailyQuota, field.TypeFloat64, value)
+	if value, ok := _u.mutation.McpXMLInject(); ok {
+		_spec.SetField(group.FieldMcpXMLInject, field.TypeBool, value)
 	}
-	if value, ok := _u.mutation.AddedBalanceDailyQuota(); ok {
-		_spec.AddField(group.FieldBalanceDailyQuota, field.TypeFloat64, value)
+	if value, ok := _u.mutation.SupportedModelScopes(); ok {
+		_spec.SetField(group.FieldSupportedModelScopes, field.TypeJSON, value)
 	}
-	if _u.mutation.BalanceDailyQuotaCleared() {
-		_spec.ClearField(group.FieldBalanceDailyQuota, field.TypeFloat64)
-	}
-	if value, ok := _u.mutation.BalanceWeeklyQuota(); ok {
-		_spec.SetField(group.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
-	}
-	if value, ok := _u.mutation.AddedBalanceWeeklyQuota(); ok {
-		_spec.AddField(group.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
-	}
-	if _u.mutation.BalanceWeeklyQuotaCleared() {
-		_spec.ClearField(group.FieldBalanceWeeklyQuota, field.TypeFloat64)
+	if value, ok := _u.mutation.AppendedSupportedModelScopes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, group.FieldSupportedModelScopes, value)
+		})
 	}
 	if _u.mutation.APIKeysCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1120,51 +1085,6 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.ProductsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   group.ProductsTable,
-			Columns: []string{group.ProductsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(product.FieldID, field.TypeInt64),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedProductsIDs(); len(nodes) > 0 && !_u.mutation.ProductsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   group.ProductsTable,
-			Columns: []string{group.ProductsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(product.FieldID, field.TypeInt64),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.ProductsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   group.ProductsTable,
-			Columns: []string{group.ProductsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(product.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -1667,6 +1587,33 @@ func (_u *GroupUpdateOne) ClearFallbackGroupID() *GroupUpdateOne {
 	return _u
 }
 
+// SetFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field.
+func (_u *GroupUpdateOne) SetFallbackGroupIDOnInvalidRequest(v int64) *GroupUpdateOne {
+	_u.mutation.ResetFallbackGroupIDOnInvalidRequest()
+	_u.mutation.SetFallbackGroupIDOnInvalidRequest(v)
+	return _u
+}
+
+// SetNillableFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableFallbackGroupIDOnInvalidRequest(v *int64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetFallbackGroupIDOnInvalidRequest(*v)
+	}
+	return _u
+}
+
+// AddFallbackGroupIDOnInvalidRequest adds value to the "fallback_group_id_on_invalid_request" field.
+func (_u *GroupUpdateOne) AddFallbackGroupIDOnInvalidRequest(v int64) *GroupUpdateOne {
+	_u.mutation.AddFallbackGroupIDOnInvalidRequest(v)
+	return _u
+}
+
+// ClearFallbackGroupIDOnInvalidRequest clears the value of the "fallback_group_id_on_invalid_request" field.
+func (_u *GroupUpdateOne) ClearFallbackGroupIDOnInvalidRequest() *GroupUpdateOne {
+	_u.mutation.ClearFallbackGroupIDOnInvalidRequest()
+	return _u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_u *GroupUpdateOne) SetModelRouting(v map[string][]int64) *GroupUpdateOne {
 	_u.mutation.SetModelRouting(v)
@@ -1693,57 +1640,29 @@ func (_u *GroupUpdateOne) SetNillableModelRoutingEnabled(v *bool) *GroupUpdateOn
 	return _u
 }
 
-// SetBalanceDailyQuota sets the "balance_daily_quota" field.
-func (_u *GroupUpdateOne) SetBalanceDailyQuota(v float64) *GroupUpdateOne {
-	_u.mutation.ResetBalanceDailyQuota()
-	_u.mutation.SetBalanceDailyQuota(v)
+// SetMcpXMLInject sets the "mcp_xml_inject" field.
+func (_u *GroupUpdateOne) SetMcpXMLInject(v bool) *GroupUpdateOne {
+	_u.mutation.SetMcpXMLInject(v)
 	return _u
 }
 
-// SetNillableBalanceDailyQuota sets the "balance_daily_quota" field if the given value is not nil.
-func (_u *GroupUpdateOne) SetNillableBalanceDailyQuota(v *float64) *GroupUpdateOne {
+// SetNillableMcpXMLInject sets the "mcp_xml_inject" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableMcpXMLInject(v *bool) *GroupUpdateOne {
 	if v != nil {
-		_u.SetBalanceDailyQuota(*v)
+		_u.SetMcpXMLInject(*v)
 	}
 	return _u
 }
 
-// AddBalanceDailyQuota adds value to the "balance_daily_quota" field.
-func (_u *GroupUpdateOne) AddBalanceDailyQuota(v float64) *GroupUpdateOne {
-	_u.mutation.AddBalanceDailyQuota(v)
+// SetSupportedModelScopes sets the "supported_model_scopes" field.
+func (_u *GroupUpdateOne) SetSupportedModelScopes(v []string) *GroupUpdateOne {
+	_u.mutation.SetSupportedModelScopes(v)
 	return _u
 }
 
-// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
-func (_u *GroupUpdateOne) ClearBalanceDailyQuota() *GroupUpdateOne {
-	_u.mutation.ClearBalanceDailyQuota()
-	return _u
-}
-
-// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
-func (_u *GroupUpdateOne) SetBalanceWeeklyQuota(v float64) *GroupUpdateOne {
-	_u.mutation.ResetBalanceWeeklyQuota()
-	_u.mutation.SetBalanceWeeklyQuota(v)
-	return _u
-}
-
-// SetNillableBalanceWeeklyQuota sets the "balance_weekly_quota" field if the given value is not nil.
-func (_u *GroupUpdateOne) SetNillableBalanceWeeklyQuota(v *float64) *GroupUpdateOne {
-	if v != nil {
-		_u.SetBalanceWeeklyQuota(*v)
-	}
-	return _u
-}
-
-// AddBalanceWeeklyQuota adds value to the "balance_weekly_quota" field.
-func (_u *GroupUpdateOne) AddBalanceWeeklyQuota(v float64) *GroupUpdateOne {
-	_u.mutation.AddBalanceWeeklyQuota(v)
-	return _u
-}
-
-// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
-func (_u *GroupUpdateOne) ClearBalanceWeeklyQuota() *GroupUpdateOne {
-	_u.mutation.ClearBalanceWeeklyQuota()
+// AppendSupportedModelScopes appends value to the "supported_model_scopes" field.
+func (_u *GroupUpdateOne) AppendSupportedModelScopes(v []string) *GroupUpdateOne {
+	_u.mutation.AppendSupportedModelScopes(v)
 	return _u
 }
 
@@ -1805,21 +1724,6 @@ func (_u *GroupUpdateOne) AddUsageLogs(v ...*UsageLog) *GroupUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.AddUsageLogIDs(ids...)
-}
-
-// AddProductIDs adds the "products" edge to the Product entity by IDs.
-func (_u *GroupUpdateOne) AddProductIDs(ids ...int64) *GroupUpdateOne {
-	_u.mutation.AddProductIDs(ids...)
-	return _u
-}
-
-// AddProducts adds the "products" edges to the Product entity.
-func (_u *GroupUpdateOne) AddProducts(v ...*Product) *GroupUpdateOne {
-	ids := make([]int64, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddProductIDs(ids...)
 }
 
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
@@ -1939,27 +1843,6 @@ func (_u *GroupUpdateOne) RemoveUsageLogs(v ...*UsageLog) *GroupUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
-}
-
-// ClearProducts clears all "products" edges to the Product entity.
-func (_u *GroupUpdateOne) ClearProducts() *GroupUpdateOne {
-	_u.mutation.ClearProducts()
-	return _u
-}
-
-// RemoveProductIDs removes the "products" edge to Product entities by IDs.
-func (_u *GroupUpdateOne) RemoveProductIDs(ids ...int64) *GroupUpdateOne {
-	_u.mutation.RemoveProductIDs(ids...)
-	return _u
-}
-
-// RemoveProducts removes "products" edges to Product entities.
-func (_u *GroupUpdateOne) RemoveProducts(v ...*Product) *GroupUpdateOne {
-	ids := make([]int64, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveProductIDs(ids...)
 }
 
 // ClearAccounts clears all "accounts" edges to the Account entity.
@@ -2221,6 +2104,15 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	if _u.mutation.FallbackGroupIDCleared() {
 		_spec.ClearField(group.FieldFallbackGroupID, field.TypeInt64)
 	}
+	if value, ok := _u.mutation.FallbackGroupIDOnInvalidRequest(); ok {
+		_spec.SetField(group.FieldFallbackGroupIDOnInvalidRequest, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedFallbackGroupIDOnInvalidRequest(); ok {
+		_spec.AddField(group.FieldFallbackGroupIDOnInvalidRequest, field.TypeInt64, value)
+	}
+	if _u.mutation.FallbackGroupIDOnInvalidRequestCleared() {
+		_spec.ClearField(group.FieldFallbackGroupIDOnInvalidRequest, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
 	}
@@ -2230,23 +2122,16 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	if value, ok := _u.mutation.ModelRoutingEnabled(); ok {
 		_spec.SetField(group.FieldModelRoutingEnabled, field.TypeBool, value)
 	}
-	if value, ok := _u.mutation.BalanceDailyQuota(); ok {
-		_spec.SetField(group.FieldBalanceDailyQuota, field.TypeFloat64, value)
+	if value, ok := _u.mutation.McpXMLInject(); ok {
+		_spec.SetField(group.FieldMcpXMLInject, field.TypeBool, value)
 	}
-	if value, ok := _u.mutation.AddedBalanceDailyQuota(); ok {
-		_spec.AddField(group.FieldBalanceDailyQuota, field.TypeFloat64, value)
+	if value, ok := _u.mutation.SupportedModelScopes(); ok {
+		_spec.SetField(group.FieldSupportedModelScopes, field.TypeJSON, value)
 	}
-	if _u.mutation.BalanceDailyQuotaCleared() {
-		_spec.ClearField(group.FieldBalanceDailyQuota, field.TypeFloat64)
-	}
-	if value, ok := _u.mutation.BalanceWeeklyQuota(); ok {
-		_spec.SetField(group.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
-	}
-	if value, ok := _u.mutation.AddedBalanceWeeklyQuota(); ok {
-		_spec.AddField(group.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
-	}
-	if _u.mutation.BalanceWeeklyQuotaCleared() {
-		_spec.ClearField(group.FieldBalanceWeeklyQuota, field.TypeFloat64)
+	if value, ok := _u.mutation.AppendedSupportedModelScopes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, group.FieldSupportedModelScopes, value)
+		})
 	}
 	if _u.mutation.APIKeysCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -2421,51 +2306,6 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.ProductsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   group.ProductsTable,
-			Columns: []string{group.ProductsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(product.FieldID, field.TypeInt64),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedProductsIDs(); len(nodes) > 0 && !_u.mutation.ProductsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   group.ProductsTable,
-			Columns: []string{group.ProductsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(product.FieldID, field.TypeInt64),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.ProductsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   group.ProductsTable,
-			Columns: []string{group.ProductsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(product.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

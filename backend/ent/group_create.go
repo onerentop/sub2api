@@ -14,7 +14,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
-	"github.com/Wei-Shaw/sub2api/ent/product"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
@@ -287,6 +286,20 @@ func (_c *GroupCreate) SetNillableFallbackGroupID(v *int64) *GroupCreate {
 	return _c
 }
 
+// SetFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field.
+func (_c *GroupCreate) SetFallbackGroupIDOnInvalidRequest(v int64) *GroupCreate {
+	_c.mutation.SetFallbackGroupIDOnInvalidRequest(v)
+	return _c
+}
+
+// SetNillableFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableFallbackGroupIDOnInvalidRequest(v *int64) *GroupCreate {
+	if v != nil {
+		_c.SetFallbackGroupIDOnInvalidRequest(*v)
+	}
+	return _c
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_c *GroupCreate) SetModelRouting(v map[string][]int64) *GroupCreate {
 	_c.mutation.SetModelRouting(v)
@@ -307,31 +320,23 @@ func (_c *GroupCreate) SetNillableModelRoutingEnabled(v *bool) *GroupCreate {
 	return _c
 }
 
-// SetBalanceDailyQuota sets the "balance_daily_quota" field.
-func (_c *GroupCreate) SetBalanceDailyQuota(v float64) *GroupCreate {
-	_c.mutation.SetBalanceDailyQuota(v)
+// SetMcpXMLInject sets the "mcp_xml_inject" field.
+func (_c *GroupCreate) SetMcpXMLInject(v bool) *GroupCreate {
+	_c.mutation.SetMcpXMLInject(v)
 	return _c
 }
 
-// SetNillableBalanceDailyQuota sets the "balance_daily_quota" field if the given value is not nil.
-func (_c *GroupCreate) SetNillableBalanceDailyQuota(v *float64) *GroupCreate {
+// SetNillableMcpXMLInject sets the "mcp_xml_inject" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableMcpXMLInject(v *bool) *GroupCreate {
 	if v != nil {
-		_c.SetBalanceDailyQuota(*v)
+		_c.SetMcpXMLInject(*v)
 	}
 	return _c
 }
 
-// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
-func (_c *GroupCreate) SetBalanceWeeklyQuota(v float64) *GroupCreate {
-	_c.mutation.SetBalanceWeeklyQuota(v)
-	return _c
-}
-
-// SetNillableBalanceWeeklyQuota sets the "balance_weekly_quota" field if the given value is not nil.
-func (_c *GroupCreate) SetNillableBalanceWeeklyQuota(v *float64) *GroupCreate {
-	if v != nil {
-		_c.SetBalanceWeeklyQuota(*v)
-	}
+// SetSupportedModelScopes sets the "supported_model_scopes" field.
+func (_c *GroupCreate) SetSupportedModelScopes(v []string) *GroupCreate {
+	_c.mutation.SetSupportedModelScopes(v)
 	return _c
 }
 
@@ -393,21 +398,6 @@ func (_c *GroupCreate) AddUsageLogs(v ...*UsageLog) *GroupCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddUsageLogIDs(ids...)
-}
-
-// AddProductIDs adds the "products" edge to the Product entity by IDs.
-func (_c *GroupCreate) AddProductIDs(ids ...int64) *GroupCreate {
-	_c.mutation.AddProductIDs(ids...)
-	return _c
-}
-
-// AddProducts adds the "products" edges to the Product entity.
-func (_c *GroupCreate) AddProducts(v ...*Product) *GroupCreate {
-	ids := make([]int64, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddProductIDs(ids...)
 }
 
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
@@ -523,6 +513,14 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultModelRoutingEnabled
 		_c.mutation.SetModelRoutingEnabled(v)
 	}
+	if _, ok := _c.mutation.McpXMLInject(); !ok {
+		v := group.DefaultMcpXMLInject
+		_c.mutation.SetMcpXMLInject(v)
+	}
+	if _, ok := _c.mutation.SupportedModelScopes(); !ok {
+		v := group.DefaultSupportedModelScopes
+		_c.mutation.SetSupportedModelScopes(v)
+	}
 	return nil
 }
 
@@ -580,6 +578,12 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.ModelRoutingEnabled(); !ok {
 		return &ValidationError{Name: "model_routing_enabled", err: errors.New(`ent: missing required field "Group.model_routing_enabled"`)}
+	}
+	if _, ok := _c.mutation.McpXMLInject(); !ok {
+		return &ValidationError{Name: "mcp_xml_inject", err: errors.New(`ent: missing required field "Group.mcp_xml_inject"`)}
+	}
+	if _, ok := _c.mutation.SupportedModelScopes(); !ok {
+		return &ValidationError{Name: "supported_model_scopes", err: errors.New(`ent: missing required field "Group.supported_model_scopes"`)}
 	}
 	return nil
 }
@@ -684,6 +688,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		_spec.SetField(group.FieldFallbackGroupID, field.TypeInt64, value)
 		_node.FallbackGroupID = &value
 	}
+	if value, ok := _c.mutation.FallbackGroupIDOnInvalidRequest(); ok {
+		_spec.SetField(group.FieldFallbackGroupIDOnInvalidRequest, field.TypeInt64, value)
+		_node.FallbackGroupIDOnInvalidRequest = &value
+	}
 	if value, ok := _c.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
 		_node.ModelRouting = value
@@ -692,13 +700,13 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		_spec.SetField(group.FieldModelRoutingEnabled, field.TypeBool, value)
 		_node.ModelRoutingEnabled = value
 	}
-	if value, ok := _c.mutation.BalanceDailyQuota(); ok {
-		_spec.SetField(group.FieldBalanceDailyQuota, field.TypeFloat64, value)
-		_node.BalanceDailyQuota = &value
+	if value, ok := _c.mutation.McpXMLInject(); ok {
+		_spec.SetField(group.FieldMcpXMLInject, field.TypeBool, value)
+		_node.McpXMLInject = value
 	}
-	if value, ok := _c.mutation.BalanceWeeklyQuota(); ok {
-		_spec.SetField(group.FieldBalanceWeeklyQuota, field.TypeFloat64, value)
-		_node.BalanceWeeklyQuota = &value
+	if value, ok := _c.mutation.SupportedModelScopes(); ok {
+		_spec.SetField(group.FieldSupportedModelScopes, field.TypeJSON, value)
+		_node.SupportedModelScopes = value
 	}
 	if nodes := _c.mutation.APIKeysIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -757,22 +765,6 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.ProductsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   group.ProductsTable,
-			Columns: []string{group.ProductsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(product.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -1196,6 +1188,30 @@ func (u *GroupUpsert) ClearFallbackGroupID() *GroupUpsert {
 	return u
 }
 
+// SetFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field.
+func (u *GroupUpsert) SetFallbackGroupIDOnInvalidRequest(v int64) *GroupUpsert {
+	u.Set(group.FieldFallbackGroupIDOnInvalidRequest, v)
+	return u
+}
+
+// UpdateFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateFallbackGroupIDOnInvalidRequest() *GroupUpsert {
+	u.SetExcluded(group.FieldFallbackGroupIDOnInvalidRequest)
+	return u
+}
+
+// AddFallbackGroupIDOnInvalidRequest adds v to the "fallback_group_id_on_invalid_request" field.
+func (u *GroupUpsert) AddFallbackGroupIDOnInvalidRequest(v int64) *GroupUpsert {
+	u.Add(group.FieldFallbackGroupIDOnInvalidRequest, v)
+	return u
+}
+
+// ClearFallbackGroupIDOnInvalidRequest clears the value of the "fallback_group_id_on_invalid_request" field.
+func (u *GroupUpsert) ClearFallbackGroupIDOnInvalidRequest() *GroupUpsert {
+	u.SetNull(group.FieldFallbackGroupIDOnInvalidRequest)
+	return u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (u *GroupUpsert) SetModelRouting(v map[string][]int64) *GroupUpsert {
 	u.Set(group.FieldModelRouting, v)
@@ -1226,51 +1242,27 @@ func (u *GroupUpsert) UpdateModelRoutingEnabled() *GroupUpsert {
 	return u
 }
 
-// SetBalanceDailyQuota sets the "balance_daily_quota" field.
-func (u *GroupUpsert) SetBalanceDailyQuota(v float64) *GroupUpsert {
-	u.Set(group.FieldBalanceDailyQuota, v)
+// SetMcpXMLInject sets the "mcp_xml_inject" field.
+func (u *GroupUpsert) SetMcpXMLInject(v bool) *GroupUpsert {
+	u.Set(group.FieldMcpXMLInject, v)
 	return u
 }
 
-// UpdateBalanceDailyQuota sets the "balance_daily_quota" field to the value that was provided on create.
-func (u *GroupUpsert) UpdateBalanceDailyQuota() *GroupUpsert {
-	u.SetExcluded(group.FieldBalanceDailyQuota)
+// UpdateMcpXMLInject sets the "mcp_xml_inject" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateMcpXMLInject() *GroupUpsert {
+	u.SetExcluded(group.FieldMcpXMLInject)
 	return u
 }
 
-// AddBalanceDailyQuota adds v to the "balance_daily_quota" field.
-func (u *GroupUpsert) AddBalanceDailyQuota(v float64) *GroupUpsert {
-	u.Add(group.FieldBalanceDailyQuota, v)
+// SetSupportedModelScopes sets the "supported_model_scopes" field.
+func (u *GroupUpsert) SetSupportedModelScopes(v []string) *GroupUpsert {
+	u.Set(group.FieldSupportedModelScopes, v)
 	return u
 }
 
-// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
-func (u *GroupUpsert) ClearBalanceDailyQuota() *GroupUpsert {
-	u.SetNull(group.FieldBalanceDailyQuota)
-	return u
-}
-
-// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
-func (u *GroupUpsert) SetBalanceWeeklyQuota(v float64) *GroupUpsert {
-	u.Set(group.FieldBalanceWeeklyQuota, v)
-	return u
-}
-
-// UpdateBalanceWeeklyQuota sets the "balance_weekly_quota" field to the value that was provided on create.
-func (u *GroupUpsert) UpdateBalanceWeeklyQuota() *GroupUpsert {
-	u.SetExcluded(group.FieldBalanceWeeklyQuota)
-	return u
-}
-
-// AddBalanceWeeklyQuota adds v to the "balance_weekly_quota" field.
-func (u *GroupUpsert) AddBalanceWeeklyQuota(v float64) *GroupUpsert {
-	u.Add(group.FieldBalanceWeeklyQuota, v)
-	return u
-}
-
-// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
-func (u *GroupUpsert) ClearBalanceWeeklyQuota() *GroupUpsert {
-	u.SetNull(group.FieldBalanceWeeklyQuota)
+// UpdateSupportedModelScopes sets the "supported_model_scopes" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSupportedModelScopes() *GroupUpsert {
+	u.SetExcluded(group.FieldSupportedModelScopes)
 	return u
 }
 
@@ -1697,6 +1689,34 @@ func (u *GroupUpsertOne) ClearFallbackGroupID() *GroupUpsertOne {
 	})
 }
 
+// SetFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field.
+func (u *GroupUpsertOne) SetFallbackGroupIDOnInvalidRequest(v int64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetFallbackGroupIDOnInvalidRequest(v)
+	})
+}
+
+// AddFallbackGroupIDOnInvalidRequest adds v to the "fallback_group_id_on_invalid_request" field.
+func (u *GroupUpsertOne) AddFallbackGroupIDOnInvalidRequest(v int64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddFallbackGroupIDOnInvalidRequest(v)
+	})
+}
+
+// UpdateFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateFallbackGroupIDOnInvalidRequest() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateFallbackGroupIDOnInvalidRequest()
+	})
+}
+
+// ClearFallbackGroupIDOnInvalidRequest clears the value of the "fallback_group_id_on_invalid_request" field.
+func (u *GroupUpsertOne) ClearFallbackGroupIDOnInvalidRequest() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearFallbackGroupIDOnInvalidRequest()
+	})
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (u *GroupUpsertOne) SetModelRouting(v map[string][]int64) *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
@@ -1732,59 +1752,31 @@ func (u *GroupUpsertOne) UpdateModelRoutingEnabled() *GroupUpsertOne {
 	})
 }
 
-// SetBalanceDailyQuota sets the "balance_daily_quota" field.
-func (u *GroupUpsertOne) SetBalanceDailyQuota(v float64) *GroupUpsertOne {
+// SetMcpXMLInject sets the "mcp_xml_inject" field.
+func (u *GroupUpsertOne) SetMcpXMLInject(v bool) *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
-		s.SetBalanceDailyQuota(v)
+		s.SetMcpXMLInject(v)
 	})
 }
 
-// AddBalanceDailyQuota adds v to the "balance_daily_quota" field.
-func (u *GroupUpsertOne) AddBalanceDailyQuota(v float64) *GroupUpsertOne {
+// UpdateMcpXMLInject sets the "mcp_xml_inject" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateMcpXMLInject() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
-		s.AddBalanceDailyQuota(v)
+		s.UpdateMcpXMLInject()
 	})
 }
 
-// UpdateBalanceDailyQuota sets the "balance_daily_quota" field to the value that was provided on create.
-func (u *GroupUpsertOne) UpdateBalanceDailyQuota() *GroupUpsertOne {
+// SetSupportedModelScopes sets the "supported_model_scopes" field.
+func (u *GroupUpsertOne) SetSupportedModelScopes(v []string) *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
-		s.UpdateBalanceDailyQuota()
+		s.SetSupportedModelScopes(v)
 	})
 }
 
-// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
-func (u *GroupUpsertOne) ClearBalanceDailyQuota() *GroupUpsertOne {
+// UpdateSupportedModelScopes sets the "supported_model_scopes" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSupportedModelScopes() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
-		s.ClearBalanceDailyQuota()
-	})
-}
-
-// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
-func (u *GroupUpsertOne) SetBalanceWeeklyQuota(v float64) *GroupUpsertOne {
-	return u.Update(func(s *GroupUpsert) {
-		s.SetBalanceWeeklyQuota(v)
-	})
-}
-
-// AddBalanceWeeklyQuota adds v to the "balance_weekly_quota" field.
-func (u *GroupUpsertOne) AddBalanceWeeklyQuota(v float64) *GroupUpsertOne {
-	return u.Update(func(s *GroupUpsert) {
-		s.AddBalanceWeeklyQuota(v)
-	})
-}
-
-// UpdateBalanceWeeklyQuota sets the "balance_weekly_quota" field to the value that was provided on create.
-func (u *GroupUpsertOne) UpdateBalanceWeeklyQuota() *GroupUpsertOne {
-	return u.Update(func(s *GroupUpsert) {
-		s.UpdateBalanceWeeklyQuota()
-	})
-}
-
-// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
-func (u *GroupUpsertOne) ClearBalanceWeeklyQuota() *GroupUpsertOne {
-	return u.Update(func(s *GroupUpsert) {
-		s.ClearBalanceWeeklyQuota()
+		s.UpdateSupportedModelScopes()
 	})
 }
 
@@ -2377,6 +2369,34 @@ func (u *GroupUpsertBulk) ClearFallbackGroupID() *GroupUpsertBulk {
 	})
 }
 
+// SetFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field.
+func (u *GroupUpsertBulk) SetFallbackGroupIDOnInvalidRequest(v int64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetFallbackGroupIDOnInvalidRequest(v)
+	})
+}
+
+// AddFallbackGroupIDOnInvalidRequest adds v to the "fallback_group_id_on_invalid_request" field.
+func (u *GroupUpsertBulk) AddFallbackGroupIDOnInvalidRequest(v int64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddFallbackGroupIDOnInvalidRequest(v)
+	})
+}
+
+// UpdateFallbackGroupIDOnInvalidRequest sets the "fallback_group_id_on_invalid_request" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateFallbackGroupIDOnInvalidRequest() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateFallbackGroupIDOnInvalidRequest()
+	})
+}
+
+// ClearFallbackGroupIDOnInvalidRequest clears the value of the "fallback_group_id_on_invalid_request" field.
+func (u *GroupUpsertBulk) ClearFallbackGroupIDOnInvalidRequest() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearFallbackGroupIDOnInvalidRequest()
+	})
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (u *GroupUpsertBulk) SetModelRouting(v map[string][]int64) *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
@@ -2412,59 +2432,31 @@ func (u *GroupUpsertBulk) UpdateModelRoutingEnabled() *GroupUpsertBulk {
 	})
 }
 
-// SetBalanceDailyQuota sets the "balance_daily_quota" field.
-func (u *GroupUpsertBulk) SetBalanceDailyQuota(v float64) *GroupUpsertBulk {
+// SetMcpXMLInject sets the "mcp_xml_inject" field.
+func (u *GroupUpsertBulk) SetMcpXMLInject(v bool) *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
-		s.SetBalanceDailyQuota(v)
+		s.SetMcpXMLInject(v)
 	})
 }
 
-// AddBalanceDailyQuota adds v to the "balance_daily_quota" field.
-func (u *GroupUpsertBulk) AddBalanceDailyQuota(v float64) *GroupUpsertBulk {
+// UpdateMcpXMLInject sets the "mcp_xml_inject" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateMcpXMLInject() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
-		s.AddBalanceDailyQuota(v)
+		s.UpdateMcpXMLInject()
 	})
 }
 
-// UpdateBalanceDailyQuota sets the "balance_daily_quota" field to the value that was provided on create.
-func (u *GroupUpsertBulk) UpdateBalanceDailyQuota() *GroupUpsertBulk {
+// SetSupportedModelScopes sets the "supported_model_scopes" field.
+func (u *GroupUpsertBulk) SetSupportedModelScopes(v []string) *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
-		s.UpdateBalanceDailyQuota()
+		s.SetSupportedModelScopes(v)
 	})
 }
 
-// ClearBalanceDailyQuota clears the value of the "balance_daily_quota" field.
-func (u *GroupUpsertBulk) ClearBalanceDailyQuota() *GroupUpsertBulk {
+// UpdateSupportedModelScopes sets the "supported_model_scopes" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSupportedModelScopes() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
-		s.ClearBalanceDailyQuota()
-	})
-}
-
-// SetBalanceWeeklyQuota sets the "balance_weekly_quota" field.
-func (u *GroupUpsertBulk) SetBalanceWeeklyQuota(v float64) *GroupUpsertBulk {
-	return u.Update(func(s *GroupUpsert) {
-		s.SetBalanceWeeklyQuota(v)
-	})
-}
-
-// AddBalanceWeeklyQuota adds v to the "balance_weekly_quota" field.
-func (u *GroupUpsertBulk) AddBalanceWeeklyQuota(v float64) *GroupUpsertBulk {
-	return u.Update(func(s *GroupUpsert) {
-		s.AddBalanceWeeklyQuota(v)
-	})
-}
-
-// UpdateBalanceWeeklyQuota sets the "balance_weekly_quota" field to the value that was provided on create.
-func (u *GroupUpsertBulk) UpdateBalanceWeeklyQuota() *GroupUpsertBulk {
-	return u.Update(func(s *GroupUpsert) {
-		s.UpdateBalanceWeeklyQuota()
-	})
-}
-
-// ClearBalanceWeeklyQuota clears the value of the "balance_weekly_quota" field.
-func (u *GroupUpsertBulk) ClearBalanceWeeklyQuota() *GroupUpsertBulk {
-	return u.Update(func(s *GroupUpsert) {
-		s.ClearBalanceWeeklyQuota()
+		s.UpdateSupportedModelScopes()
 	})
 }
 

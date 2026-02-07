@@ -1,12 +1,13 @@
 package service
 
 type SystemSettings struct {
-	RegistrationEnabled  bool
-	EmailVerifyEnabled   bool
-	PromoCodeEnabled     bool
-	PasswordResetEnabled bool
-	TotpEnabled          bool     // TOTP 双因素认证
-	EmailDomainWhitelist []string // 允许注册的邮箱后缀
+	RegistrationEnabled   bool
+	EmailVerifyEnabled    bool
+	PromoCodeEnabled      bool
+	PasswordResetEnabled  bool
+	InvitationCodeEnabled bool
+	TotpEnabled           bool     // TOTP 双因素认证
+	EmailDomainWhitelist  []string // 允许注册的邮箱后缀
 
 	SMTPHost               string
 	SMTPPort               int
@@ -29,14 +30,16 @@ type SystemSettings struct {
 	LinuxDoConnectClientSecretConfigured bool
 	LinuxDoConnectRedirectURL            string
 
-	SiteName            string
-	SiteLogo            string
-	SiteSubtitle        string
-	APIBaseURL          string
-	ContactInfo         string
-	DocURL              string
-	HomeContent         string
-	HideCcsImportButton bool
+	SiteName                    string
+	SiteLogo                    string
+	SiteSubtitle                string
+	APIBaseURL                  string
+	ContactInfo                 string
+	DocURL                      string
+	HomeContent                 string
+	HideCcsImportButton         bool
+	PurchaseSubscriptionEnabled bool
+	PurchaseSubscriptionURL     string
 
 	DefaultConcurrency int
 	DefaultBalance     float64
@@ -73,23 +76,28 @@ type SystemSettings struct {
 }
 
 type PublicSettings struct {
-	RegistrationEnabled  bool
-	EmailVerifyEnabled   bool
-	PromoCodeEnabled     bool
-	PasswordResetEnabled bool
-	TotpEnabled          bool // TOTP 双因素认证
-	TurnstileEnabled     bool
-	TurnstileSiteKey     string
-	SiteName             string
-	SiteLogo             string
-	SiteSubtitle         string
-	APIBaseURL           string
-	ContactInfo          string
-	DocURL               string
-	HomeContent          string
-	HideCcsImportButton  bool
-	LinuxDoOAuthEnabled  bool
-	Version              string
+	RegistrationEnabled   bool
+	EmailVerifyEnabled    bool
+	PromoCodeEnabled      bool
+	PasswordResetEnabled  bool
+	InvitationCodeEnabled bool
+	TotpEnabled           bool // TOTP 双因素认证
+	TurnstileEnabled      bool
+	TurnstileSiteKey      string
+	SiteName              string
+	SiteLogo              string
+	SiteSubtitle          string
+	APIBaseURL            string
+	ContactInfo           string
+	DocURL                string
+	HomeContent           string
+	HideCcsImportButton   bool
+
+	PurchaseSubscriptionEnabled bool
+	PurchaseSubscriptionURL     string
+
+	LinuxDoOAuthEnabled bool
+	Version             string
 }
 
 // StreamTimeoutSettings 流超时处理配置（仅控制超时后的处理方式，超时判定由网关配置控制）

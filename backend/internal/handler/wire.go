@@ -13,6 +13,7 @@ func ProvideAdminHandlers(
 	userHandler *admin.UserHandler,
 	groupHandler *admin.GroupHandler,
 	accountHandler *admin.AccountHandler,
+	announcementHandler *admin.AnnouncementHandler,
 	oauthHandler *admin.OAuthHandler,
 	openaiOAuthHandler *admin.OpenAIOAuthHandler,
 	geminiOAuthHandler *admin.GeminiOAuthHandler,
@@ -21,7 +22,6 @@ func ProvideAdminHandlers(
 	proxyHandler *admin.ProxyHandler,
 	redeemHandler *admin.RedeemHandler,
 	promoHandler *admin.PromoHandler,
-	announcementHandler *admin.AnnouncementHandler,
 	settingHandler *admin.SettingHandler,
 	opsHandler *admin.OpsHandler,
 	systemHandler *admin.SystemHandler,
@@ -30,12 +30,14 @@ func ProvideAdminHandlers(
 	userAttributeHandler *admin.UserAttributeHandler,
 	productHandler *admin.ProductHandler,
 	paymentOrderHandler *admin.PaymentOrderHandler,
+	errorPassthroughHandler *admin.ErrorPassthroughHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:        dashboardHandler,
 		User:             userHandler,
 		Group:            groupHandler,
 		Account:          accountHandler,
+		Announcement:     announcementHandler,
 		OAuth:            oauthHandler,
 		OpenAIOAuth:      openaiOAuthHandler,
 		GeminiOAuth:      geminiOAuthHandler,
@@ -44,7 +46,6 @@ func ProvideAdminHandlers(
 		Proxy:            proxyHandler,
 		Redeem:           redeemHandler,
 		Promo:            promoHandler,
-		Announcement:     announcementHandler,
 		Setting:          settingHandler,
 		Ops:              opsHandler,
 		System:           systemHandler,
@@ -53,6 +54,7 @@ func ProvideAdminHandlers(
 		UserAttribute:    userAttributeHandler,
 		Product:          productHandler,
 		PaymentOrder:     paymentOrderHandler,
+		ErrorPassthrough: errorPassthroughHandler,
 	}
 }
 
@@ -126,6 +128,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewUserHandler,
 	admin.NewGroupHandler,
 	admin.NewAccountHandler,
+	admin.NewAnnouncementHandler,
 	admin.NewOAuthHandler,
 	admin.NewOpenAIOAuthHandler,
 	admin.NewGeminiOAuthHandler,
@@ -134,7 +137,6 @@ var ProviderSet = wire.NewSet(
 	admin.NewProxyHandler,
 	admin.NewRedeemHandler,
 	admin.NewPromoHandler,
-	admin.NewAnnouncementHandler,
 	admin.NewSettingHandler,
 	admin.NewOpsHandler,
 	ProvideSystemHandler,
@@ -143,6 +145,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewUserAttributeHandler,
 	admin.NewProductHandler,
 	admin.NewPaymentOrderHandler,
+	admin.NewErrorPassthroughHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

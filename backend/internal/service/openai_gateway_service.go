@@ -156,12 +156,15 @@ type OpenAIUsage struct {
 
 // OpenAIForwardResult represents the result of forwarding
 type OpenAIForwardResult struct {
-	RequestID    string
-	Usage        OpenAIUsage
-	Model        string
-	Stream       bool
-	Duration     time.Duration
-	FirstTokenMs *int
+	RequestID string
+	Usage     OpenAIUsage
+	Model     string
+	// ReasoningEffort is extracted from request body (reasoning.effort) or derived from model suffix.
+	// Stored for usage records display; nil means not provided / not applicable.
+	ReasoningEffort *string
+	Stream          bool
+	Duration        time.Duration
+	FirstTokenMs    *int
 }
 
 // OpenAIGatewayService handles OpenAI API gateway operations
@@ -180,7 +183,6 @@ type OpenAIGatewayService struct {
 	httpUpstream        HTTPUpstream
 	deferredService     *DeferredService
 	openAITokenProvider *OpenAITokenProvider
-	model429Tracker     *Model429Tracker
 	toolCorrector       *CodexToolCorrector
 }
 
@@ -200,7 +202,6 @@ func NewOpenAIGatewayService(
 	httpUpstream HTTPUpstream,
 	deferredService *DeferredService,
 	openAITokenProvider *OpenAITokenProvider,
-	model429Tracker *Model429Tracker,
 ) *OpenAIGatewayService {
 	return &OpenAIGatewayService{
 		accountRepo:         accountRepo,
@@ -217,7 +218,6 @@ func NewOpenAIGatewayService(
 		httpUpstream:        httpUpstream,
 		deferredService:     deferredService,
 		openAITokenProvider: openAITokenProvider,
-		model429Tracker:     model429Tracker,
 		toolCorrector:       NewCodexToolCorrector(),
 	}
 }
@@ -332,7 +332,7 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 
 	// 检查账号是否需要清理粘性会话
 	// Check if sticky session should be cleared
-	if shouldClearStickySession(account) {
+	if shouldClearStickySession(account, requestedModel) {
 		_ = s.cache.DeleteSessionAccountID(ctx, derefGroupID(groupID), cacheKey)
 		return nil
 	}
@@ -343,12 +343,6 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 		return nil
 	}
 	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
-		return nil
-	}
-
-	// 检查 429 追踪状态
-	// Check 429 tracking status
-	if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(accountID, requestedModel) {
 		return nil
 	}
 
@@ -384,12 +378,6 @@ func (s *OpenAIGatewayService) selectBestAccount(accounts []Account, requestedMo
 		// 检查模型支持
 		// Check model support
 		if requestedModel != "" && !acc.IsModelSupported(requestedModel) {
-			continue
-		}
-
-		// 检查 429 追踪状态
-		// Fast in-memory 429 check to avoid selecting rate-limited accounts
-		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
 			continue
 		}
 
@@ -510,13 +498,11 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		if err == nil && accountID > 0 && !isExcluded(accountID) {
 			account, err := s.getSchedulableAccount(ctx, accountID)
 			if err == nil {
-				clearSticky := shouldClearStickySession(account)
+				clearSticky := shouldClearStickySession(account, requestedModel)
 				if clearSticky {
 					_ = s.cache.DeleteSessionAccountID(ctx, derefGroupID(groupID), "openai:"+sessionHash)
 				}
-				// 粘性会话也需要检查 429 状态，避免选中已被限流的账户
-				model429Available := s.model429Tracker == nil || s.model429Tracker.IsAccountAvailableForModel(accountID, requestedModel)
-				if !clearSticky && model429Available && account.IsSchedulable() && account.IsOpenAI() &&
+				if !clearSticky && account.IsSchedulable() && account.IsOpenAI() &&
 					(requestedModel == "" || account.IsModelSupported(requestedModel)) {
 					result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
 					if err == nil && result.Acquired {
@@ -556,10 +542,6 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		// re-check schedulability here so recently rate-limited/overloaded accounts
 		// are not selected again before the bucket is rebuilt.
 		if !acc.IsSchedulable() {
-			continue
-		}
-		// Fast in-memory 429 check to avoid selecting rate-limited accounts
-		if s.model429Tracker != nil && !s.model429Tracker.IsAccountAvailableForModel(acc.ID, requestedModel) {
 			continue
 		}
 		if requestedModel != "" && !acc.IsModelSupported(requestedModel) {
@@ -756,20 +738,9 @@ func (s *OpenAIGatewayService) shouldFailoverUpstreamError(statusCode int) bool 
 	}
 }
 
-func (s *OpenAIGatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account, model string) {
+func (s *OpenAIGatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
-
-	// Fast in-memory 429 tracking for model-level backoff
-	if resp.StatusCode == 429 && s.model429Tracker != nil {
-		var upstreamResetAt time.Time
-		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
-			if secs, err := strconv.Atoi(retryAfter); err == nil {
-				upstreamResetAt = time.Now().Add(time.Duration(secs) * time.Second)
-			}
-		}
-		s.model429Tracker.Record429(account.ID, model, upstreamResetAt)
-	}
 }
 
 // Forward forwards request to OpenAI API
@@ -825,8 +796,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 	}
 
-	if account.Type == AccountTypeOAuth && !isCodexCLI {
-		codexResult := applyCodexOAuthTransform(reqBody)
+	if account.Type == AccountTypeOAuth {
+		codexResult := applyCodexOAuthTransform(reqBody, isCodexCLI)
 		if codexResult.Modified {
 			bodyModified = true
 		}
@@ -874,6 +845,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				bodyModified = true
 			}
 		}
+
+		// Remove unsupported fields (not supported by upstream OpenAI API)
+		for _, unsupportedField := range []string{"prompt_cache_retention", "safety_identifier", "previous_response_id"} {
+			if _, has := reqBody[unsupportedField]; has {
+				delete(reqBody, unsupportedField)
+				bodyModified = true
+			}
+		}
 	}
 
 	// Re-serialize body only if modified
@@ -897,9 +876,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		return nil, err
 	}
 
-	// Get proxy URL - only use proxy if it's active
+	// Get proxy URL
 	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil && account.Proxy.IsActive() {
+	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
 
@@ -960,10 +939,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				Detail:             upstreamDetail,
 			})
 
-			s.handleFailoverSideEffects(ctx, resp, account, originalModel)
-			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode}
+			s.handleFailoverSideEffects(ctx, resp, account)
+			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody}
 		}
-		return s.handleErrorResponse(ctx, resp, c, account, originalModel)
+		return s.handleErrorResponse(ctx, resp, c, account)
 	}
 
 	// Handle normal response
@@ -990,18 +969,16 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 	}
 
-	// 成功请求，重置该账户-模型的 429 backoff
-	if s.model429Tracker != nil {
-		s.model429Tracker.MarkAvailable(account.ID, originalModel)
-	}
+	reasoningEffort := extractOpenAIReasoningEffort(reqBody, originalModel)
 
 	return &OpenAIForwardResult{
-		RequestID:    resp.Header.Get("x-request-id"),
-		Usage:        *usage,
-		Model:        originalModel,
-		Stream:       reqStream,
-		Duration:     time.Since(startTime),
-		FirstTokenMs: firstTokenMs,
+		RequestID:       resp.Header.Get("x-request-id"),
+		Usage:           *usage,
+		Model:           originalModel,
+		ReasoningEffort: reasoningEffort,
+		Stream:          reqStream,
+		Duration:        time.Since(startTime),
+		FirstTokenMs:    firstTokenMs,
 	}, nil
 }
 
@@ -1084,7 +1061,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	return req, nil
 }
 
-func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, model string) (*OpenAIForwardResult, error) {
+func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account) (*OpenAIForwardResult, error) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
@@ -1108,6 +1085,30 @@ func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *ht
 			account.Type,
 			truncateForLog(body, s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes),
 		)
+	}
+
+	if status, errType, errMsg, matched := applyErrorPassthroughRule(
+		c,
+		PlatformOpenAI,
+		resp.StatusCode,
+		body,
+		http.StatusBadGateway,
+		"upstream_error",
+		"Upstream request failed",
+	); matched {
+		c.JSON(status, gin.H{
+			"error": gin.H{
+				"type":    errType,
+				"message": errMsg,
+			},
+		})
+		if upstreamMsg == "" {
+			upstreamMsg = errMsg
+		}
+		if upstreamMsg == "" {
+			return nil, fmt.Errorf("upstream error: %d (passthrough rule matched)", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("upstream error: %d (passthrough rule matched) message=%s", resp.StatusCode, upstreamMsg)
 	}
 
 	// Check custom error codes
@@ -1139,18 +1140,6 @@ func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *ht
 	if s.rateLimitService != nil {
 		shouldDisable = s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
 	}
-
-	// Fast in-memory 429 tracking for model-level backoff
-	if resp.StatusCode == 429 && s.model429Tracker != nil {
-		var upstreamResetAt time.Time
-		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
-			if secs, err := strconv.Atoi(retryAfter); err == nil {
-				upstreamResetAt = time.Now().Add(time.Duration(secs) * time.Second)
-			}
-		}
-		s.model429Tracker.Record429(account.ID, model, upstreamResetAt)
-	}
-
 	kind := "http_error"
 	if shouldDisable {
 		kind = "failover"
@@ -1166,7 +1155,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *ht
 		Detail:             upstreamDetail,
 	})
 	if shouldDisable {
-		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode}
+		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: body}
 	}
 
 	// Return appropriate error response
@@ -1309,15 +1298,29 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 	// 记录上次收到上游数据的时间，用于控制 keepalive 发送频率
 	lastDataAt := time.Now()
 
-	// 仅发送一次错误事件，避免多次写入导致协议混乱（写失败时尽力通知客户端）
+	// 仅发送一次错误事件，避免多次写入导致协议混乱。
+	// 注意：OpenAI `/v1/responses` streaming 事件必须符合 OpenAI Responses schema；
+	// 否则下游 SDK（例如 OpenCode）会因为类型校验失败而报错。
 	errorEventSent := false
+	clientDisconnected := false // 客户端断开后继续 drain 上游以收集 usage
 	sendErrorEvent := func(reason string) {
-		if errorEventSent {
+		if errorEventSent || clientDisconnected {
 			return
 		}
 		errorEventSent = true
-		_, _ = fmt.Fprintf(w, "event: error\ndata: {\"error\":\"%s\"}\n\n", reason)
-		flusher.Flush()
+		payload := map[string]any{
+			"type":            "error",
+			"sequence_number": 0,
+			"error": map[string]any{
+				"type":    "upstream_error",
+				"message": reason,
+				"code":    reason,
+			},
+		}
+		if b, err := json.Marshal(payload); err == nil {
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", b)
+			flusher.Flush()
+		}
 	}
 
 	needModelReplace := originalModel != mappedModel
@@ -1329,6 +1332,17 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 				return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, nil
 			}
 			if ev.err != nil {
+				// 客户端断开/取消请求时，上游读取往往会返回 context canceled。
+				// /v1/responses 的 SSE 事件必须符合 OpenAI 协议；这里不注入自定义 error event，避免下游 SDK 解析失败。
+				if errors.Is(ev.err, context.Canceled) || errors.Is(ev.err, context.DeadlineExceeded) {
+					log.Printf("Context canceled during streaming, returning collected usage")
+					return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, nil
+				}
+				// 客户端已断开时，上游出错仅影响体验，不影响计费；返回已收集 usage
+				if clientDisconnected {
+					log.Printf("Upstream read error after client disconnect: %v, returning collected usage", ev.err)
+					return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, nil
+				}
 				if errors.Is(ev.err, bufio.ErrTooLong) {
 					log.Printf("SSE line too long: account=%d max_size=%d error=%v", account.ID, maxLineSize, ev.err)
 					sendErrorEvent("response_too_large")
@@ -1352,15 +1366,19 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 
 				// Correct Codex tool calls if needed (apply_patch -> edit, etc.)
 				if correctedData, corrected := s.toolCorrector.CorrectToolCallsInSSEData(data); corrected {
+					data = correctedData
 					line = "data: " + correctedData
 				}
 
-				// Forward line
-				if _, err := fmt.Fprintf(w, "%s\n", line); err != nil {
-					sendErrorEvent("write_failed")
-					return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, err
+				// 写入客户端（客户端断开后继续 drain 上游）
+				if !clientDisconnected {
+					if _, err := fmt.Fprintf(w, "%s\n", line); err != nil {
+						clientDisconnected = true
+						log.Printf("Client disconnected during streaming, continuing to drain upstream for billing")
+					} else {
+						flusher.Flush()
+					}
 				}
-				flusher.Flush()
 
 				// Record first token time
 				if firstTokenMs == nil && data != "" && data != "[DONE]" {
@@ -1370,17 +1388,24 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 				s.parseSSEUsage(data, usage)
 			} else {
 				// Forward non-data lines as-is
-				if _, err := fmt.Fprintf(w, "%s\n", line); err != nil {
-					sendErrorEvent("write_failed")
-					return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, err
+				if !clientDisconnected {
+					if _, err := fmt.Fprintf(w, "%s\n", line); err != nil {
+						clientDisconnected = true
+						log.Printf("Client disconnected during streaming, continuing to drain upstream for billing")
+					} else {
+						flusher.Flush()
+					}
 				}
-				flusher.Flush()
 			}
 
 		case <-intervalCh:
 			lastRead := time.Unix(0, atomic.LoadInt64(&lastReadAt))
 			if time.Since(lastRead) < streamInterval {
 				continue
+			}
+			if clientDisconnected {
+				log.Printf("Upstream timeout after client disconnect, returning collected usage")
+				return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, nil
 			}
 			log.Printf("Stream data interval timeout: account=%d model=%s interval=%s", account.ID, originalModel, streamInterval)
 			// 处理流超时，可能标记账户为临时不可调度或错误状态
@@ -1391,11 +1416,16 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 			return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, fmt.Errorf("stream data interval timeout")
 
 		case <-keepaliveCh:
+			if clientDisconnected {
+				continue
+			}
 			if time.Since(lastDataAt) < keepaliveInterval {
 				continue
 			}
 			if _, err := fmt.Fprint(w, ":\n\n"); err != nil {
-				return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, err
+				clientDisconnected = true
+				log.Printf("Client disconnected during streaming, continuing to drain upstream for billing")
+				continue
 			}
 			flusher.Flush()
 		}
@@ -1677,13 +1707,14 @@ func (s *OpenAIGatewayService) replaceModelInResponseBody(body []byte, fromModel
 
 // OpenAIRecordUsageInput input for recording usage
 type OpenAIRecordUsageInput struct {
-	Result       *OpenAIForwardResult
-	APIKey       *APIKey
-	User         *User
-	Account      *Account
-	Subscription *UserSubscription
-	UserAgent    string // 请求的 User-Agent
-	IPAddress    string // 请求的客户端 IP 地址
+	Result        *OpenAIForwardResult
+	APIKey        *APIKey
+	User          *User
+	Account       *Account
+	Subscription  *UserSubscription
+	UserAgent     string // 请求的 User-Agent
+	IPAddress     string // 请求的客户端 IP 地址
+	APIKeyService APIKeyQuotaUpdater
 }
 
 // RecordUsage records usage and deducts balance
@@ -1736,6 +1767,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		AccountID:             account.ID,
 		RequestID:             result.RequestID,
 		Model:                 result.Model,
+		ReasoningEffort:       result.ReasoningEffort,
 		InputTokens:           actualInputTokens,
 		OutputTokens:          result.Usage.OutputTokens,
 		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
@@ -1791,6 +1823,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		if shouldBill && cost.ActualCost > 0 {
 			_ = s.userRepo.DeductBalance(ctx, user.ID, cost.ActualCost)
 			s.billingCacheService.QueueDeductBalance(user.ID, cost.ActualCost)
+		}
+	}
+
+	// Update API key quota if applicable (only for balance mode with quota set)
+	if shouldBill && cost.ActualCost > 0 && apiKey.Quota > 0 && input.APIKeyService != nil {
+		if err := input.APIKeyService.UpdateQuotaUsed(ctx, apiKey.ID, cost.ActualCost); err != nil {
+			log.Printf("Update API key quota failed: %v", err)
 		}
 	}
 
@@ -1929,4 +1968,87 @@ func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, acc
 		defer cancel()
 		_ = s.accountRepo.UpdateExtra(updateCtx, accountID, updates)
 	}()
+}
+
+func getOpenAIReasoningEffortFromReqBody(reqBody map[string]any) (value string, present bool) {
+	if reqBody == nil {
+		return "", false
+	}
+
+	// Primary: reasoning.effort
+	if reasoning, ok := reqBody["reasoning"].(map[string]any); ok {
+		if effort, ok := reasoning["effort"].(string); ok {
+			return normalizeOpenAIReasoningEffort(effort), true
+		}
+	}
+
+	// Fallback: some clients may use a flat field.
+	if effort, ok := reqBody["reasoning_effort"].(string); ok {
+		return normalizeOpenAIReasoningEffort(effort), true
+	}
+
+	return "", false
+}
+
+func deriveOpenAIReasoningEffortFromModel(model string) string {
+	if strings.TrimSpace(model) == "" {
+		return ""
+	}
+
+	modelID := strings.TrimSpace(model)
+	if strings.Contains(modelID, "/") {
+		parts := strings.Split(modelID, "/")
+		modelID = parts[len(parts)-1]
+	}
+
+	parts := strings.FieldsFunc(strings.ToLower(modelID), func(r rune) bool {
+		switch r {
+		case '-', '_', ' ':
+			return true
+		default:
+			return false
+		}
+	})
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return normalizeOpenAIReasoningEffort(parts[len(parts)-1])
+}
+
+func extractOpenAIReasoningEffort(reqBody map[string]any, requestedModel string) *string {
+	if value, present := getOpenAIReasoningEffortFromReqBody(reqBody); present {
+		if value == "" {
+			return nil
+		}
+		return &value
+	}
+
+	value := deriveOpenAIReasoningEffortFromModel(requestedModel)
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func normalizeOpenAIReasoningEffort(raw string) string {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	if value == "" {
+		return ""
+	}
+
+	// Normalize separators for "x-high"/"x_high" variants.
+	value = strings.NewReplacer("-", "", "_", "", " ", "").Replace(value)
+
+	switch value {
+	case "none", "minimal":
+		return ""
+	case "low", "medium", "high":
+		return value
+	case "xhigh", "extrahigh":
+		return "xhigh"
+	default:
+		// Only store known effort levels for now to keep UI consistent.
+		return ""
+	}
 }

@@ -49,9 +49,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		EmailVerifyEnabled:                   settings.EmailVerifyEnabled,
 		PromoCodeEnabled:                     settings.PromoCodeEnabled,
 		PasswordResetEnabled:                 settings.PasswordResetEnabled,
+		InvitationCodeEnabled:                settings.InvitationCodeEnabled,
 		TotpEnabled:                          settings.TotpEnabled,
 		TotpEncryptionKeyConfigured:          h.settingService.IsTotpEncryptionKeyConfigured(),
-		EmailDomainWhitelist:                 settings.EmailDomainWhitelist,
 		SMTPHost:                             settings.SMTPHost,
 		SMTPPort:                             settings.SMTPPort,
 		SMTPUsername:                         settings.SMTPUsername,
@@ -74,6 +74,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		DocURL:                               settings.DocURL,
 		HomeContent:                          settings.HomeContent,
 		HideCcsImportButton:                  settings.HideCcsImportButton,
+		PurchaseSubscriptionEnabled:          settings.PurchaseSubscriptionEnabled,
+		PurchaseSubscriptionURL:              settings.PurchaseSubscriptionURL,
 		DefaultConcurrency:                   settings.DefaultConcurrency,
 		DefaultBalance:                       settings.DefaultBalance,
 		EnableModelFallback:                  settings.EnableModelFallback,
@@ -87,29 +89,18 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		OpsRealtimeMonitoringEnabled:         settings.OpsRealtimeMonitoringEnabled,
 		OpsQueryModeDefault:                  settings.OpsQueryModeDefault,
 		OpsMetricsIntervalSeconds:            settings.OpsMetricsIntervalSeconds,
-		// Payment settings
-		PaymentEnabled:            settings.PaymentEnabled,
-		PaymentYiPayAPIURL:        settings.PaymentYiPayAPIURL,
-		PaymentYiPayPID:           settings.PaymentYiPayPID,
-		PaymentYiPayKeyConfigured: settings.PaymentYiPayKeyConfigured,
-		PaymentYiPayNotifyURL:     settings.PaymentYiPayNotifyURL,
-		PaymentYiPayReturnURL:     settings.PaymentYiPayReturnURL,
-		PaymentMinAmount:          settings.PaymentMinAmount,
-		PaymentMaxAmount:          settings.PaymentMaxAmount,
-		PaymentAuditThreshold:     settings.PaymentAuditThreshold,
-		PaymentCNYToValueRate:     settings.PaymentCNYToValueRate,
 	})
 }
 
 // UpdateSettingsRequest 更新设置请求
 type UpdateSettingsRequest struct {
 	// 注册设置
-	RegistrationEnabled  bool     `json:"registration_enabled"`
-	EmailVerifyEnabled   bool     `json:"email_verify_enabled"`
-	PromoCodeEnabled     bool     `json:"promo_code_enabled"`
-	PasswordResetEnabled bool     `json:"password_reset_enabled"`
-	TotpEnabled          bool     `json:"totp_enabled"` // TOTP 双因素认证
-	EmailDomainWhitelist []string `json:"email_domain_whitelist"`
+	RegistrationEnabled   bool `json:"registration_enabled"`
+	EmailVerifyEnabled    bool `json:"email_verify_enabled"`
+	PromoCodeEnabled      bool `json:"promo_code_enabled"`
+	PasswordResetEnabled  bool `json:"password_reset_enabled"`
+	InvitationCodeEnabled bool `json:"invitation_code_enabled"`
+	TotpEnabled           bool `json:"totp_enabled"` // TOTP 双因素认证
 
 	// 邮件服务设置
 	SMTPHost     string `json:"smtp_host"`
@@ -132,14 +123,16 @@ type UpdateSettingsRequest struct {
 	LinuxDoConnectRedirectURL  string `json:"linuxdo_connect_redirect_url"`
 
 	// OEM设置
-	SiteName            string `json:"site_name"`
-	SiteLogo            string `json:"site_logo"`
-	SiteSubtitle        string `json:"site_subtitle"`
-	APIBaseURL          string `json:"api_base_url"`
-	ContactInfo         string `json:"contact_info"`
-	DocURL              string `json:"doc_url"`
-	HomeContent         string `json:"home_content"`
-	HideCcsImportButton bool   `json:"hide_ccs_import_button"`
+	SiteName                    string  `json:"site_name"`
+	SiteLogo                    string  `json:"site_logo"`
+	SiteSubtitle                string  `json:"site_subtitle"`
+	APIBaseURL                  string  `json:"api_base_url"`
+	ContactInfo                 string  `json:"contact_info"`
+	DocURL                      string  `json:"doc_url"`
+	HomeContent                 string  `json:"home_content"`
+	HideCcsImportButton         bool    `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled *bool   `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL     *string `json:"purchase_subscription_url"`
 
 	// 默认配置
 	DefaultConcurrency int     `json:"default_concurrency"`
@@ -161,18 +154,6 @@ type UpdateSettingsRequest struct {
 	OpsRealtimeMonitoringEnabled *bool   `json:"ops_realtime_monitoring_enabled"`
 	OpsQueryModeDefault          *string `json:"ops_query_mode_default"`
 	OpsMetricsIntervalSeconds    *int    `json:"ops_metrics_interval_seconds"`
-
-	// Payment settings (YiPay)
-	PaymentEnabled         bool    `json:"payment_enabled"`
-	PaymentYiPayAPIURL     string  `json:"payment_yipay_api_url"`
-	PaymentYiPayPID        string  `json:"payment_yipay_pid"`
-	PaymentYiPayKey        string  `json:"payment_yipay_key"`
-	PaymentYiPayNotifyURL  string  `json:"payment_yipay_notify_url"`
-	PaymentYiPayReturnURL  string  `json:"payment_yipay_return_url"`
-	PaymentMinAmount       float64 `json:"payment_min_amount"`
-	PaymentMaxAmount       float64 `json:"payment_max_amount"`
-	PaymentAuditThreshold  float64 `json:"payment_audit_threshold"`
-	PaymentCNYToValueRate  float64 `json:"payment_cny_to_value_rate"`
 }
 
 // UpdateSettings 更新系统设置
@@ -267,6 +248,34 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	// “购买订阅”页面配置验证
+	purchaseEnabled := previousSettings.PurchaseSubscriptionEnabled
+	if req.PurchaseSubscriptionEnabled != nil {
+		purchaseEnabled = *req.PurchaseSubscriptionEnabled
+	}
+	purchaseURL := previousSettings.PurchaseSubscriptionURL
+	if req.PurchaseSubscriptionURL != nil {
+		purchaseURL = strings.TrimSpace(*req.PurchaseSubscriptionURL)
+	}
+
+	// - 启用时要求 URL 合法且非空
+	// - 禁用时允许为空；若提供了 URL 也做基本校验，避免误配置
+	if purchaseEnabled {
+		if purchaseURL == "" {
+			response.BadRequest(c, "Purchase Subscription URL is required when enabled")
+			return
+		}
+		if err := config.ValidateAbsoluteHTTPURL(purchaseURL); err != nil {
+			response.BadRequest(c, "Purchase Subscription URL must be an absolute http(s) URL")
+			return
+		}
+	} else if purchaseURL != "" {
+		if err := config.ValidateAbsoluteHTTPURL(purchaseURL); err != nil {
+			response.BadRequest(c, "Purchase Subscription URL must be an absolute http(s) URL")
+			return
+		}
+	}
+
 	// Ops metrics collector interval validation (seconds).
 	if req.OpsMetricsIntervalSeconds != nil {
 		v := *req.OpsMetricsIntervalSeconds
@@ -280,43 +289,45 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 
 	settings := &service.SystemSettings{
-		RegistrationEnabled:        req.RegistrationEnabled,
-		EmailVerifyEnabled:         req.EmailVerifyEnabled,
-		PromoCodeEnabled:           req.PromoCodeEnabled,
-		PasswordResetEnabled:       req.PasswordResetEnabled,
-		TotpEnabled:                req.TotpEnabled,
-		EmailDomainWhitelist:       req.EmailDomainWhitelist,
-		SMTPHost:                   req.SMTPHost,
-		SMTPPort:                   req.SMTPPort,
-		SMTPUsername:               req.SMTPUsername,
-		SMTPPassword:               req.SMTPPassword,
-		SMTPFrom:                   req.SMTPFrom,
-		SMTPFromName:               req.SMTPFromName,
-		SMTPUseTLS:                 req.SMTPUseTLS,
-		TurnstileEnabled:           req.TurnstileEnabled,
-		TurnstileSiteKey:           req.TurnstileSiteKey,
-		TurnstileSecretKey:         req.TurnstileSecretKey,
-		LinuxDoConnectEnabled:      req.LinuxDoConnectEnabled,
-		LinuxDoConnectClientID:     req.LinuxDoConnectClientID,
-		LinuxDoConnectClientSecret: req.LinuxDoConnectClientSecret,
-		LinuxDoConnectRedirectURL:  req.LinuxDoConnectRedirectURL,
-		SiteName:                   req.SiteName,
-		SiteLogo:                   req.SiteLogo,
-		SiteSubtitle:               req.SiteSubtitle,
-		APIBaseURL:                 req.APIBaseURL,
-		ContactInfo:                req.ContactInfo,
-		DocURL:                     req.DocURL,
-		HomeContent:                req.HomeContent,
-		HideCcsImportButton:        req.HideCcsImportButton,
-		DefaultConcurrency:         req.DefaultConcurrency,
-		DefaultBalance:             req.DefaultBalance,
-		EnableModelFallback:        req.EnableModelFallback,
-		FallbackModelAnthropic:     req.FallbackModelAnthropic,
-		FallbackModelOpenAI:        req.FallbackModelOpenAI,
-		FallbackModelGemini:        req.FallbackModelGemini,
-		FallbackModelAntigravity:   req.FallbackModelAntigravity,
-		EnableIdentityPatch:        req.EnableIdentityPatch,
-		IdentityPatchPrompt:        req.IdentityPatchPrompt,
+		RegistrationEnabled:         req.RegistrationEnabled,
+		EmailVerifyEnabled:          req.EmailVerifyEnabled,
+		PromoCodeEnabled:            req.PromoCodeEnabled,
+		PasswordResetEnabled:        req.PasswordResetEnabled,
+		InvitationCodeEnabled:       req.InvitationCodeEnabled,
+		TotpEnabled:                 req.TotpEnabled,
+		SMTPHost:                    req.SMTPHost,
+		SMTPPort:                    req.SMTPPort,
+		SMTPUsername:                req.SMTPUsername,
+		SMTPPassword:                req.SMTPPassword,
+		SMTPFrom:                    req.SMTPFrom,
+		SMTPFromName:                req.SMTPFromName,
+		SMTPUseTLS:                  req.SMTPUseTLS,
+		TurnstileEnabled:            req.TurnstileEnabled,
+		TurnstileSiteKey:            req.TurnstileSiteKey,
+		TurnstileSecretKey:          req.TurnstileSecretKey,
+		LinuxDoConnectEnabled:       req.LinuxDoConnectEnabled,
+		LinuxDoConnectClientID:      req.LinuxDoConnectClientID,
+		LinuxDoConnectClientSecret:  req.LinuxDoConnectClientSecret,
+		LinuxDoConnectRedirectURL:   req.LinuxDoConnectRedirectURL,
+		SiteName:                    req.SiteName,
+		SiteLogo:                    req.SiteLogo,
+		SiteSubtitle:                req.SiteSubtitle,
+		APIBaseURL:                  req.APIBaseURL,
+		ContactInfo:                 req.ContactInfo,
+		DocURL:                      req.DocURL,
+		HomeContent:                 req.HomeContent,
+		HideCcsImportButton:         req.HideCcsImportButton,
+		PurchaseSubscriptionEnabled: purchaseEnabled,
+		PurchaseSubscriptionURL:     purchaseURL,
+		DefaultConcurrency:          req.DefaultConcurrency,
+		DefaultBalance:              req.DefaultBalance,
+		EnableModelFallback:         req.EnableModelFallback,
+		FallbackModelAnthropic:      req.FallbackModelAnthropic,
+		FallbackModelOpenAI:         req.FallbackModelOpenAI,
+		FallbackModelGemini:         req.FallbackModelGemini,
+		FallbackModelAntigravity:    req.FallbackModelAntigravity,
+		EnableIdentityPatch:         req.EnableIdentityPatch,
+		IdentityPatchPrompt:         req.IdentityPatchPrompt,
 		OpsMonitoringEnabled: func() bool {
 			if req.OpsMonitoringEnabled != nil {
 				return *req.OpsMonitoringEnabled
@@ -341,23 +352,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.OpsMetricsIntervalSeconds
 		}(),
-		// Payment settings
-		PaymentEnabled: req.PaymentEnabled,
-		PaymentYiPayAPIURL: req.PaymentYiPayAPIURL,
-		PaymentYiPayPID: req.PaymentYiPayPID,
-		PaymentYiPayKey: func() string {
-			// If key is not provided, keep the existing one
-			if req.PaymentYiPayKey == "" {
-				return previousSettings.PaymentYiPayKey
-			}
-			return req.PaymentYiPayKey
-		}(),
-		PaymentYiPayNotifyURL: req.PaymentYiPayNotifyURL,
-		PaymentYiPayReturnURL: req.PaymentYiPayReturnURL,
-		PaymentMinAmount: req.PaymentMinAmount,
-		PaymentMaxAmount: req.PaymentMaxAmount,
-		PaymentAuditThreshold: req.PaymentAuditThreshold,
-		PaymentCNYToValueRate: req.PaymentCNYToValueRate,
 	}
 
 	if err := h.settingService.UpdateSettings(c.Request.Context(), settings); err != nil {
@@ -379,9 +373,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		EmailVerifyEnabled:                   updatedSettings.EmailVerifyEnabled,
 		PromoCodeEnabled:                     updatedSettings.PromoCodeEnabled,
 		PasswordResetEnabled:                 updatedSettings.PasswordResetEnabled,
+		InvitationCodeEnabled:                updatedSettings.InvitationCodeEnabled,
 		TotpEnabled:                          updatedSettings.TotpEnabled,
 		TotpEncryptionKeyConfigured:          h.settingService.IsTotpEncryptionKeyConfigured(),
-		EmailDomainWhitelist:                 updatedSettings.EmailDomainWhitelist,
 		SMTPHost:                             updatedSettings.SMTPHost,
 		SMTPPort:                             updatedSettings.SMTPPort,
 		SMTPUsername:                         updatedSettings.SMTPUsername,
@@ -404,6 +398,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		DocURL:                               updatedSettings.DocURL,
 		HomeContent:                          updatedSettings.HomeContent,
 		HideCcsImportButton:                  updatedSettings.HideCcsImportButton,
+		PurchaseSubscriptionEnabled:          updatedSettings.PurchaseSubscriptionEnabled,
+		PurchaseSubscriptionURL:              updatedSettings.PurchaseSubscriptionURL,
 		DefaultConcurrency:                   updatedSettings.DefaultConcurrency,
 		DefaultBalance:                       updatedSettings.DefaultBalance,
 		EnableModelFallback:                  updatedSettings.EnableModelFallback,
@@ -417,17 +413,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OpsRealtimeMonitoringEnabled:         updatedSettings.OpsRealtimeMonitoringEnabled,
 		OpsQueryModeDefault:                  updatedSettings.OpsQueryModeDefault,
 		OpsMetricsIntervalSeconds:            updatedSettings.OpsMetricsIntervalSeconds,
-		// Payment settings
-		PaymentEnabled:            updatedSettings.PaymentEnabled,
-		PaymentYiPayAPIURL:        updatedSettings.PaymentYiPayAPIURL,
-		PaymentYiPayPID:           updatedSettings.PaymentYiPayPID,
-		PaymentYiPayKeyConfigured: updatedSettings.PaymentYiPayKeyConfigured,
-		PaymentYiPayNotifyURL:     updatedSettings.PaymentYiPayNotifyURL,
-		PaymentYiPayReturnURL:     updatedSettings.PaymentYiPayReturnURL,
-		PaymentMinAmount:          updatedSettings.PaymentMinAmount,
-		PaymentMaxAmount:          updatedSettings.PaymentMaxAmount,
-		PaymentAuditThreshold:     updatedSettings.PaymentAuditThreshold,
-		PaymentCNYToValueRate:     updatedSettings.PaymentCNYToValueRate,
 	})
 }
 
@@ -569,37 +554,6 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.OpsMetricsIntervalSeconds != after.OpsMetricsIntervalSeconds {
 		changed = append(changed, "ops_metrics_interval_seconds")
-	}
-	// Payment settings
-	if before.PaymentEnabled != after.PaymentEnabled {
-		changed = append(changed, "payment_enabled")
-	}
-	if before.PaymentYiPayAPIURL != after.PaymentYiPayAPIURL {
-		changed = append(changed, "payment_yipay_api_url")
-	}
-	if before.PaymentYiPayPID != after.PaymentYiPayPID {
-		changed = append(changed, "payment_yipay_pid")
-	}
-	if req.PaymentYiPayKey != "" {
-		changed = append(changed, "payment_yipay_key")
-	}
-	if before.PaymentYiPayNotifyURL != after.PaymentYiPayNotifyURL {
-		changed = append(changed, "payment_yipay_notify_url")
-	}
-	if before.PaymentYiPayReturnURL != after.PaymentYiPayReturnURL {
-		changed = append(changed, "payment_yipay_return_url")
-	}
-	if before.PaymentMinAmount != after.PaymentMinAmount {
-		changed = append(changed, "payment_min_amount")
-	}
-	if before.PaymentMaxAmount != after.PaymentMaxAmount {
-		changed = append(changed, "payment_max_amount")
-	}
-	if before.PaymentAuditThreshold != after.PaymentAuditThreshold {
-		changed = append(changed, "payment_audit_threshold")
-	}
-	if before.PaymentCNYToValueRate != after.PaymentCNYToValueRate {
-		changed = append(changed, "payment_cny_to_value_rate")
 	}
 	return changed
 }

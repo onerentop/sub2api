@@ -10,6 +10,7 @@ type AdminHandlers struct {
 	User             *admin.UserHandler
 	Group            *admin.GroupHandler
 	Account          *admin.AccountHandler
+	Announcement     *admin.AnnouncementHandler
 	OAuth            *admin.OAuthHandler
 	OpenAIOAuth      *admin.OpenAIOAuthHandler
 	GeminiOAuth      *admin.GeminiOAuthHandler
@@ -18,7 +19,6 @@ type AdminHandlers struct {
 	Proxy            *admin.ProxyHandler
 	Redeem           *admin.RedeemHandler
 	Promo            *admin.PromoHandler
-	Announcement     *admin.AnnouncementHandler
 	Setting          *admin.SettingHandler
 	Ops              *admin.OpsHandler
 	System           *admin.SystemHandler
@@ -27,6 +27,7 @@ type AdminHandlers struct {
 	UserAttribute    *admin.UserAttributeHandler
 	Product          *admin.ProductHandler
 	PaymentOrder     *admin.PaymentOrderHandler
+	ErrorPassthrough *admin.ErrorPassthroughHandler
 }
 
 // Handlers contains all HTTP handlers

@@ -49,6 +49,7 @@ func RegisterUserRoutes(
 		groups := authenticated.Group("/groups")
 		{
 			groups.GET("/available", h.APIKey.GetAvailableGroups)
+			groups.GET("/rates", h.APIKey.GetUserGroupRates)
 		}
 
 		// 使用记录
@@ -64,6 +65,13 @@ func RegisterUserRoutes(
 			usage.POST("/dashboard/api-keys-usage", h.Usage.DashboardAPIKeysUsage)
 			usage.GET("/dashboard/quota", h.Usage.DashboardQuota)
 			usage.GET("/dashboard/quota/v2", h.Usage.DashboardQuotaV2)
+		}
+
+		// 公告（用户可见）
+		announcements := authenticated.Group("/announcements")
+		{
+			announcements.GET("", h.Announcement.List)
+			announcements.POST("/:id/read", h.Announcement.MarkRead)
 		}
 
 		// 卡密兑换

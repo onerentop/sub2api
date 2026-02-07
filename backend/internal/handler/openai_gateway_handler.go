@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,10 +22,12 @@ import (
 
 // OpenAIGatewayHandler handles OpenAI API gateway requests
 type OpenAIGatewayHandler struct {
-	gatewayService      *service.OpenAIGatewayService
-	billingCacheService *service.BillingCacheService
-	concurrencyHelper   *ConcurrencyHelper
-	maxAccountSwitches  int
+	gatewayService          *service.OpenAIGatewayService
+	billingCacheService     *service.BillingCacheService
+	apiKeyService           *service.APIKeyService
+	errorPassthroughService *service.ErrorPassthroughService
+	concurrencyHelper       *ConcurrencyHelper
+	maxAccountSwitches      int
 }
 
 // NewOpenAIGatewayHandler creates a new OpenAIGatewayHandler
@@ -34,6 +35,8 @@ func NewOpenAIGatewayHandler(
 	gatewayService *service.OpenAIGatewayService,
 	concurrencyService *service.ConcurrencyService,
 	billingCacheService *service.BillingCacheService,
+	apiKeyService *service.APIKeyService,
+	errorPassthroughService *service.ErrorPassthroughService,
 	cfg *config.Config,
 ) *OpenAIGatewayHandler {
 	pingInterval := time.Duration(0)
@@ -45,10 +48,12 @@ func NewOpenAIGatewayHandler(
 		}
 	}
 	return &OpenAIGatewayHandler{
-		gatewayService:      gatewayService,
-		billingCacheService: billingCacheService,
-		concurrencyHelper:   NewConcurrencyHelper(concurrencyService, SSEPingFormatComment, pingInterval),
-		maxAccountSwitches:  maxAccountSwitches,
+		gatewayService:          gatewayService,
+		billingCacheService:     billingCacheService,
+		apiKeyService:           apiKeyService,
+		errorPassthroughService: errorPassthroughService,
+		concurrencyHelper:       NewConcurrencyHelper(concurrencyService, SSEPingFormatComment, pingInterval),
+		maxAccountSwitches:      maxAccountSwitches,
 	}
 }
 
@@ -144,6 +149,11 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// Track if we've started streaming (for error handling)
 	streamStarted := false
 
+	// 绑定错误透传服务，允许 service 层在非 failover 错误场景复用规则。
+	if h.errorPassthroughService != nil {
+		service.BindErrorPassthroughService(c, h.errorPassthroughService)
+	}
+
 	// Get subscription info (may be nil)
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 
@@ -196,10 +206,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// Generate session hash (header first; fallback to prompt_cache_key)
 	sessionHash := h.gatewayService.GenerateSessionHash(c, reqBody)
 
-	_ = h.maxAccountSwitches // Reserved for future use
-	const maxCooldownWait = 60 * time.Second
+	maxAccountSwitches := h.maxAccountSwitches
+	switchCount := 0
 	failedAccountIDs := make(map[int64]struct{})
-	lastFailoverStatus := 0
+	var lastFailoverErr *service.UpstreamFailoverError
 
 	for {
 		// Select account supporting the requested model
@@ -207,32 +217,15 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionHash, reqModel, failedAccountIDs)
 		if err != nil {
 			log.Printf("[OpenAI Handler] SelectAccount failed: %v", err)
-			// Check for cooldown error - wait if within threshold
-			var cooldownErr *service.AllAccountsCoolingDownError
-			if errors.As(err, &cooldownErr) {
-				waitTime := time.Until(cooldownErr.EarliestRetry)
-				if waitTime > 0 && waitTime <= maxCooldownWait {
-					log.Printf("All accounts cooling down for model %s, waiting %v", cooldownErr.Model, waitTime)
-					select {
-					case <-time.After(waitTime):
-						// Clear failed accounts and retry all
-						failedAccountIDs = make(map[int64]struct{})
-						continue
-					case <-c.Request.Context().Done():
-						// Client disconnected or timeout
-						return
-					}
-				}
-				// Wait time too long, return 429 to client
-				h.handleCooldownError(c, cooldownErr, streamStarted)
-				return
-			}
-			// No accounts available at all
 			if len(failedAccountIDs) == 0 {
 				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
 				return
 			}
-			h.handleFailoverExhausted(c, lastFailoverStatus, streamStarted)
+			if lastFailoverErr != nil {
+				h.handleFailoverExhausted(c, lastFailoverErr, streamStarted)
+			} else {
+				h.handleFailoverExhaustedSimple(c, 502, streamStarted)
+			}
 			return
 		}
 		account := selection.Account
@@ -297,8 +290,13 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				failedAccountIDs[account.ID] = struct{}{}
-				lastFailoverStatus = failoverErr.StatusCode
-				log.Printf("Account %d: upstream error %d, trying next account", account.ID, failoverErr.StatusCode)
+				lastFailoverErr = failoverErr
+				if switchCount >= maxAccountSwitches {
+					h.handleFailoverExhausted(c, failoverErr, streamStarted)
+					return
+				}
+				switchCount++
+				log.Printf("Account %d: upstream error %d, switching account %d/%d", account.ID, failoverErr.StatusCode, switchCount, maxAccountSwitches)
 				continue
 			}
 			// Error response already handled in Forward, just log
@@ -315,13 +313,14 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-				Result:       result,
-				APIKey:       apiKey,
-				User:         apiKey.User,
-				Account:      usedAccount,
-				Subscription: subscription,
-				UserAgent:    ua,
-				IPAddress:    ip,
+				Result:        result,
+				APIKey:        apiKey,
+				User:          apiKey.User,
+				Account:       usedAccount,
+				Subscription:  subscription,
+				UserAgent:     ua,
+				IPAddress:     ip,
+				APIKeyService: h.apiKeyService,
 			}); err != nil {
 				log.Printf("Record usage failed: %v", err)
 			}
@@ -336,20 +335,39 @@ func (h *OpenAIGatewayHandler) handleConcurrencyError(c *gin.Context, err error,
 		fmt.Sprintf("Concurrency limit exceeded for %s, please retry later", slotType), streamStarted)
 }
 
-func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, statusCode int, streamStarted bool) {
+func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *service.UpstreamFailoverError, streamStarted bool) {
+	statusCode := failoverErr.StatusCode
+	responseBody := failoverErr.ResponseBody
+
+	// 先检查透传规则
+	if h.errorPassthroughService != nil && len(responseBody) > 0 {
+		if rule := h.errorPassthroughService.MatchRule("openai", statusCode, responseBody); rule != nil {
+			// 确定响应状态码
+			respCode := statusCode
+			if !rule.PassthroughCode && rule.ResponseCode != nil {
+				respCode = *rule.ResponseCode
+			}
+
+			// 确定响应消息
+			msg := service.ExtractUpstreamErrorMessage(responseBody)
+			if !rule.PassthroughBody && rule.CustomMessage != nil {
+				msg = *rule.CustomMessage
+			}
+
+			h.handleStreamingAwareError(c, respCode, "upstream_error", msg, streamStarted)
+			return
+		}
+	}
+
+	// 使用默认的错误映射
 	status, errType, errMsg := h.mapUpstreamError(statusCode)
 	h.handleStreamingAwareError(c, status, errType, errMsg, streamStarted)
 }
 
-// handleCooldownError handles the case when all accounts are in 429 cooldown
-func (h *OpenAIGatewayHandler) handleCooldownError(c *gin.Context, err *service.AllAccountsCoolingDownError, streamStarted bool) {
-	retryAfter := int(time.Until(err.EarliestRetry).Seconds())
-	if retryAfter < 1 {
-		retryAfter = 1
-	}
-	c.Header("Retry-After", strconv.Itoa(retryAfter))
-	h.handleStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error",
-		fmt.Sprintf("All accounts cooling down for model %s, retry after %d seconds", err.Model, retryAfter), streamStarted)
+// handleFailoverExhaustedSimple 简化版本，用于没有响应体的情况
+func (h *OpenAIGatewayHandler) handleFailoverExhaustedSimple(c *gin.Context, statusCode int, streamStarted bool) {
+	status, errType, errMsg := h.mapUpstreamError(statusCode)
+	h.handleStreamingAwareError(c, status, errType, errMsg, streamStarted)
 }
 
 func (h *OpenAIGatewayHandler) mapUpstreamError(statusCode int) (int, string, string) {
