@@ -3462,6 +3462,13 @@ export default {
       approveSuccess: '订单已通过',
       rejectSuccess: '订单已拒绝',
       fulfillSuccess: '订单已完成',
+      deleteOrder: '删除订单',
+      deleteConfirm: '确定要删除订单 {orderNo} 吗？此操作无法撤销。',
+      deleteSuccess: '订单已删除',
+      batchDelete: '批量删除',
+      batchDeleteTitle: '批量删除订单',
+      batchDeleteConfirm: '确定要删除选中的 {count} 个订单吗？此操作无法撤销。',
+      batchDeleteSuccess: '成功删除 {count} 个订单',
       loadFailed: '加载订单失败',
       noOrders: '暂无订单',
       // Detail dialog

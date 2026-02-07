@@ -10,12 +10,13 @@ import (
 
 // 支付相关错误定义
 var (
-	ErrProductNotFound      = infraerrors.NotFound("PRODUCT_NOT_FOUND", "product not found")
-	ErrPaymentOrderNotFound = infraerrors.NotFound("PAYMENT_ORDER_NOT_FOUND", "payment order not found")
-	ErrPaymentOrderPending  = infraerrors.Conflict("PAYMENT_ORDER_PENDING", "payment order is pending")
-	ErrPaymentOrderPaid     = infraerrors.Conflict("PAYMENT_ORDER_PAID", "payment order already paid")
-	ErrPaymentAmountInvalid = infraerrors.BadRequest("PAYMENT_AMOUNT_INVALID", "payment amount is invalid")
-	ErrPaymentSignInvalid   = infraerrors.BadRequest("PAYMENT_SIGN_INVALID", "payment signature is invalid")
+	ErrProductNotFound           = infraerrors.NotFound("PRODUCT_NOT_FOUND", "product not found")
+	ErrPaymentOrderNotFound      = infraerrors.NotFound("PAYMENT_ORDER_NOT_FOUND", "payment order not found")
+	ErrPaymentOrderPending       = infraerrors.Conflict("PAYMENT_ORDER_PENDING", "payment order is pending")
+	ErrPaymentOrderPaid          = infraerrors.Conflict("PAYMENT_ORDER_PAID", "payment order already paid")
+	ErrPaymentAmountInvalid      = infraerrors.BadRequest("PAYMENT_AMOUNT_INVALID", "payment amount is invalid")
+	ErrPaymentSignInvalid        = infraerrors.BadRequest("PAYMENT_SIGN_INVALID", "payment signature is invalid")
+	ErrPaymentOrderCannotDelete  = infraerrors.Conflict("PAYMENT_ORDER_CANNOT_DELETE", "only pending, auditing or failed orders can be deleted")
 )
 
 // PaymentOrder 支付订单领域模型
@@ -84,6 +85,10 @@ type PaymentOrderRepository interface {
 	UpdateStatus(ctx context.Context, id int64, status string) error
 	MarkAsPaid(ctx context.Context, id int64, tradeNo string, callbackData map[string]any) error
 	GetOrderStats(ctx context.Context) (*PaymentOrderStats, error)
+	// Delete 软删除订单（仅允许 pending/auditing/failed 状态）
+	Delete(ctx context.Context, id int64) error
+	// BatchDelete 批量软删除订单，返回成功删除的数量
+	BatchDelete(ctx context.Context, ids []int64) (int, error)
 }
 
 // 订单状态常量

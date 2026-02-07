@@ -36,6 +36,26 @@ func (_u *PaymentOrderUpdate) SetUpdatedAt(v time.Time) *PaymentOrderUpdate {
 	return _u
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *PaymentOrderUpdate) SetDeletedAt(v time.Time) *PaymentOrderUpdate {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableDeletedAt(v *time.Time) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *PaymentOrderUpdate) ClearDeletedAt() *PaymentOrderUpdate {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
 // SetUserID sets the "user_id" field.
 func (_u *PaymentOrderUpdate) SetUserID(v int64) *PaymentOrderUpdate {
 	_u.mutation.SetUserID(v)
@@ -269,7 +289,9 @@ func (_u *PaymentOrderUpdate) ClearProduct() *PaymentOrderUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *PaymentOrderUpdate) Save(ctx context.Context) (int, error) {
-	_u.defaults()
+	if err := _u.defaults(); err != nil {
+		return 0, err
+	}
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -296,11 +318,15 @@ func (_u *PaymentOrderUpdate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *PaymentOrderUpdate) defaults() {
+func (_u *PaymentOrderUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		if paymentorder.UpdateDefaultUpdatedAt == nil {
+			return fmt.Errorf("ent: uninitialized paymentorder.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+		}
 		v := paymentorder.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -350,6 +376,12 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(paymentorder.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(paymentorder.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(paymentorder.FieldDeletedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.OrderNo(); ok {
 		_spec.SetField(paymentorder.FieldOrderNo, field.TypeString, value)
@@ -480,6 +512,26 @@ type PaymentOrderUpdateOne struct {
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *PaymentOrderUpdateOne) SetUpdatedAt(v time.Time) *PaymentOrderUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *PaymentOrderUpdateOne) SetDeletedAt(v time.Time) *PaymentOrderUpdateOne {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableDeletedAt(v *time.Time) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *PaymentOrderUpdateOne) ClearDeletedAt() *PaymentOrderUpdateOne {
+	_u.mutation.ClearDeletedAt()
 	return _u
 }
 
@@ -729,7 +781,9 @@ func (_u *PaymentOrderUpdateOne) Select(field string, fields ...string) *Payment
 
 // Save executes the query and returns the updated PaymentOrder entity.
 func (_u *PaymentOrderUpdateOne) Save(ctx context.Context) (*PaymentOrder, error) {
-	_u.defaults()
+	if err := _u.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -756,11 +810,15 @@ func (_u *PaymentOrderUpdateOne) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *PaymentOrderUpdateOne) defaults() {
+func (_u *PaymentOrderUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		if paymentorder.UpdateDefaultUpdatedAt == nil {
+			return fmt.Errorf("ent: uninitialized paymentorder.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+		}
 		v := paymentorder.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -827,6 +885,12 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(paymentorder.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(paymentorder.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(paymentorder.FieldDeletedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.OrderNo(); ok {
 		_spec.SetField(paymentorder.FieldOrderNo, field.TypeString, value)

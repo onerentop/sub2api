@@ -46,6 +46,14 @@
       <template #actions>
         <div class="flex justify-end gap-3">
           <button
+            v-if="selectedOrders.length > 0"
+            @click="handleBatchDelete"
+            class="btn btn-danger"
+          >
+            <Icon name="trash" size="sm" class="mr-1.5" />
+            {{ t('admin.orders.batchDelete') }} ({{ selectedOrders.length }})
+          </button>
+          <button
             @click="loadOrders"
             :disabled="loading"
             class="btn btn-secondary"
@@ -86,6 +94,28 @@
 
       <template #table>
         <DataTable :columns="columns" :data="orders" :loading="loading">
+          <template #header-select>
+            <input
+              type="checkbox"
+              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              :checked="allDeletableSelected"
+              :disabled="deletableOrders.length === 0"
+              @click.stop
+              @change="toggleSelectAllDeletable"
+            />
+          </template>
+
+          <template #cell-select="{ row }">
+            <input
+              v-if="canDeleteOrder(row.status)"
+              type="checkbox"
+              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              :checked="selectedOrderIds.has(row.id)"
+              @click.stop
+              @change="toggleSelectRow(row.id, $event)"
+            />
+          </template>
+
           <template #cell-order_no="{ value }">
             <code class="font-mono text-sm text-gray-900 dark:text-gray-100">
               {{ value }}
@@ -190,6 +220,14 @@
                 :title="t('admin.orders.manualFulfill')"
               >
                 <Icon name="handRaised" size="sm" />
+              </button>
+              <button
+                v-if="canDeleteOrder(row.status)"
+                @click="handleDelete(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                :title="t('common.delete')"
+              >
+                <Icon name="trash" size="sm" />
               </button>
             </div>
           </template>
@@ -341,6 +379,21 @@
         </div>
       </template>
     </BaseDialog>
+
+    <!-- Delete Confirmation Dialog -->
+    <ConfirmDialog
+      :show="showDeleteDialog"
+      :title="deleteTarget ? t('admin.orders.deleteOrder') : t('admin.orders.batchDeleteTitle')"
+      :message="deleteTarget
+        ? t('admin.orders.deleteConfirm', { orderNo: deleteTarget.order_no })
+        : t('admin.orders.batchDeleteConfirm', { count: selectedOrders.length })"
+      :confirm-text="t('common.delete')"
+      :cancel-text="t('common.cancel')"
+      :danger="true"
+      :loading="submitting"
+      @confirm="confirmDelete"
+      @cancel="showDeleteDialog = false"
+    />
   </AppLayout>
 </template>
 
@@ -357,6 +410,7 @@ import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Select from '@/components/common/Select.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTime } from '@/utils/format'
 import { useDebounceFn } from '@vueuse/core'
@@ -382,11 +436,14 @@ const searchQuery = ref('')
 
 const showDetailDialog = ref(false)
 const showActionDialog = ref(false)
+const showDeleteDialog = ref(false)
 const detailOrder = ref<PaymentOrderWithUser | null>(null)
 const actionTarget = ref<PaymentOrder | null>(null)
 const actionType = ref<'approve' | 'reject' | 'fulfill'>('approve')
 const actionRejectReason = ref('')
 const actionTradeNo = ref('')
+const deleteTarget = ref<PaymentOrder | null>(null)
+const selectedOrderIds = ref<Set<number>>(new Set())
 
 // Filters
 const filters = reactive({
@@ -403,6 +460,7 @@ const pagination = reactive({
 
 // Table columns
 const columns = computed(() => [
+  { key: 'select', label: '', width: '40px' },
   { key: 'order_no', label: t('admin.orders.orderNo') },
   { key: 'user', label: t('admin.orders.user') },
   { key: 'order_type', label: t('admin.orders.orderType') },
@@ -469,6 +527,24 @@ const canConfirmAction = computed(() => {
   }
 })
 
+// Selection computed properties
+const deletableStatuses = ['pending', 'auditing', 'failed']
+
+const canDeleteOrder = (status: string) => deletableStatuses.includes(status)
+
+const deletableOrders = computed(() =>
+  orders.value.filter(order => canDeleteOrder(order.status))
+)
+
+const selectedOrders = computed(() =>
+  deletableOrders.value.filter(order => selectedOrderIds.value.has(order.id))
+)
+
+const allDeletableSelected = computed(() => {
+  if (deletableOrders.value.length === 0) return false
+  return deletableOrders.value.every(order => selectedOrderIds.value.has(order.id))
+})
+
 // Methods
 const getStatusClass = (status: string) => {
   switch (status) {
@@ -500,6 +576,8 @@ const loadOrders = async () => {
     const result = await adminAPI.orders.listOrders(params)
     orders.value = result.items as PaymentOrderWithUser[]
     pagination.total = result.total
+    // Clear selection on reload
+    selectedOrderIds.value = new Set()
   } catch (error) {
     console.error('Failed to load orders:', error)
     appStore.showError(t('admin.orders.loadFailed'))
@@ -581,6 +659,63 @@ const confirmAction = async () => {
     }
     showActionDialog.value = false
     actionTarget.value = null
+    loadOrders()
+    loadStats()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('common.operationFailed'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+// Selection methods
+const toggleSelectRow = (id: number, event: Event) => {
+  const target = event.target as HTMLInputElement
+  const next = new Set(selectedOrderIds.value)
+  if (target.checked) {
+    next.add(id)
+  } else {
+    next.delete(id)
+  }
+  selectedOrderIds.value = next
+}
+
+const toggleSelectAllDeletable = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.checked) {
+    selectedOrderIds.value = new Set(deletableOrders.value.map(o => o.id))
+  } else {
+    selectedOrderIds.value = new Set()
+  }
+}
+
+// Delete methods
+const handleDelete = (order: PaymentOrder) => {
+  deleteTarget.value = order
+  showDeleteDialog.value = true
+}
+
+const handleBatchDelete = () => {
+  if (selectedOrders.value.length === 0) return
+  deleteTarget.value = null
+  showDeleteDialog.value = true
+}
+
+const confirmDelete = async () => {
+  submitting.value = true
+  try {
+    if (deleteTarget.value) {
+      // Single delete
+      await adminAPI.orders.deleteOrder(deleteTarget.value.id)
+      appStore.showSuccess(t('admin.orders.deleteSuccess'))
+    } else {
+      // Batch delete
+      const ids = selectedOrders.value.map(o => o.id)
+      const result = await adminAPI.orders.batchDeleteOrders(ids)
+      appStore.showSuccess(t('admin.orders.batchDeleteSuccess', { count: result.deleted }))
+    }
+    showDeleteDialog.value = false
+    deleteTarget.value = null
     loadOrders()
     loadStats()
   } catch (error: any) {

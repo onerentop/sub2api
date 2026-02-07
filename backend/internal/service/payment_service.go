@@ -445,6 +445,16 @@ func (s *PaymentService) ListOrdersWithFilters(ctx context.Context, params pagin
 	return s.orderRepo.ListWithFilters(ctx, params, status, orderType, paymentMethod, search)
 }
 
+// DeleteOrder 删除订单（仅允许 pending/auditing/failed 状态）
+func (s *PaymentService) DeleteOrder(ctx context.Context, id int64) error {
+	return s.orderRepo.Delete(ctx, id)
+}
+
+// BatchDeleteOrders 批量删除订单，返回成功删除的数量
+func (s *PaymentService) BatchDeleteOrders(ctx context.Context, ids []int64) (int, error) {
+	return s.orderRepo.BatchDelete(ctx, ids)
+}
+
 // generateOrderNo 生成订单号
 func generateOrderNo() (string, error) {
 	// 格式：日期 + 随机字符串

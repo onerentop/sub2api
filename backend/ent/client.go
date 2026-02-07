@@ -1560,12 +1560,14 @@ func (c *PaymentOrderClient) QueryProduct(_m *PaymentOrder) *ProductQuery {
 
 // Hooks returns the client hooks.
 func (c *PaymentOrderClient) Hooks() []Hook {
-	return c.hooks.PaymentOrder
+	hooks := c.hooks.PaymentOrder
+	return append(hooks[:len(hooks):len(hooks)], paymentorder.Hooks[:]...)
 }
 
 // Interceptors returns the client interceptors.
 func (c *PaymentOrderClient) Interceptors() []Interceptor {
-	return c.inters.PaymentOrder
+	inters := c.inters.PaymentOrder
+	return append(inters[:len(inters):len(inters)], paymentorder.Interceptors[:]...)
 }
 
 func (c *PaymentOrderClient) mutate(ctx context.Context, m *PaymentOrderMutation) (Value, error) {

@@ -153,3 +153,46 @@ func (h *PaymentOrderHandler) ManualFulfill(c *gin.Context) {
 
 	response.Success(c, gin.H{"message": "Order fulfilled successfully"})
 }
+
+// Delete 删除订单（仅允许 pending/auditing/failed 状态）
+// DELETE /api/v1/admin/payment-orders/:id
+func (h *PaymentOrderHandler) Delete(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid order ID")
+		return
+	}
+
+	if err := h.paymentService.DeleteOrder(c.Request.Context(), id); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "Order deleted successfully"})
+}
+
+// BatchDeleteRequest 批量删除请求
+type BatchDeleteRequest struct {
+	IDs []int64 `json:"ids" binding:"required,min=1,max=100"`
+}
+
+// BatchDelete 批量删除订单
+// POST /api/v1/admin/payment-orders/batch-delete
+func (h *PaymentOrderHandler) BatchDelete(c *gin.Context) {
+	var req BatchDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	deleted, err := h.paymentService.BatchDeleteOrders(c.Request.Context(), req.IDs)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{
+		"message": "Orders deleted successfully",
+		"deleted": deleted,
+	})
+}

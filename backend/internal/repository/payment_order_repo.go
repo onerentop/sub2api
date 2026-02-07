@@ -294,3 +294,56 @@ func paymentOrderEntitiesToService(models []*dbent.PaymentOrder) []service.Payme
 	}
 	return out
 }
+
+// deletableStatuses 可删除的订单状态
+var deletableStatuses = []paymentorder.Status{
+	paymentorder.StatusPending,
+	paymentorder.StatusAuditing,
+	paymentorder.StatusFailed,
+}
+
+func (r *paymentOrderRepository) Delete(ctx context.Context, id int64) error {
+	// 先检查订单是否存在及状态
+	order, err := r.client.PaymentOrder.Query().
+		Where(paymentorder.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return service.ErrPaymentOrderNotFound
+		}
+		return err
+	}
+
+	// 检查状态是否允许删除
+	canDelete := false
+	for _, s := range deletableStatuses {
+		if order.Status == s {
+			canDelete = true
+			break
+		}
+	}
+	if !canDelete {
+		return service.ErrPaymentOrderCannotDelete
+	}
+
+	// 执行软删除（SoftDeleteMixin 会自动转换为 UPDATE deleted_at）
+	return r.client.PaymentOrder.DeleteOneID(id).Exec(ctx)
+}
+
+func (r *paymentOrderRepository) BatchDelete(ctx context.Context, ids []int64) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	// 批量软删除符合条件的订单
+	affected, err := r.client.PaymentOrder.Delete().
+		Where(
+			paymentorder.IDIn(ids...),
+			paymentorder.StatusIn(deletableStatuses...),
+		).
+		Exec(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return affected, nil
+}

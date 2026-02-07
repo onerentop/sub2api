@@ -423,6 +423,8 @@ func registerPaymentOrderRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		orders.POST("/:id/approve", h.Admin.PaymentOrder.Approve)
 		orders.POST("/:id/reject", h.Admin.PaymentOrder.Reject)
 		orders.POST("/:id/fulfill", h.Admin.PaymentOrder.ManualFulfill)
+		orders.DELETE("/:id", h.Admin.PaymentOrder.Delete)
+		orders.POST("/batch-delete", h.Admin.PaymentOrder.BatchDelete)
 	}
 }
 

@@ -93,13 +93,31 @@ export async function fulfillOrder(id: number, tradeNo: string): Promise<Payment
   return data
 }
 
+/**
+ * Delete an order (only pending/auditing/failed orders can be deleted)
+ */
+export async function deleteOrder(id: number): Promise<void> {
+  await apiClient.delete(`/admin/payment-orders/${id}`)
+}
+
+/**
+ * Batch delete orders
+ * Returns the number of successfully deleted orders
+ */
+export async function batchDeleteOrders(ids: number[]): Promise<{ deleted: number }> {
+  const { data } = await apiClient.post<{ deleted: number }>('/admin/payment-orders/batch-delete', { ids })
+  return data
+}
+
 export const adminOrdersAPI = {
   listOrders,
   getOrder,
   getOrderStats,
   approveOrder,
   rejectOrder,
-  fulfillOrder
+  fulfillOrder,
+  deleteOrder,
+  batchDeleteOrders
 }
 
 export default adminOrdersAPI

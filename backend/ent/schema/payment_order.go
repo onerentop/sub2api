@@ -27,6 +27,7 @@ func (PaymentOrder) Annotations() []schema.Annotation {
 func (PaymentOrder) Mixin() []ent.Mixin {
 	return []ent.Mixin{
 		mixins.TimeMixin{},
+		mixins.SoftDeleteMixin{},
 	}
 }
 

@@ -8215,6 +8215,7 @@ type PaymentOrderMutation struct {
 	id              *int64
 	created_at      *time.Time
 	updated_at      *time.Time
+	deleted_at      *time.Time
 	order_no        *string
 	trade_no        *string
 	amount_cny      *float64
@@ -8405,6 +8406,55 @@ func (m *PaymentOrderMutation) OldUpdatedAt(ctx context.Context) (v time.Time, e
 // ResetUpdatedAt resets all changes to the "updated_at" field.
 func (m *PaymentOrderMutation) ResetUpdatedAt() {
 	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *PaymentOrderMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *PaymentOrderMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *PaymentOrderMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[paymentorder.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *PaymentOrderMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[paymentorder.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *PaymentOrderMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, paymentorder.FieldDeletedAt)
 }
 
 // SetUserID sets the "user_id" field.
@@ -9032,12 +9082,15 @@ func (m *PaymentOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PaymentOrderMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.created_at != nil {
 		fields = append(fields, paymentorder.FieldCreatedAt)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, paymentorder.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, paymentorder.FieldDeletedAt)
 	}
 	if m.user != nil {
 		fields = append(fields, paymentorder.FieldUserID)
@@ -9087,6 +9140,8 @@ func (m *PaymentOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case paymentorder.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case paymentorder.FieldDeletedAt:
+		return m.DeletedAt()
 	case paymentorder.FieldUserID:
 		return m.UserID()
 	case paymentorder.FieldProductID:
@@ -9124,6 +9179,8 @@ func (m *PaymentOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldCreatedAt(ctx)
 	case paymentorder.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case paymentorder.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
 	case paymentorder.FieldUserID:
 		return m.OldUserID(ctx)
 	case paymentorder.FieldProductID:
@@ -9170,6 +9227,13 @@ func (m *PaymentOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUpdatedAt(v)
+		return nil
+	case paymentorder.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
 		return nil
 	case paymentorder.FieldUserID:
 		v, ok := value.(int64)
@@ -9312,6 +9376,9 @@ func (m *PaymentOrderMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *PaymentOrderMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(paymentorder.FieldDeletedAt) {
+		fields = append(fields, paymentorder.FieldDeletedAt)
+	}
 	if m.FieldCleared(paymentorder.FieldProductID) {
 		fields = append(fields, paymentorder.FieldProductID)
 	}
@@ -9341,6 +9408,9 @@ func (m *PaymentOrderMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *PaymentOrderMutation) ClearField(name string) error {
 	switch name {
+	case paymentorder.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
 	case paymentorder.FieldProductID:
 		m.ClearProductID()
 		return nil
@@ -9369,6 +9439,9 @@ func (m *PaymentOrderMutation) ResetField(name string) error {
 		return nil
 	case paymentorder.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case paymentorder.FieldDeletedAt:
+		m.ResetDeletedAt()
 		return nil
 	case paymentorder.FieldUserID:
 		m.ResetUserID()

@@ -383,6 +383,10 @@ func init() {
 	// oauthprovider.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	oauthprovider.UpdateDefaultUpdatedAt = oauthproviderDescUpdatedAt.UpdateDefault.(func() time.Time)
 	paymentorderMixin := schema.PaymentOrder{}.Mixin()
+	paymentorderMixinHooks1 := paymentorderMixin[1].Hooks()
+	paymentorder.Hooks[0] = paymentorderMixinHooks1[0]
+	paymentorderMixinInters1 := paymentorderMixin[1].Interceptors()
+	paymentorder.Interceptors[0] = paymentorderMixinInters1[0]
 	paymentorderMixinFields0 := paymentorderMixin[0].Fields()
 	_ = paymentorderMixinFields0
 	paymentorderFields := schema.PaymentOrder{}.Fields()
