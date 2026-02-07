@@ -166,8 +166,14 @@ const activeScopeRateLimits = computed(() => {
   if (!scopeLimits) return []
   const now = new Date()
   return Object.entries(scopeLimits)
-    .filter(([, info]) => new Date(info.reset_at) > now)
-    .map(([scope, info]) => ({ scope, reset_at: info.reset_at }))
+    .filter(([, info]) => {
+      const infoTyped = info as { reset_at: string }
+      return new Date(infoTyped.reset_at) > now
+    })
+    .map(([scope, info]) => {
+      const infoTyped = info as { reset_at: string }
+      return { scope, reset_at: infoTyped.reset_at }
+    })
 })
 
 // Computed: active model rate limits (Antigravity OAuth Smart Retry)

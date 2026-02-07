@@ -44,6 +44,8 @@ export interface User {
 export interface AdminUser extends User {
   // 管理员备注（普通用户接口不返回）
   notes: string
+  // 用户分组费率覆盖
+  group_rates?: Record<number, number> | null
 }
 
 export interface LoginRequest {
@@ -58,6 +60,7 @@ export interface RegisterRequest {
   verify_code?: string
   turnstile_token?: string
   promo_code?: string
+  invitation_code?: string
 }
 
 export interface SendVerifyCodeRequest {
@@ -88,11 +91,17 @@ export interface PublicSettings {
   linuxdo_oauth_enabled: boolean
   totp_enabled: boolean
   version: string
+  // Pre branch custom fields
+  invitation_code_enabled?: boolean
+  purchase_subscription_enabled?: boolean
+  purchase_subscription_url?: string
 }
 
 export interface AuthResponse {
   access_token: string
   token_type: string
+  refresh_token?: string
+  expires_in?: number
   user: User & { run_mode?: 'standard' | 'simple' }
 }
 
@@ -303,9 +312,12 @@ export interface ApiKey {
   key: string
   name: string
   group_id: number | null
-  status: 'active' | 'inactive'
+  status: 'active' | 'inactive' | 'expired' | 'quota_exhausted'
   ip_whitelist: string[]
   ip_blacklist: string[]
+  quota?: number | null
+  quota_used?: number | null
+  expires_at?: string | null
   created_at: string
   updated_at: string
   group?: Group
@@ -317,6 +329,8 @@ export interface CreateApiKeyRequest {
   custom_key?: string // Optional custom API Key
   ip_whitelist?: string[]
   ip_blacklist?: string[]
+  quota?: number | null // Optional quota limit
+  expires_in_days?: number | null // Optional expiration in days
 }
 
 export interface UpdateApiKeyRequest {
@@ -325,6 +339,9 @@ export interface UpdateApiKeyRequest {
   status?: 'active' | 'inactive'
   ip_whitelist?: string[]
   ip_blacklist?: string[]
+  quota?: number | null
+  reset_quota?: boolean
+  expires_at?: string | null
 }
 
 export interface CreateGroupRequest {
@@ -365,7 +382,7 @@ export interface UpdateGroupRequest {
 // ==================== Account & Proxy Types ====================
 
 export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity'
-export type AccountType = 'oauth' | 'setup-token' | 'apikey'
+export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
 
@@ -510,6 +527,9 @@ export interface Account {
   // 运行时状态（仅当启用对应限制时返回）
   current_window_cost?: number | null // 当前窗口费用
   active_sessions?: number | null // 当前活跃会话数
+
+  // Scope rate limits (for accounts with rate limit info)
+  scope_rate_limits?: Record<string, unknown> | null
 }
 
 // Account Usage types
@@ -629,7 +649,7 @@ export interface UpdateProxyRequest {
 
 // ==================== Usage & Redeem Types ====================
 
-export type RedeemCodeType = 'balance' | 'concurrency' | 'subscription'
+export type RedeemCodeType = 'balance' | 'concurrency' | 'subscription' | 'invitation'
 
 export interface UsageLog {
   id: number
@@ -668,6 +688,9 @@ export interface UsageLog {
 
   // User-Agent
   user_agent: string | null
+
+  // Reasoning effort (for supported models)
+  reasoning_effort: string | null
 
   created_at: string
 
@@ -865,6 +888,7 @@ export interface UpdateUserRequest {
   concurrency?: number
   status?: 'active' | 'disabled'
   allowed_groups?: number[] | null
+  group_rates?: Record<number, number | null> | null
 }
 
 export interface ChangePasswordRequest {
@@ -1220,4 +1244,33 @@ export interface TotpLoginResponse {
 export interface TotpLogin2FARequest {
   temp_token: string
   totp_code: string
+}
+
+// ==================== Admin Data Import/Export Types ====================
+
+export interface AdminDataPayload<T = unknown> {
+  version?: string
+  exported_at?: string
+  items: T[]
+}
+
+export interface AdminDataImportError {
+  kind: string
+  name?: string
+  proxy_key?: string
+  message: string
+}
+
+export interface AdminDataImportResult {
+  success: number
+  failed: number
+  skipped: number
+  errors?: AdminDataImportError[]
+  // Account import specific
+  account_created?: number
+  account_failed?: number
+  // Proxy import specific
+  proxy_created?: number
+  proxy_reused?: number
+  proxy_failed?: number
 }

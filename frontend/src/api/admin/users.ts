@@ -212,6 +212,25 @@ export interface BatchDeleteUsersResult {
 }
 
 /**
+ * Balance history item
+ */
+export interface BalanceHistoryItem {
+  id: number
+  user_id: number
+  type: 'balance' | 'admin_balance' | 'concurrency' | 'admin_concurrency' | 'subscription'
+  value: number
+  balance_before: number
+  balance_after: number
+  notes: string
+  operator_id: number | null
+  created_at: string
+  used_at?: string
+  code?: string
+  validity_days?: number
+  group?: { id: number; name: string } | null
+}
+
+/**
  * Bulk update multiple users
  * @param userIds - Array of user IDs
  * @param updates - Fields to update
@@ -240,6 +259,35 @@ export async function batchDelete(userIds: number[]): Promise<BatchDeleteUsersRe
   return data
 }
 
+/**
+ * Balance history response
+ */
+export interface BalanceHistoryResponse {
+  items: BalanceHistoryItem[]
+  total: number
+  total_recharged: number
+}
+
+/**
+ * Get user balance history
+ * @param id - User ID
+ * @param page - Page number
+ * @param pageSize - Items per page
+ * @param type - Optional type filter
+ * @returns Paginated balance history
+ */
+export async function getUserBalanceHistory(
+  id: number,
+  page: number = 1,
+  pageSize: number = 15,
+  type?: string
+): Promise<BalanceHistoryResponse> {
+  const { data } = await apiClient.get<BalanceHistoryResponse>(`/admin/users/${id}/balance-history`, {
+    params: { page, page_size: pageSize, type }
+  })
+  return data
+}
+
 export const usersAPI = {
   list,
   getById,
@@ -252,7 +300,8 @@ export const usersAPI = {
   getUserApiKeys,
   getUserUsageStats,
   bulkUpdate,
-  batchDelete
+  batchDelete,
+  getUserBalanceHistory
 }
 
 export default usersAPI

@@ -1369,6 +1369,10 @@ type SettingsForm = SystemSettings & {
   turnstile_secret_key: string
   linuxdo_connect_client_secret: string
   payment_yipay_key: string
+  // Override optional fields to be required
+  invitation_code_enabled: boolean
+  purchase_subscription_enabled: boolean
+  purchase_subscription_url: string
 }
 
 const form = reactive<SettingsForm>({

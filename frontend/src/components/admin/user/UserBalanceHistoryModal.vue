@@ -135,7 +135,7 @@
                 v-else
                 class="font-mono text-xs text-gray-400 dark:text-dark-500"
               >
-                {{ item.code.slice(0, 8) }}...
+                {{ item.code?.slice(0, 8) }}...
               </p>
             </div>
           </div>

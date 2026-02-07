@@ -164,7 +164,7 @@ const handleImport = async () => {
       proxy_failed: res.proxy_failed
     }
 
-    if (res.proxy_failed > 0) {
+    if ((res.proxy_failed ?? 0) > 0) {
       appStore.showError(t('admin.proxies.dataImportCompletedWithErrors', msgParams))
     } else {
       appStore.showSuccess(t('admin.proxies.dataImportSuccess', msgParams))

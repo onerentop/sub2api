@@ -5,6 +5,7 @@
 
 import dashboardAPI from './dashboard'
 import usersAPI from './users'
+import { type BalanceHistoryItem } from './users'
 import groupsAPI from './groups'
 import accountsAPI from './accounts'
 import proxiesAPI from './proxies'
@@ -67,7 +68,8 @@ export {
   announcementsAPI,
   productsAPI,
   ordersAPI,
-  errorPassthroughAPI
+  errorPassthroughAPI,
+  type BalanceHistoryItem
 }
 
 export default adminAPI

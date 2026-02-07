@@ -420,7 +420,7 @@
             </div>
 
             <!-- Quota used display (only in edit mode) -->
-            <div v-if="showEditModal && selectedKey && selectedKey.quota > 0">
+            <div v-if="showEditModal && selectedKey && (selectedKey.quota ?? 0) > 0">
               <label class="input-label">{{ t('keys.quotaUsed') }}</label>
               <div class="flex items-center gap-2">
                 <div class="flex-1 rounded-lg bg-gray-100 px-3 py-2 dark:bg-dark-700">
@@ -956,8 +956,8 @@ const editKey = (key: ApiKey) => {
     enable_ip_restriction: hasIPRestriction,
     ip_whitelist: (key.ip_whitelist || []).join('\n'),
     ip_blacklist: (key.ip_blacklist || []).join('\n'),
-    enable_quota: key.quota > 0,
-    quota: key.quota > 0 ? key.quota : null,
+    enable_quota: (key.quota ?? 0) > 0,
+    quota: (key.quota ?? 0) > 0 ? key.quota ?? null : null,
     enable_expiration: hasExpiration,
     expiration_preset: 'custom',
     expiration_date: key.expires_at ? formatDateTimeLocal(key.expires_at) : ''

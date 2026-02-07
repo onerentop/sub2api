@@ -15,6 +15,10 @@ export interface SystemSettings {
   promo_code_enabled: boolean
   password_reset_enabled: boolean
   email_domain_whitelist: string[]
+  // Pre branch custom fields
+  invitation_code_enabled?: boolean
+  purchase_subscription_enabled?: boolean
+  purchase_subscription_url?: string
   // Default settings
   default_balance: number
   default_concurrency: number
@@ -86,6 +90,10 @@ export interface UpdateSettingsRequest {
   promo_code_enabled?: boolean
   password_reset_enabled?: boolean
   email_domain_whitelist?: string[]
+  // Pre branch custom fields
+  invitation_code_enabled?: boolean
+  purchase_subscription_enabled?: boolean
+  purchase_subscription_url?: string
   default_balance?: number
   default_concurrency?: number
   site_name?: string
