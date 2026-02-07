@@ -21,6 +21,7 @@ import opsAPI from './ops'
 import announcementsAPI from './announcements'
 import productsAPI from './products'
 import ordersAPI from './orders'
+import errorPassthroughAPI from './errorPassthrough'
 
 /**
  * Unified admin API object for convenient access
@@ -43,7 +44,8 @@ export const adminAPI = {
   ops: opsAPI,
   announcements: announcementsAPI,
   products: productsAPI,
-  orders: ordersAPI
+  orders: ordersAPI,
+  errorPassthrough: errorPassthroughAPI
 }
 
 export {
@@ -64,7 +66,8 @@ export {
   opsAPI,
   announcementsAPI,
   productsAPI,
-  ordersAPI
+  ordersAPI,
+  errorPassthroughAPI
 }
 
 export default adminAPI
