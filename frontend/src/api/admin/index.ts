@@ -23,6 +23,7 @@ import announcementsAPI from './announcements'
 import productsAPI from './products'
 import ordersAPI from './orders'
 import errorPassthroughAPI from './errorPassthrough'
+import socialOAuthAPI from './socialOAuth'
 
 /**
  * Unified admin API object for convenient access
@@ -46,7 +47,8 @@ export const adminAPI = {
   announcements: announcementsAPI,
   products: productsAPI,
   orders: ordersAPI,
-  errorPassthrough: errorPassthroughAPI
+  errorPassthrough: errorPassthroughAPI,
+  socialOAuth: socialOAuthAPI
 }
 
 export {
@@ -69,6 +71,7 @@ export {
   productsAPI,
   ordersAPI,
   errorPassthroughAPI,
+  socialOAuthAPI,
   type BalanceHistoryItem
 }
 

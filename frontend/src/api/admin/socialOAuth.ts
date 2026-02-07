@@ -52,3 +52,11 @@ export async function updateProvider(name: string, data: UpdateProviderRequest):
   const response = await api.put(`/admin/social-oauth/providers/${name}`, data)
   return response.data.data || response.data
 }
+
+const socialOAuthAPI = {
+  getProviders,
+  getProvider,
+  updateProvider
+}
+
+export default socialOAuthAPI
