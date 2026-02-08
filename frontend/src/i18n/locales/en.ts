@@ -2552,14 +2552,86 @@ export default {
     announcements: {
       title: 'Announcement Management',
       description: 'Create and manage website announcements',
+
+      // List / actions
+      createAnnouncement: 'Create Announcement',
+      editAnnouncement: 'Edit Announcement',
+      deleteAnnouncement: 'Delete Announcement',
+      searchAnnouncements: 'Search announcements...',
+      allStatus: 'All Status',
+      timeImmediate: 'Immediate',
+      timeNever: 'Never',
+
+      columns: {
+        title: 'Title',
+        status: 'Status',
+        targeting: 'Targeting',
+        timeRange: 'Time Range',
+        createdAt: 'Created At',
+        actions: 'Actions'
+      },
+
+      statusLabels: {
+        draft: 'Draft',
+        active: 'Active',
+        archived: 'Archived'
+      },
+
+      form: {
+        title: 'Title',
+        content: 'Content',
+        status: 'Status',
+        startsAt: 'Starts At',
+        startsAtHint: 'Leave empty to take effect immediately',
+        endsAt: 'Ends At',
+        endsAtHint: 'Leave empty to never expire',
+        targetingMode: 'Targeting Mode',
+        targetingAll: 'All Users',
+        targetingCustom: 'Custom Rules',
+        addOrGroup: 'Add OR Group',
+        addAndCondition: 'Add AND Condition',
+        conditionType: 'Condition Type',
+        conditionSubscription: 'Subscription',
+        conditionBalance: 'Balance',
+        selectPackages: 'Select Packages',
+        operator: 'Operator',
+        balanceValue: 'Balance Threshold'
+      },
+
+      operators: {
+        gt: 'Greater Than',
+        gte: 'Greater Than or Equal',
+        lt: 'Less Than',
+        lte: 'Less Than or Equal',
+        eq: 'Equal'
+      },
+
+      targetingSummaryAll: 'All users',
+      targetingSummaryCustom: '{groups} rule group(s)',
+
+      readStatus: 'Read Status',
+      searchUsers: 'Search users...',
+      eligible: 'Eligible',
+      readAt: 'Read At',
+      unread: 'Unread',
+
+      failedToLoad: 'Failed to load announcements',
+      failedToLoadReadStatus: 'Failed to load read status',
+      failedToCreate: 'Failed to create announcement',
+      failedToUpdate: 'Failed to update announcement',
+      failedToDelete: 'Failed to delete announcement',
+      createSuccess: 'Announcement created successfully',
+      updateSuccess: 'Announcement updated successfully',
+      deleteSuccess: 'Announcement deleted successfully',
+      deleteConfirm: 'Are you sure you want to delete this announcement? This action cannot be undone.',
+
+      // Backward compatible keys
       create: 'Create Announcement',
       edit: 'Edit Announcement',
       delete: 'Delete Announcement',
-      allStatus: 'All Status',
       allTypes: 'All Types',
       announcementTitle: 'Title',
       titlePlaceholder: 'Enter announcement title (optional)',
-      content: 'Content',
       contentPlaceholder: 'Enter announcement content, HTML format supported',
       htmlSupported: 'Supports HTML format, e.g. <a href="...">link</a>, <b>bold</b>, etc.',
       type: 'Type',
@@ -2577,11 +2649,8 @@ export default {
       endTime: 'End Time',
       sortOrder: 'Sort Order',
       contentRequired: 'Content is required',
-      createSuccess: 'Announcement created successfully',
       createFailed: 'Failed to create announcement',
-      updateSuccess: 'Announcement updated successfully',
       updateFailed: 'Failed to update announcement',
-      deleteSuccess: 'Announcement deleted successfully',
       deleteFailed: 'Failed to delete announcement',
       deleteConfirmTitle: 'Delete Announcement',
       deleteConfirmMessage: 'Are you sure you want to delete this announcement? This action cannot be undone.'

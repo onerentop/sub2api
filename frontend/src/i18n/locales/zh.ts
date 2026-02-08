@@ -201,6 +201,23 @@ export default {
     close: '关闭'
   },
 
+  // Announcement Bell (user inbox)
+  announcements: {
+    title: '公告',
+    unread: '条未读公告',
+    read: '已读',
+    readStatus: '已读状态',
+    markRead: '标记已读',
+    markReadHint: '阅读后可标记为已读',
+    markedAsRead: '已标记为已读',
+    markAllRead: '全部标记已读',
+    allMarkedAsRead: '已全部标记为已读',
+    empty: '暂无公告',
+    emptyDescription: '当前没有可展示的公告',
+    markReadFailed: '标记公告已读失败',
+    loadFailed: '加载公告失败'
+  },
+
   // Navigation
   nav: {
     dashboard: '仪表盘',
@@ -2515,10 +2532,83 @@ export default {
     announcements: {
       title: '公告管理',
       description: '创建和管理网站公告',
+
+      // 列表/操作
+      createAnnouncement: '创建公告',
+      editAnnouncement: '编辑公告',
+      deleteAnnouncement: '删除公告',
+      searchAnnouncements: '搜索公告...',
+      allStatus: '全部状态',
+      timeImmediate: '立即生效',
+      timeNever: '永不过期',
+
+      columns: {
+        title: '标题',
+        status: '状态',
+        targeting: '目标用户',
+        timeRange: '生效时间',
+        createdAt: '创建时间',
+        actions: '操作'
+      },
+
+      statusLabels: {
+        draft: '草稿',
+        active: '生效中',
+        archived: '已归档'
+      },
+
+      form: {
+        title: '标题',
+        content: '内容',
+        status: '状态',
+        startsAt: '开始时间',
+        startsAtHint: '留空表示立即生效',
+        endsAt: '结束时间',
+        endsAtHint: '留空表示永不过期',
+        targetingMode: '目标用户模式',
+        targetingAll: '全部用户',
+        targetingCustom: '按条件筛选',
+        addOrGroup: '添加 OR 条件组',
+        addAndCondition: '添加 AND 条件',
+        conditionType: '条件类型',
+        conditionSubscription: '订阅条件',
+        conditionBalance: '余额条件',
+        selectPackages: '选择套餐',
+        operator: '比较符',
+        balanceValue: '余额阈值'
+      },
+
+      operators: {
+        gt: '大于',
+        gte: '大于等于',
+        lt: '小于',
+        lte: '小于等于',
+        eq: '等于'
+      },
+
+      targetingSummaryAll: '全部用户',
+      targetingSummaryCustom: '已配置 {groups} 组规则',
+
+      readStatus: '阅读状态',
+      searchUsers: '搜索用户...',
+      eligible: '符合条件',
+      readAt: '阅读时间',
+      unread: '未读',
+
+      failedToLoad: '加载公告失败',
+      failedToLoadReadStatus: '加载阅读状态失败',
+      failedToCreate: '创建公告失败',
+      failedToUpdate: '更新公告失败',
+      failedToDelete: '删除公告失败',
+      createSuccess: '公告创建成功',
+      updateSuccess: '公告更新成功',
+      deleteSuccess: '公告删除成功',
+      deleteConfirm: '确定要删除此公告吗？此操作无法撤销。',
+
+      // 兼容旧键
       create: '创建公告',
       edit: '编辑公告',
       delete: '删除公告',
-      allStatus: '全部状态',
       allTypes: '全部类型',
       announcementTitle: '标题',
       titlePlaceholder: '输入公告标题（可选）',
@@ -2540,11 +2630,8 @@ export default {
       endTime: '过期时间',
       sortOrder: '排序',
       contentRequired: '内容不能为空',
-      createSuccess: '公告创建成功',
       createFailed: '创建公告失败',
-      updateSuccess: '公告更新成功',
       updateFailed: '更新公告失败',
-      deleteSuccess: '公告删除成功',
       deleteFailed: '删除公告失败',
       deleteConfirmTitle: '删除公告',
       deleteConfirmMessage: '确定要删除此公告吗？此操作无法撤销。'
