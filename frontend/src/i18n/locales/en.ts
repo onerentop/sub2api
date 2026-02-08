@@ -3773,6 +3773,17 @@ export default {
     modelResults: 'Model Test Results'
   },
 
+  // Purchase Subscription Page (User)
+  purchase: {
+    title: 'Purchase Subscription',
+    description: 'Browse and purchase subscription plans',
+    openInNewTab: 'Open in new tab',
+    notEnabledTitle: 'Purchase Not Enabled',
+    notEnabledDesc: 'Purchase subscription feature is not enabled. Please contact the administrator.',
+    notConfiguredTitle: 'Purchase Page Not Configured',
+    notConfiguredDesc: 'The purchase page URL has not been configured. Please contact the administrator.'
+  },
+
   // Recharge page
   recharge: {
     title: 'Recharge',

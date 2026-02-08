@@ -3935,6 +3935,17 @@ export default {
     modelResults: '各模型测试结果'
   },
 
+  // Purchase Subscription Page (User)
+  purchase: {
+    title: '购买订阅',
+    description: '浏览并购买订阅套餐',
+    openInNewTab: '在新标签页打开',
+    notEnabledTitle: '购买订阅功能未开启',
+    notEnabledDesc: '管理员尚未开启购买订阅功能，请联系管理员。',
+    notConfiguredTitle: '购买页面未配置',
+    notConfiguredDesc: '管理员尚未配置购买页面地址，请联系管理员。'
+  },
+
   // Recharge page
   recharge: {
     title: '充值',
