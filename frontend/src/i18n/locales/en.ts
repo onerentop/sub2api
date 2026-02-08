@@ -2026,7 +2026,22 @@ export default {
       hostRequired: 'Please enter host address',
       portInvalid: 'Port must be between 1-65535',
       deleteConfirm:
-        "Are you sure you want to delete '{name}'? Accounts using this proxy will have their proxy removed."
+        "Are you sure you want to delete '{name}'? Accounts using this proxy will have their proxy removed.",
+      // Data import/export
+      dataImport: 'Import',
+      dataExport: 'Export',
+      dataExportSelected: 'Export Selected',
+      dataExportConfirmMessage: 'Are you sure you want to export the proxy list?',
+      dataExportConfirm: 'Export',
+      dataExported: 'Proxy list exported successfully',
+      dataExportFailed: 'Export failed',
+      // Protocols
+      protocols: {
+        http: 'HTTP',
+        https: 'HTTPS',
+        socks5: 'SOCKS5',
+        socks5h: 'SOCKS5H'
+      }
     },
 
     // Redeem Codes

@@ -2142,7 +2142,22 @@ export default {
       nameRequired: '请输入代理名称',
       hostRequired: '请输入主机地址',
       portInvalid: '端口必须在 1-65535 之间',
-      deleteConfirm: "确定要删除代理 '{name}' 吗？使用此代理的账号将被移除代理设置。"
+      deleteConfirm: "确定要删除代理 '{name}' 吗？使用此代理的账号将被移除代理设置。",
+      // Data import/export
+      dataImport: '导入',
+      dataExport: '导出',
+      dataExportSelected: '导出选中',
+      dataExportConfirmMessage: '确定要导出代理列表吗？',
+      dataExportConfirm: '导出',
+      dataExported: '代理列表导出成功',
+      dataExportFailed: '导出失败',
+      // Protocols
+      protocols: {
+        http: 'HTTP',
+        https: 'HTTPS',
+        socks5: 'SOCKS5',
+        socks5h: 'SOCKS5H'
+      }
     },
 
     // Redeem Codes Management
