@@ -167,6 +167,18 @@ type UpdateSettingsRequest struct {
 	OpsRealtimeMonitoringEnabled *bool   `json:"ops_realtime_monitoring_enabled"`
 	OpsQueryModeDefault          *string `json:"ops_query_mode_default"`
 	OpsMetricsIntervalSeconds    *int    `json:"ops_metrics_interval_seconds"`
+
+	// Payment settings (YiPay)
+	PaymentEnabled        *bool    `json:"payment_enabled"`
+	PaymentYiPayAPIURL    *string  `json:"payment_yipay_api_url"`
+	PaymentYiPayPID       *string  `json:"payment_yipay_pid"`
+	PaymentYiPayKey       *string  `json:"payment_yipay_key"`
+	PaymentYiPayNotifyURL *string  `json:"payment_yipay_notify_url"`
+	PaymentYiPayReturnURL *string  `json:"payment_yipay_return_url"`
+	PaymentMinAmount      *float64 `json:"payment_min_amount"`
+	PaymentMaxAmount      *float64 `json:"payment_max_amount"`
+	PaymentAuditThreshold *float64 `json:"payment_audit_threshold"`
+	PaymentCNYToValueRate *float64 `json:"payment_cny_to_value_rate"`
 }
 
 // UpdateSettings 更新系统设置
@@ -365,6 +377,68 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return *req.OpsMetricsIntervalSeconds
 			}
 			return previousSettings.OpsMetricsIntervalSeconds
+		}(),
+		// Payment settings (YiPay)
+		PaymentEnabled: func() bool {
+			if req.PaymentEnabled != nil {
+				return *req.PaymentEnabled
+			}
+			return previousSettings.PaymentEnabled
+		}(),
+		PaymentYiPayAPIURL: func() string {
+			if req.PaymentYiPayAPIURL != nil {
+				return *req.PaymentYiPayAPIURL
+			}
+			return previousSettings.PaymentYiPayAPIURL
+		}(),
+		PaymentYiPayPID: func() string {
+			if req.PaymentYiPayPID != nil {
+				return *req.PaymentYiPayPID
+			}
+			return previousSettings.PaymentYiPayPID
+		}(),
+		PaymentYiPayKey: func() string {
+			if req.PaymentYiPayKey != nil {
+				return *req.PaymentYiPayKey
+			}
+			// Keep existing key if not provided (sensitive field)
+			return ""
+		}(),
+		PaymentYiPayNotifyURL: func() string {
+			if req.PaymentYiPayNotifyURL != nil {
+				return *req.PaymentYiPayNotifyURL
+			}
+			return previousSettings.PaymentYiPayNotifyURL
+		}(),
+		PaymentYiPayReturnURL: func() string {
+			if req.PaymentYiPayReturnURL != nil {
+				return *req.PaymentYiPayReturnURL
+			}
+			return previousSettings.PaymentYiPayReturnURL
+		}(),
+		PaymentMinAmount: func() float64 {
+			if req.PaymentMinAmount != nil {
+				return *req.PaymentMinAmount
+			}
+			return previousSettings.PaymentMinAmount
+		}(),
+		PaymentMaxAmount: func() float64 {
+			if req.PaymentMaxAmount != nil {
+				return *req.PaymentMaxAmount
+			}
+			return previousSettings.PaymentMaxAmount
+		}(),
+		PaymentAuditThreshold: func() float64 {
+			if req.PaymentAuditThreshold != nil {
+				return *req.PaymentAuditThreshold
+			}
+			return previousSettings.PaymentAuditThreshold
+		}(),
+		PaymentCNYToValueRate: func() float64 {
+			if req.PaymentCNYToValueRate != nil {
+				return *req.PaymentCNYToValueRate
+			}
+			return previousSettings.PaymentCNYToValueRate
 		}(),
 	}
 
