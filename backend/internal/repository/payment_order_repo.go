@@ -208,7 +208,7 @@ func (r *paymentOrderRepository) GetOrderStats(ctx context.Context) (*service.Pa
 	var stats []struct {
 		Status string  `json:"status"`
 		Count  int     `json:"count"`
-		Total  float64 `json:"total"`
+		Sum    float64 `json:"sum"`
 	}
 
 	err := r.client.PaymentOrder.Query().
@@ -224,17 +224,17 @@ func (r *paymentOrderRepository) GetOrderStats(ctx context.Context) (*service.Pa
 
 	for _, s := range stats {
 		result.TotalOrders += s.Count
-		result.TotalAmount += s.Total
+		result.TotalAmount += s.Sum
 		switch s.Status {
 		case "paid":
 			result.PaidOrders = s.Count
-			result.PaidAmount = s.Total
+			result.PaidAmount = s.Sum
 		case "pending":
 			result.PendingOrders = s.Count
-			result.PendingAmount = s.Total
+			result.PendingAmount = s.Sum
 		case "auditing":
 			result.PendingOrders += s.Count
-			result.PendingAmount += s.Total
+			result.PendingAmount += s.Sum
 		}
 	}
 
