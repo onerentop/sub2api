@@ -714,14 +714,15 @@ const confirmDelete = async () => {
       const result = await adminAPI.orders.batchDeleteOrders(ids)
       appStore.showSuccess(t('admin.orders.batchDeleteSuccess', { count: result.deleted }))
     }
-    showDeleteDialog.value = false
-    deleteTarget.value = null
-    loadOrders()
-    loadStats()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('common.operationFailed'))
   } finally {
     submitting.value = false
+    showDeleteDialog.value = false
+    deleteTarget.value = null
+    // Always refresh list to remove any stale entries
+    loadOrders()
+    loadStats()
   }
 }
 
