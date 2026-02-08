@@ -1291,6 +1291,72 @@ export default {
       revokeConfirm: "确定要撤销 '{user}' 的订阅吗？此操作无法撤销。"
     },
 
+    // Error Passthrough Rules
+    errorPassthrough: {
+      title: '错误透传规则',
+      description: '配置上游错误的处理和透传规则',
+      createRule: '创建规则',
+      editRule: '编辑规则',
+      deleteRule: '删除规则',
+      noRules: '暂无规则',
+      createFirstRule: '创建您的第一条错误透传规则',
+      allPlatforms: '全部平台',
+      code: '状态码',
+      body: '响应体',
+      passthrough: '透传',
+      custom: '自定义',
+      columns: {
+        priority: '优先级',
+        name: '名称',
+        conditions: '条件',
+        platforms: '平台',
+        behavior: '行为',
+        status: '状态',
+        actions: '操作'
+      },
+      matchMode: {
+        any: '任一匹配',
+        anyHint: '满足任一条件即匹配',
+        all: '全部匹配',
+        allHint: '必须满足所有条件'
+      },
+      form: {
+        name: '规则名称',
+        namePlaceholder: '输入规则名称',
+        priority: '优先级',
+        priorityHint: '数值越小优先级越高',
+        description: '描述',
+        descriptionPlaceholder: '输入规则描述（可选）',
+        matchConditions: '匹配条件',
+        errorCodes: '错误码',
+        errorCodesPlaceholder: '输入错误码，如 429, 503',
+        errorCodesHint: '多个错误码用逗号分隔',
+        keywords: '关键词',
+        keywordsPlaceholder: '输入关键词，如 rate limit, overloaded',
+        keywordsHint: '多个关键词用逗号分隔',
+        matchMode: '匹配模式',
+        platforms: '适用平台',
+        platformsHint: '留空表示适用于所有平台',
+        responseBehavior: '响应行为',
+        passthroughCode: '透传原始状态码',
+        responseCode: '响应状态码',
+        passthroughBody: '透传原始响应体',
+        customMessage: '自定义消息',
+        customMessagePlaceholder: '输入自定义响应消息',
+        enabled: '启用规则'
+      },
+      deleteConfirm: "确定要删除规则 '{name}' 吗？",
+      nameRequired: '请输入规则名称',
+      conditionsRequired: '请至少配置一个匹配条件',
+      ruleCreated: '规则创建成功',
+      ruleUpdated: '规则更新成功',
+      ruleDeleted: '规则删除成功',
+      failedToLoad: '加载规则失败',
+      failedToSave: '保存规则失败',
+      failedToToggle: '切换规则状态失败',
+      failedToDelete: '删除规则失败'
+    },
+
     // Accounts Management
     accounts: {
       title: '账号管理',
@@ -2019,7 +2085,16 @@ export default {
         todayCost: '今日费用',
         usageTrend: '30天费用与请求趋势',
         noData: '该账号暂无使用数据'
-      }
+      },
+      // Data import/export for accounts
+      dataImport: '导入',
+      dataExport: '导出',
+      dataExportSelected: '导出选中',
+      dataExportConfirmMessage: '确定要导出账号列表吗？',
+      dataExportConfirm: '导出',
+      dataExportIncludeProxies: '包含代理配置',
+      dataExported: '账号列表导出成功',
+      dataExportFailed: '导出失败'
     },
 
     // Proxies Management

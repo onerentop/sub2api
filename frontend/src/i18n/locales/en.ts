@@ -1217,6 +1217,72 @@ export default {
         "Are you sure you want to revoke the subscription for '{user}'? This action cannot be undone."
     },
 
+    // Error Passthrough Rules
+    errorPassthrough: {
+      title: 'Error Passthrough Rules',
+      description: 'Configure upstream error handling and passthrough rules',
+      createRule: 'Create Rule',
+      editRule: 'Edit Rule',
+      deleteRule: 'Delete Rule',
+      noRules: 'No rules yet',
+      createFirstRule: 'Create your first error passthrough rule',
+      allPlatforms: 'All Platforms',
+      code: 'Status Code',
+      body: 'Response Body',
+      passthrough: 'Passthrough',
+      custom: 'Custom',
+      columns: {
+        priority: 'Priority',
+        name: 'Name',
+        conditions: 'Conditions',
+        platforms: 'Platforms',
+        behavior: 'Behavior',
+        status: 'Status',
+        actions: 'Actions'
+      },
+      matchMode: {
+        any: 'Match Any',
+        anyHint: 'Match if any condition is met',
+        all: 'Match All',
+        allHint: 'Must match all conditions'
+      },
+      form: {
+        name: 'Rule Name',
+        namePlaceholder: 'Enter rule name',
+        priority: 'Priority',
+        priorityHint: 'Lower value means higher priority',
+        description: 'Description',
+        descriptionPlaceholder: 'Enter rule description (optional)',
+        matchConditions: 'Match Conditions',
+        errorCodes: 'Error Codes',
+        errorCodesPlaceholder: 'Enter error codes, e.g., 429, 503',
+        errorCodesHint: 'Separate multiple codes with comma',
+        keywords: 'Keywords',
+        keywordsPlaceholder: 'Enter keywords, e.g., rate limit, overloaded',
+        keywordsHint: 'Separate multiple keywords with comma',
+        matchMode: 'Match Mode',
+        platforms: 'Applicable Platforms',
+        platformsHint: 'Leave empty to apply to all platforms',
+        responseBehavior: 'Response Behavior',
+        passthroughCode: 'Passthrough original status code',
+        responseCode: 'Response Status Code',
+        passthroughBody: 'Passthrough original response body',
+        customMessage: 'Custom Message',
+        customMessagePlaceholder: 'Enter custom response message',
+        enabled: 'Enable Rule'
+      },
+      deleteConfirm: "Are you sure you want to delete rule '{name}'?",
+      nameRequired: 'Please enter rule name',
+      conditionsRequired: 'Please configure at least one match condition',
+      ruleCreated: 'Rule created successfully',
+      ruleUpdated: 'Rule updated successfully',
+      ruleDeleted: 'Rule deleted successfully',
+      failedToLoad: 'Failed to load rules',
+      failedToSave: 'Failed to save rule',
+      failedToToggle: 'Failed to toggle rule status',
+      failedToDelete: 'Failed to delete rule'
+    },
+
     // Accounts
     accounts: {
       title: 'Account Management',
@@ -1927,7 +1993,16 @@ export default {
         unlimited: 'Unlimited'
       },
       ineligibleWarning:
-        'This account is not eligible for Antigravity, but API forwarding still works. Use at your own risk.'
+        'This account is not eligible for Antigravity, but API forwarding still works. Use at your own risk.',
+      // Data import/export for accounts
+      dataImport: 'Import',
+      dataExport: 'Export',
+      dataExportSelected: 'Export Selected',
+      dataExportConfirmMessage: 'Are you sure you want to export the account list?',
+      dataExportConfirm: 'Export',
+      dataExportIncludeProxies: 'Include proxy configuration',
+      dataExported: 'Account list exported successfully',
+      dataExportFailed: 'Export failed'
     },
 
     // Proxies
