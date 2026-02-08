@@ -89,6 +89,17 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		OpsRealtimeMonitoringEnabled:         settings.OpsRealtimeMonitoringEnabled,
 		OpsQueryModeDefault:                  settings.OpsQueryModeDefault,
 		OpsMetricsIntervalSeconds:            settings.OpsMetricsIntervalSeconds,
+		// Payment settings
+		PaymentEnabled:            settings.PaymentEnabled,
+		PaymentYiPayAPIURL:        settings.PaymentYiPayAPIURL,
+		PaymentYiPayPID:           settings.PaymentYiPayPID,
+		PaymentYiPayKeyConfigured: settings.PaymentYiPayKeyConfigured,
+		PaymentYiPayNotifyURL:     settings.PaymentYiPayNotifyURL,
+		PaymentYiPayReturnURL:     settings.PaymentYiPayReturnURL,
+		PaymentMinAmount:          settings.PaymentMinAmount,
+		PaymentMaxAmount:          settings.PaymentMaxAmount,
+		PaymentAuditThreshold:     settings.PaymentAuditThreshold,
+		PaymentCNYToValueRate:     settings.PaymentCNYToValueRate,
 	})
 }
 
