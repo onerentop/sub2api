@@ -2235,6 +2235,7 @@ export default {
         search: '搜索兑换码'
       },
       generating: '生成中...',
+      invitationHint: '邀请码用于限制新用户注册，使用后自动失效',
       copyCode: '复制',
       copied: '已复制！',
       disableCode: '禁用',

@@ -2097,6 +2097,7 @@ export default {
       validityDays: 'Validity Days',
       groupRequired: 'Please select a subscription group',
       days: ' days',
+      invitationHint: 'Invitation codes are used to restrict new user registration and expire after use',
       status: {
         unused: 'Unused',
         used: 'Used',
