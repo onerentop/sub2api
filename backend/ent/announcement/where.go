@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 )
 
@@ -64,24 +65,29 @@ func Content(v string) predicate.Announcement {
 	return predicate.Announcement(sql.FieldEQ(FieldContent, v))
 }
 
-// SortOrder applies equality check predicate on the "sort_order" field. It's identical to SortOrderEQ.
-func SortOrder(v int) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldSortOrder, v))
+// Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
+func Status(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEQ(FieldStatus, v))
 }
 
-// Enabled applies equality check predicate on the "enabled" field. It's identical to EnabledEQ.
-func Enabled(v bool) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldEnabled, v))
+// StartsAt applies equality check predicate on the "starts_at" field. It's identical to StartsAtEQ.
+func StartsAt(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEQ(FieldStartsAt, v))
 }
 
-// StartTime applies equality check predicate on the "start_time" field. It's identical to StartTimeEQ.
-func StartTime(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldStartTime, v))
+// EndsAt applies equality check predicate on the "ends_at" field. It's identical to EndsAtEQ.
+func EndsAt(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEQ(FieldEndsAt, v))
 }
 
-// EndTime applies equality check predicate on the "end_time" field. It's identical to EndTimeEQ.
-func EndTime(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldEndTime, v))
+// CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
+func CreatedBy(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// UpdatedBy applies equality check predicate on the "updated_by" field. It's identical to UpdatedByEQ.
+func UpdatedBy(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEQ(FieldUpdatedBy, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -92,11 +98,6 @@ func CreatedAt(v time.Time) predicate.Announcement {
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.Announcement {
 	return predicate.Announcement(sql.FieldEQ(FieldUpdatedAt, v))
-}
-
-// DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
-func DeletedAt(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldDeletedAt, v))
 }
 
 // TitleEQ applies the EQ predicate on the "title" field.
@@ -152,16 +153,6 @@ func TitleHasPrefix(v string) predicate.Announcement {
 // TitleHasSuffix applies the HasSuffix predicate on the "title" field.
 func TitleHasSuffix(v string) predicate.Announcement {
 	return predicate.Announcement(sql.FieldHasSuffix(FieldTitle, v))
-}
-
-// TitleIsNil applies the IsNil predicate on the "title" field.
-func TitleIsNil() predicate.Announcement {
-	return predicate.Announcement(sql.FieldIsNull(FieldTitle))
-}
-
-// TitleNotNil applies the NotNil predicate on the "title" field.
-func TitleNotNil() predicate.Announcement {
-	return predicate.Announcement(sql.FieldNotNull(FieldTitle))
 }
 
 // TitleEqualFold applies the EqualFold predicate on the "title" field.
@@ -239,174 +230,279 @@ func ContentContainsFold(v string) predicate.Announcement {
 	return predicate.Announcement(sql.FieldContainsFold(FieldContent, v))
 }
 
-// TypeEQ applies the EQ predicate on the "type" field.
-func TypeEQ(v Type) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldType, v))
+// StatusEQ applies the EQ predicate on the "status" field.
+func StatusEQ(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEQ(FieldStatus, v))
 }
 
-// TypeNEQ applies the NEQ predicate on the "type" field.
-func TypeNEQ(v Type) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNEQ(FieldType, v))
+// StatusNEQ applies the NEQ predicate on the "status" field.
+func StatusNEQ(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldNEQ(FieldStatus, v))
 }
 
-// TypeIn applies the In predicate on the "type" field.
-func TypeIn(vs ...Type) predicate.Announcement {
-	return predicate.Announcement(sql.FieldIn(FieldType, vs...))
+// StatusIn applies the In predicate on the "status" field.
+func StatusIn(vs ...string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldIn(FieldStatus, vs...))
 }
 
-// TypeNotIn applies the NotIn predicate on the "type" field.
-func TypeNotIn(vs ...Type) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNotIn(FieldType, vs...))
+// StatusNotIn applies the NotIn predicate on the "status" field.
+func StatusNotIn(vs ...string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldNotIn(FieldStatus, vs...))
 }
 
-// SortOrderEQ applies the EQ predicate on the "sort_order" field.
-func SortOrderEQ(v int) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldSortOrder, v))
+// StatusGT applies the GT predicate on the "status" field.
+func StatusGT(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldGT(FieldStatus, v))
 }
 
-// SortOrderNEQ applies the NEQ predicate on the "sort_order" field.
-func SortOrderNEQ(v int) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNEQ(FieldSortOrder, v))
+// StatusGTE applies the GTE predicate on the "status" field.
+func StatusGTE(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldGTE(FieldStatus, v))
 }
 
-// SortOrderIn applies the In predicate on the "sort_order" field.
-func SortOrderIn(vs ...int) predicate.Announcement {
-	return predicate.Announcement(sql.FieldIn(FieldSortOrder, vs...))
+// StatusLT applies the LT predicate on the "status" field.
+func StatusLT(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldLT(FieldStatus, v))
 }
 
-// SortOrderNotIn applies the NotIn predicate on the "sort_order" field.
-func SortOrderNotIn(vs ...int) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNotIn(FieldSortOrder, vs...))
+// StatusLTE applies the LTE predicate on the "status" field.
+func StatusLTE(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldLTE(FieldStatus, v))
 }
 
-// SortOrderGT applies the GT predicate on the "sort_order" field.
-func SortOrderGT(v int) predicate.Announcement {
-	return predicate.Announcement(sql.FieldGT(FieldSortOrder, v))
+// StatusContains applies the Contains predicate on the "status" field.
+func StatusContains(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldContains(FieldStatus, v))
 }
 
-// SortOrderGTE applies the GTE predicate on the "sort_order" field.
-func SortOrderGTE(v int) predicate.Announcement {
-	return predicate.Announcement(sql.FieldGTE(FieldSortOrder, v))
+// StatusHasPrefix applies the HasPrefix predicate on the "status" field.
+func StatusHasPrefix(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldHasPrefix(FieldStatus, v))
 }
 
-// SortOrderLT applies the LT predicate on the "sort_order" field.
-func SortOrderLT(v int) predicate.Announcement {
-	return predicate.Announcement(sql.FieldLT(FieldSortOrder, v))
+// StatusHasSuffix applies the HasSuffix predicate on the "status" field.
+func StatusHasSuffix(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldHasSuffix(FieldStatus, v))
 }
 
-// SortOrderLTE applies the LTE predicate on the "sort_order" field.
-func SortOrderLTE(v int) predicate.Announcement {
-	return predicate.Announcement(sql.FieldLTE(FieldSortOrder, v))
+// StatusEqualFold applies the EqualFold predicate on the "status" field.
+func StatusEqualFold(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEqualFold(FieldStatus, v))
 }
 
-// EnabledEQ applies the EQ predicate on the "enabled" field.
-func EnabledEQ(v bool) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldEnabled, v))
+// StatusContainsFold applies the ContainsFold predicate on the "status" field.
+func StatusContainsFold(v string) predicate.Announcement {
+	return predicate.Announcement(sql.FieldContainsFold(FieldStatus, v))
 }
 
-// EnabledNEQ applies the NEQ predicate on the "enabled" field.
-func EnabledNEQ(v bool) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNEQ(FieldEnabled, v))
+// TargetingIsNil applies the IsNil predicate on the "targeting" field.
+func TargetingIsNil() predicate.Announcement {
+	return predicate.Announcement(sql.FieldIsNull(FieldTargeting))
 }
 
-// StartTimeEQ applies the EQ predicate on the "start_time" field.
-func StartTimeEQ(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldStartTime, v))
+// TargetingNotNil applies the NotNil predicate on the "targeting" field.
+func TargetingNotNil() predicate.Announcement {
+	return predicate.Announcement(sql.FieldNotNull(FieldTargeting))
 }
 
-// StartTimeNEQ applies the NEQ predicate on the "start_time" field.
-func StartTimeNEQ(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNEQ(FieldStartTime, v))
+// StartsAtEQ applies the EQ predicate on the "starts_at" field.
+func StartsAtEQ(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEQ(FieldStartsAt, v))
 }
 
-// StartTimeIn applies the In predicate on the "start_time" field.
-func StartTimeIn(vs ...time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldIn(FieldStartTime, vs...))
+// StartsAtNEQ applies the NEQ predicate on the "starts_at" field.
+func StartsAtNEQ(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldNEQ(FieldStartsAt, v))
 }
 
-// StartTimeNotIn applies the NotIn predicate on the "start_time" field.
-func StartTimeNotIn(vs ...time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNotIn(FieldStartTime, vs...))
+// StartsAtIn applies the In predicate on the "starts_at" field.
+func StartsAtIn(vs ...time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldIn(FieldStartsAt, vs...))
 }
 
-// StartTimeGT applies the GT predicate on the "start_time" field.
-func StartTimeGT(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldGT(FieldStartTime, v))
+// StartsAtNotIn applies the NotIn predicate on the "starts_at" field.
+func StartsAtNotIn(vs ...time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldNotIn(FieldStartsAt, vs...))
 }
 
-// StartTimeGTE applies the GTE predicate on the "start_time" field.
-func StartTimeGTE(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldGTE(FieldStartTime, v))
+// StartsAtGT applies the GT predicate on the "starts_at" field.
+func StartsAtGT(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldGT(FieldStartsAt, v))
 }
 
-// StartTimeLT applies the LT predicate on the "start_time" field.
-func StartTimeLT(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldLT(FieldStartTime, v))
+// StartsAtGTE applies the GTE predicate on the "starts_at" field.
+func StartsAtGTE(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldGTE(FieldStartsAt, v))
 }
 
-// StartTimeLTE applies the LTE predicate on the "start_time" field.
-func StartTimeLTE(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldLTE(FieldStartTime, v))
+// StartsAtLT applies the LT predicate on the "starts_at" field.
+func StartsAtLT(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldLT(FieldStartsAt, v))
 }
 
-// StartTimeIsNil applies the IsNil predicate on the "start_time" field.
-func StartTimeIsNil() predicate.Announcement {
-	return predicate.Announcement(sql.FieldIsNull(FieldStartTime))
+// StartsAtLTE applies the LTE predicate on the "starts_at" field.
+func StartsAtLTE(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldLTE(FieldStartsAt, v))
 }
 
-// StartTimeNotNil applies the NotNil predicate on the "start_time" field.
-func StartTimeNotNil() predicate.Announcement {
-	return predicate.Announcement(sql.FieldNotNull(FieldStartTime))
+// StartsAtIsNil applies the IsNil predicate on the "starts_at" field.
+func StartsAtIsNil() predicate.Announcement {
+	return predicate.Announcement(sql.FieldIsNull(FieldStartsAt))
 }
 
-// EndTimeEQ applies the EQ predicate on the "end_time" field.
-func EndTimeEQ(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldEndTime, v))
+// StartsAtNotNil applies the NotNil predicate on the "starts_at" field.
+func StartsAtNotNil() predicate.Announcement {
+	return predicate.Announcement(sql.FieldNotNull(FieldStartsAt))
 }
 
-// EndTimeNEQ applies the NEQ predicate on the "end_time" field.
-func EndTimeNEQ(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNEQ(FieldEndTime, v))
+// EndsAtEQ applies the EQ predicate on the "ends_at" field.
+func EndsAtEQ(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEQ(FieldEndsAt, v))
 }
 
-// EndTimeIn applies the In predicate on the "end_time" field.
-func EndTimeIn(vs ...time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldIn(FieldEndTime, vs...))
+// EndsAtNEQ applies the NEQ predicate on the "ends_at" field.
+func EndsAtNEQ(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldNEQ(FieldEndsAt, v))
 }
 
-// EndTimeNotIn applies the NotIn predicate on the "end_time" field.
-func EndTimeNotIn(vs ...time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNotIn(FieldEndTime, vs...))
+// EndsAtIn applies the In predicate on the "ends_at" field.
+func EndsAtIn(vs ...time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldIn(FieldEndsAt, vs...))
 }
 
-// EndTimeGT applies the GT predicate on the "end_time" field.
-func EndTimeGT(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldGT(FieldEndTime, v))
+// EndsAtNotIn applies the NotIn predicate on the "ends_at" field.
+func EndsAtNotIn(vs ...time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldNotIn(FieldEndsAt, vs...))
 }
 
-// EndTimeGTE applies the GTE predicate on the "end_time" field.
-func EndTimeGTE(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldGTE(FieldEndTime, v))
+// EndsAtGT applies the GT predicate on the "ends_at" field.
+func EndsAtGT(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldGT(FieldEndsAt, v))
 }
 
-// EndTimeLT applies the LT predicate on the "end_time" field.
-func EndTimeLT(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldLT(FieldEndTime, v))
+// EndsAtGTE applies the GTE predicate on the "ends_at" field.
+func EndsAtGTE(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldGTE(FieldEndsAt, v))
 }
 
-// EndTimeLTE applies the LTE predicate on the "end_time" field.
-func EndTimeLTE(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldLTE(FieldEndTime, v))
+// EndsAtLT applies the LT predicate on the "ends_at" field.
+func EndsAtLT(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldLT(FieldEndsAt, v))
 }
 
-// EndTimeIsNil applies the IsNil predicate on the "end_time" field.
-func EndTimeIsNil() predicate.Announcement {
-	return predicate.Announcement(sql.FieldIsNull(FieldEndTime))
+// EndsAtLTE applies the LTE predicate on the "ends_at" field.
+func EndsAtLTE(v time.Time) predicate.Announcement {
+	return predicate.Announcement(sql.FieldLTE(FieldEndsAt, v))
 }
 
-// EndTimeNotNil applies the NotNil predicate on the "end_time" field.
-func EndTimeNotNil() predicate.Announcement {
-	return predicate.Announcement(sql.FieldNotNull(FieldEndTime))
+// EndsAtIsNil applies the IsNil predicate on the "ends_at" field.
+func EndsAtIsNil() predicate.Announcement {
+	return predicate.Announcement(sql.FieldIsNull(FieldEndsAt))
+}
+
+// EndsAtNotNil applies the NotNil predicate on the "ends_at" field.
+func EndsAtNotNil() predicate.Announcement {
+	return predicate.Announcement(sql.FieldNotNull(FieldEndsAt))
+}
+
+// CreatedByEQ applies the EQ predicate on the "created_by" field.
+func CreatedByEQ(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// CreatedByNEQ applies the NEQ predicate on the "created_by" field.
+func CreatedByNEQ(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldNEQ(FieldCreatedBy, v))
+}
+
+// CreatedByIn applies the In predicate on the "created_by" field.
+func CreatedByIn(vs ...int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByNotIn applies the NotIn predicate on the "created_by" field.
+func CreatedByNotIn(vs ...int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldNotIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByGT applies the GT predicate on the "created_by" field.
+func CreatedByGT(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldGT(FieldCreatedBy, v))
+}
+
+// CreatedByGTE applies the GTE predicate on the "created_by" field.
+func CreatedByGTE(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldGTE(FieldCreatedBy, v))
+}
+
+// CreatedByLT applies the LT predicate on the "created_by" field.
+func CreatedByLT(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldLT(FieldCreatedBy, v))
+}
+
+// CreatedByLTE applies the LTE predicate on the "created_by" field.
+func CreatedByLTE(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldLTE(FieldCreatedBy, v))
+}
+
+// CreatedByIsNil applies the IsNil predicate on the "created_by" field.
+func CreatedByIsNil() predicate.Announcement {
+	return predicate.Announcement(sql.FieldIsNull(FieldCreatedBy))
+}
+
+// CreatedByNotNil applies the NotNil predicate on the "created_by" field.
+func CreatedByNotNil() predicate.Announcement {
+	return predicate.Announcement(sql.FieldNotNull(FieldCreatedBy))
+}
+
+// UpdatedByEQ applies the EQ predicate on the "updated_by" field.
+func UpdatedByEQ(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldEQ(FieldUpdatedBy, v))
+}
+
+// UpdatedByNEQ applies the NEQ predicate on the "updated_by" field.
+func UpdatedByNEQ(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldNEQ(FieldUpdatedBy, v))
+}
+
+// UpdatedByIn applies the In predicate on the "updated_by" field.
+func UpdatedByIn(vs ...int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldIn(FieldUpdatedBy, vs...))
+}
+
+// UpdatedByNotIn applies the NotIn predicate on the "updated_by" field.
+func UpdatedByNotIn(vs ...int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldNotIn(FieldUpdatedBy, vs...))
+}
+
+// UpdatedByGT applies the GT predicate on the "updated_by" field.
+func UpdatedByGT(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldGT(FieldUpdatedBy, v))
+}
+
+// UpdatedByGTE applies the GTE predicate on the "updated_by" field.
+func UpdatedByGTE(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldGTE(FieldUpdatedBy, v))
+}
+
+// UpdatedByLT applies the LT predicate on the "updated_by" field.
+func UpdatedByLT(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldLT(FieldUpdatedBy, v))
+}
+
+// UpdatedByLTE applies the LTE predicate on the "updated_by" field.
+func UpdatedByLTE(v int64) predicate.Announcement {
+	return predicate.Announcement(sql.FieldLTE(FieldUpdatedBy, v))
+}
+
+// UpdatedByIsNil applies the IsNil predicate on the "updated_by" field.
+func UpdatedByIsNil() predicate.Announcement {
+	return predicate.Announcement(sql.FieldIsNull(FieldUpdatedBy))
+}
+
+// UpdatedByNotNil applies the NotNil predicate on the "updated_by" field.
+func UpdatedByNotNil() predicate.Announcement {
+	return predicate.Announcement(sql.FieldNotNull(FieldUpdatedBy))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
@@ -489,54 +585,27 @@ func UpdatedAtLTE(v time.Time) predicate.Announcement {
 	return predicate.Announcement(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
-// DeletedAtEQ applies the EQ predicate on the "deleted_at" field.
-func DeletedAtEQ(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldEQ(FieldDeletedAt, v))
+// HasReads applies the HasEdge predicate on the "reads" edge.
+func HasReads() predicate.Announcement {
+	return predicate.Announcement(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ReadsTable, ReadsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
 }
 
-// DeletedAtNEQ applies the NEQ predicate on the "deleted_at" field.
-func DeletedAtNEQ(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNEQ(FieldDeletedAt, v))
-}
-
-// DeletedAtIn applies the In predicate on the "deleted_at" field.
-func DeletedAtIn(vs ...time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldIn(FieldDeletedAt, vs...))
-}
-
-// DeletedAtNotIn applies the NotIn predicate on the "deleted_at" field.
-func DeletedAtNotIn(vs ...time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldNotIn(FieldDeletedAt, vs...))
-}
-
-// DeletedAtGT applies the GT predicate on the "deleted_at" field.
-func DeletedAtGT(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldGT(FieldDeletedAt, v))
-}
-
-// DeletedAtGTE applies the GTE predicate on the "deleted_at" field.
-func DeletedAtGTE(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldGTE(FieldDeletedAt, v))
-}
-
-// DeletedAtLT applies the LT predicate on the "deleted_at" field.
-func DeletedAtLT(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldLT(FieldDeletedAt, v))
-}
-
-// DeletedAtLTE applies the LTE predicate on the "deleted_at" field.
-func DeletedAtLTE(v time.Time) predicate.Announcement {
-	return predicate.Announcement(sql.FieldLTE(FieldDeletedAt, v))
-}
-
-// DeletedAtIsNil applies the IsNil predicate on the "deleted_at" field.
-func DeletedAtIsNil() predicate.Announcement {
-	return predicate.Announcement(sql.FieldIsNull(FieldDeletedAt))
-}
-
-// DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
-func DeletedAtNotNil() predicate.Announcement {
-	return predicate.Announcement(sql.FieldNotNull(FieldDeletedAt))
+// HasReadsWith applies the HasEdge predicate on the "reads" edge with a given conditions (other predicates).
+func HasReadsWith(preds ...predicate.AnnouncementRead) predicate.Announcement {
+	return predicate.Announcement(func(s *sql.Selector) {
+		step := newReadsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

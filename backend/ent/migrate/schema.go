@@ -220,16 +220,16 @@ var (
 	// AnnouncementsColumns holds the columns for the "announcements" table.
 	AnnouncementsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
-		{Name: "title", Type: field.TypeString, Nullable: true, Size: 255},
-		{Name: "content", Type: field.TypeString, Size: 2147483647, SchemaType: map[string]string{"postgres": "text"}},
-		{Name: "type", Type: field.TypeEnum, Enums: []string{"info", "success", "warning", "error"}, Default: "info"},
-		{Name: "sort_order", Type: field.TypeInt, Default: 0},
-		{Name: "enabled", Type: field.TypeBool, Default: true},
-		{Name: "start_time", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "end_time", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "title", Type: field.TypeString, Size: 200},
+		{Name: "content", Type: field.TypeString, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "draft"},
+		{Name: "targeting", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "starts_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "ends_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_by", Type: field.TypeInt64, Nullable: true},
+		{Name: "updated_by", Type: field.TypeInt64, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 	}
 	// AnnouncementsTable holds the schema information for the "announcements" table.
 	AnnouncementsTable = &schema.Table{
@@ -238,34 +238,74 @@ var (
 		PrimaryKey: []*schema.Column{AnnouncementsColumns[0]},
 		Indexes: []*schema.Index{
 			{
-				Name:    "announcement_enabled",
-				Unique:  false,
-				Columns: []*schema.Column{AnnouncementsColumns[5]},
-			},
-			{
-				Name:    "announcement_type",
+				Name:    "announcement_status",
 				Unique:  false,
 				Columns: []*schema.Column{AnnouncementsColumns[3]},
 			},
 			{
-				Name:    "announcement_sort_order",
+				Name:    "announcement_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{AnnouncementsColumns[4]},
+				Columns: []*schema.Column{AnnouncementsColumns[9]},
 			},
 			{
-				Name:    "announcement_start_time",
+				Name:    "announcement_starts_at",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementsColumns[5]},
+			},
+			{
+				Name:    "announcement_ends_at",
 				Unique:  false,
 				Columns: []*schema.Column{AnnouncementsColumns[6]},
 			},
+		},
+	}
+	// AnnouncementReadsColumns holds the columns for the "announcement_reads" table.
+	AnnouncementReadsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "read_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "announcement_id", Type: field.TypeInt64},
+		{Name: "user_id", Type: field.TypeInt64},
+	}
+	// AnnouncementReadsTable holds the schema information for the "announcement_reads" table.
+	AnnouncementReadsTable = &schema.Table{
+		Name:       "announcement_reads",
+		Columns:    AnnouncementReadsColumns,
+		PrimaryKey: []*schema.Column{AnnouncementReadsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
 			{
-				Name:    "announcement_end_time",
-				Unique:  false,
-				Columns: []*schema.Column{AnnouncementsColumns[7]},
+				Symbol:     "announcement_reads_announcements_reads",
+				Columns:    []*schema.Column{AnnouncementReadsColumns[3]},
+				RefColumns: []*schema.Column{AnnouncementsColumns[0]},
+				OnDelete:   schema.NoAction,
 			},
 			{
-				Name:    "announcement_deleted_at",
+				Symbol:     "announcement_reads_users_announcement_reads",
+				Columns:    []*schema.Column{AnnouncementReadsColumns[4]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "announcementread_announcement_id",
 				Unique:  false,
-				Columns: []*schema.Column{AnnouncementsColumns[10]},
+				Columns: []*schema.Column{AnnouncementReadsColumns[3]},
+			},
+			{
+				Name:    "announcementread_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementReadsColumns[4]},
+			},
+			{
+				Name:    "announcementread_read_at",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementReadsColumns[1]},
+			},
+			{
+				Name:    "announcementread_announcement_id_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{AnnouncementReadsColumns[3], AnnouncementReadsColumns[4]},
 			},
 		},
 	}
@@ -1137,6 +1177,7 @@ var (
 		AccountsTable,
 		AccountGroupsTable,
 		AnnouncementsTable,
+		AnnouncementReadsTable,
 		ErrorPassthroughRulesTable,
 		GroupsTable,
 		OauthProvidersTable,
@@ -1175,6 +1216,11 @@ func init() {
 	}
 	AnnouncementsTable.Annotation = &entsql.Annotation{
 		Table: "announcements",
+	}
+	AnnouncementReadsTable.ForeignKeys[0].RefTable = AnnouncementsTable
+	AnnouncementReadsTable.ForeignKeys[1].RefTable = UsersTable
+	AnnouncementReadsTable.Annotation = &entsql.Annotation{
+		Table: "announcement_reads",
 	}
 	ErrorPassthroughRulesTable.Annotation = &entsql.Annotation{
 		Table: "error_passthrough_rules",

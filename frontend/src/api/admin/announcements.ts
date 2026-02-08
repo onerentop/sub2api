@@ -5,18 +5,18 @@
 import { apiClient } from '../client'
 import type {
   Announcement,
+  AnnouncementUserReadStatus,
+  BasePaginationResponse,
   CreateAnnouncementRequest,
-  UpdateAnnouncementRequest,
-  AnnouncementSortItem,
-  BasePaginationResponse
+  UpdateAnnouncementRequest
 } from '@/types'
 
 export async function list(
   page: number = 1,
   pageSize: number = 20,
   filters?: {
-    enabled?: boolean
-    type?: string
+    status?: string
+    search?: string
   }
 ): Promise<BasePaginationResponse<Announcement>> {
   const { data } = await apiClient.get<BasePaginationResponse<Announcement>>('/admin/announcements', {
@@ -45,8 +45,16 @@ export async function deleteAnnouncement(id: number): Promise<{ message: string 
   return data
 }
 
-export async function updateSortOrders(items: AnnouncementSortItem[]): Promise<{ message: string }> {
-  const { data } = await apiClient.put<{ message: string }>('/admin/announcements/sort', { items })
+export async function getReadStatus(
+  id: number,
+  page: number = 1,
+  pageSize: number = 20,
+  search: string = ''
+): Promise<BasePaginationResponse<AnnouncementUserReadStatus>> {
+  const { data } = await apiClient.get<BasePaginationResponse<AnnouncementUserReadStatus>>(
+    `/admin/announcements/${id}/read-status`,
+    { params: { page, page_size: pageSize, search } }
+  )
   return data
 }
 
@@ -56,7 +64,8 @@ const announcementsAPI = {
   create,
   update,
   delete: deleteAnnouncement,
-  updateSortOrders
+  getReadStatus
 }
 
 export default announcementsAPI
+

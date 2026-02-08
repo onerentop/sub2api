@@ -11,27 +11,30 @@
           >
             <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
           </button>
-          <button @click="showCreateDialog = true" class="btn btn-primary">
+          <button @click="openCreateDialog" class="btn btn-primary">
             <Icon name="plus" size="md" class="mr-1" />
-            {{ t('admin.announcements.create') }}
+            {{ t('admin.announcements.createAnnouncement') }}
           </button>
         </div>
       </template>
 
       <template #filters>
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div class="max-w-md flex-1">
+            <input
+              v-model="searchQuery"
+              type="text"
+              :placeholder="t('admin.announcements.searchAnnouncements')"
+              class="input"
+              @input="handleSearch"
+            />
+          </div>
           <div class="flex gap-2">
             <Select
-              v-model="filters.enabled"
-              :options="enabledFilterOptions"
-              class="w-36"
-              @change="loadAnnouncements"
-            />
-            <Select
-              v-model="filters.type"
-              :options="typeFilterOptions"
-              class="w-36"
-              @change="loadAnnouncements"
+              v-model="filters.status"
+              :options="statusFilterOptions"
+              class="w-40"
+              @change="handleStatusChange"
             />
           </div>
         </div>
@@ -39,58 +42,68 @@
 
       <template #table>
         <DataTable :columns="columns" :data="announcements" :loading="loading">
-          <template #cell-content="{ value, row }">
-            <div class="max-w-md">
-              <div v-if="row.title" class="font-medium text-gray-900 dark:text-white">
-                {{ row.title }}
+          <template #cell-title="{ value, row }">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="truncate font-medium text-gray-900 dark:text-white">{{ value }}</span>
               </div>
-              <div
-                class="line-clamp-2 text-sm text-gray-600 dark:text-gray-300"
-                v-html="truncateHtml(value, 100)"
-              ></div>
+              <div class="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-dark-400">
+                <span>#{{ row.id }}</span>
+                <span class="text-gray-300 dark:text-dark-700">·</span>
+                <span>{{ formatDateTime(row.created_at) }}</span>
+              </div>
             </div>
           </template>
 
-          <template #cell-type="{ value }">
-            <span :class="['badge', getTypeBadgeClass(value)]">
-              {{ t(`admin.announcements.types.${value}`) }}
+          <template #cell-status="{ value }">
+            <span
+              :class="[
+                'badge',
+                value === 'active'
+                  ? 'badge-success'
+                  : value === 'draft'
+                    ? 'badge-gray'
+                    : 'badge-warning'
+              ]"
+            >
+              {{ statusLabel(value) }}
             </span>
           </template>
 
-          <template #cell-enabled="{ value }">
-            <span :class="['badge', value ? 'badge-success' : 'badge-secondary']">
-              {{ value ? t('common.enabled') : t('common.disabled') }}
+          <template #cell-targeting="{ row }">
+            <span class="text-sm text-gray-600 dark:text-gray-300">
+              {{ targetingSummary(row.targeting) }}
             </span>
           </template>
 
-          <template #cell-schedule="{ row }">
-            <div class="text-sm text-gray-500 dark:text-dark-400">
-              <div v-if="row.start_time" class="flex items-center gap-1">
-                <Icon name="calendar" size="xs" />
-                {{ formatDateTime(row.start_time) }}
+          <template #cell-timeRange="{ row }">
+            <div class="text-sm text-gray-600 dark:text-gray-300">
+              <div>
+                <span class="font-medium">{{ t('admin.announcements.form.startsAt') }}:</span>
+                <span class="ml-1">{{ row.starts_at ? formatDateTime(row.starts_at) : t('admin.announcements.timeImmediate') }}</span>
               </div>
-              <div v-if="row.end_time" class="flex items-center gap-1 text-orange-500">
-                <Icon name="clock" size="xs" />
-                {{ formatDateTime(row.end_time) }}
+              <div class="mt-0.5">
+                <span class="font-medium">{{ t('admin.announcements.form.endsAt') }}:</span>
+                <span class="ml-1">{{ row.ends_at ? formatDateTime(row.ends_at) : t('admin.announcements.timeNever') }}</span>
               </div>
-              <span v-if="!row.start_time && !row.end_time">-</span>
             </div>
           </template>
 
-          <template #cell-sort_order="{ value }">
-            <span class="text-sm text-gray-500 dark:text-dark-400">{{ value }}</span>
-          </template>
-
-          <template #cell-created_at="{ value }">
-            <span class="text-sm text-gray-500 dark:text-dark-400">
-              {{ formatDateTime(value) }}
-            </span>
+          <template #cell-createdAt="{ value }">
+            <span class="text-sm text-gray-500 dark:text-dark-400">{{ formatDateTime(value) }}</span>
           </template>
 
           <template #cell-actions="{ row }">
             <div class="flex items-center space-x-1">
               <button
-                @click="handleEdit(row)"
+                @click="openReadStatus(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                :title="t('admin.announcements.readStatus')"
+              >
+                <Icon name="eye" size="sm" />
+              </button>
+              <button
+                @click="openEditDialog(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-600 dark:hover:text-gray-300"
                 :title="t('common.edit')"
               >
@@ -104,6 +117,15 @@
                 <Icon name="trash" size="sm" />
               </button>
             </div>
+          </template>
+
+          <template #empty>
+            <EmptyState
+              :title="t('empty.noData')"
+              :description="t('admin.announcements.failedToLoad')"
+              :action-text="t('admin.announcements.createAnnouncement')"
+              @action="openCreateDialog"
+            />
           </template>
         </DataTable>
       </template>
@@ -120,198 +142,93 @@
       </template>
     </TablePageLayout>
 
-    <!-- Create Dialog -->
-    <BaseDialog
-      :show="showCreateDialog"
-      :title="t('admin.announcements.create')"
-      width="wide"
-      @close="showCreateDialog = false"
-    >
-      <form id="create-announcement-form" @submit.prevent="handleCreate" class="space-y-4">
-        <div>
-          <label class="input-label">
-            {{ t('admin.announcements.title') }}
-            <span class="ml-1 text-xs font-normal text-gray-400">({{ t('common.optional') }})</span>
-          </label>
-          <input
-            v-model="createForm.title"
-            type="text"
-            class="input"
-            :placeholder="t('admin.announcements.titlePlaceholder')"
-          />
-        </div>
-        <div>
-          <label class="input-label">{{ t('admin.announcements.content') }}</label>
-          <textarea
-            v-model="createForm.content"
-            rows="4"
-            required
-            class="input"
-            :placeholder="t('admin.announcements.contentPlaceholder')"
-          ></textarea>
-          <p class="mt-1 text-xs text-gray-500">{{ t('admin.announcements.htmlSupported') }}</p>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="input-label">{{ t('admin.announcements.type') }}</label>
-            <Select v-model="createForm.type" :options="typeOptions" />
-          </div>
-          <div>
-            <label class="input-label">{{ t('admin.announcements.status') }}</label>
-            <div class="flex items-center h-10">
-              <label class="relative inline-flex cursor-pointer items-center">
-                <input v-model="createForm.enabled" type="checkbox" class="peer sr-only" />
-                <div
-                  class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-500 peer-checked:after:translate-x-full peer-checked:after:border-white dark:border-dark-600 dark:bg-dark-600"
-                ></div>
-                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                  {{ createForm.enabled ? t('common.enabled') : t('common.disabled') }}
-                </span>
-              </label>
-            </div>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="input-label">
-              {{ t('admin.announcements.startTime') }}
-              <span class="ml-1 text-xs font-normal text-gray-400">({{ t('common.optional') }})</span>
-            </label>
-            <input v-model="createForm.start_time_str" type="datetime-local" class="input" />
-          </div>
-          <div>
-            <label class="input-label">
-              {{ t('admin.announcements.endTime') }}
-              <span class="ml-1 text-xs font-normal text-gray-400">({{ t('common.optional') }})</span>
-            </label>
-            <input v-model="createForm.end_time_str" type="datetime-local" class="input" />
-          </div>
-        </div>
-      </form>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <button type="button" @click="showCreateDialog = false" class="btn btn-secondary">
-            {{ t('common.cancel') }}
-          </button>
-          <button type="submit" form="create-announcement-form" :disabled="creating" class="btn btn-primary">
-            {{ creating ? t('common.creating') : t('common.create') }}
-          </button>
-        </div>
-      </template>
-    </BaseDialog>
-
-    <!-- Edit Dialog -->
+    <!-- Create/Edit Dialog -->
     <BaseDialog
       :show="showEditDialog"
-      :title="t('admin.announcements.edit')"
+      :title="isEditing ? t('admin.announcements.editAnnouncement') : t('admin.announcements.createAnnouncement')"
       width="wide"
-      @close="closeEditDialog"
+      @close="closeEdit"
     >
-      <form id="edit-announcement-form" @submit.prevent="handleUpdate" class="space-y-4">
+      <form id="announcement-form" @submit.prevent="handleSave" class="space-y-4">
         <div>
-          <label class="input-label">
-            {{ t('admin.announcements.title') }}
-            <span class="ml-1 text-xs font-normal text-gray-400">({{ t('common.optional') }})</span>
-          </label>
-          <input v-model="editForm.title" type="text" class="input" />
+          <label class="input-label">{{ t('admin.announcements.form.title') }}</label>
+          <input v-model="form.title" type="text" class="input" required />
         </div>
+
         <div>
-          <label class="input-label">{{ t('admin.announcements.content') }}</label>
-          <textarea v-model="editForm.content" rows="4" required class="input"></textarea>
-          <p class="mt-1 text-xs text-gray-500">{{ t('admin.announcements.htmlSupported') }}</p>
+          <label class="input-label">{{ t('admin.announcements.form.content') }}</label>
+          <textarea v-model="form.content" rows="6" class="input" required></textarea>
         </div>
-        <div class="grid grid-cols-2 gap-4">
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label class="input-label">{{ t('admin.announcements.type') }}</label>
-            <Select v-model="editForm.type" :options="typeOptions" />
+            <label class="input-label">{{ t('admin.announcements.form.status') }}</label>
+            <Select v-model="form.status" :options="statusOptions" />
+          </div>
+          <div></div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label class="input-label">{{ t('admin.announcements.form.startsAt') }}</label>
+            <input v-model="form.starts_at_str" type="datetime-local" class="input" />
+            <p class="input-hint">{{ t('admin.announcements.form.startsAtHint') }}</p>
           </div>
           <div>
-            <label class="input-label">{{ t('admin.announcements.status') }}</label>
-            <div class="flex items-center h-10">
-              <label class="relative inline-flex cursor-pointer items-center">
-                <input v-model="editForm.enabled" type="checkbox" class="peer sr-only" />
-                <div
-                  class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-500 peer-checked:after:translate-x-full peer-checked:after:border-white dark:border-dark-600 dark:bg-dark-600"
-                ></div>
-                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                  {{ editForm.enabled ? t('common.enabled') : t('common.disabled') }}
-                </span>
-              </label>
-            </div>
+            <label class="input-label">{{ t('admin.announcements.form.endsAt') }}</label>
+            <input v-model="form.ends_at_str" type="datetime-local" class="input" />
+            <p class="input-hint">{{ t('admin.announcements.form.endsAtHint') }}</p>
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="input-label">
-              {{ t('admin.announcements.startTime') }}
-              <span class="ml-1 text-xs font-normal text-gray-400">({{ t('common.optional') }})</span>
-            </label>
-            <div class="flex gap-2">
-              <input v-model="editForm.start_time_str" type="datetime-local" class="input flex-1" />
-              <button
-                v-if="editForm.start_time_str"
-                type="button"
-                @click="editForm.start_time_str = ''; editForm.clear_start_time = true"
-                class="btn btn-secondary"
-                :title="t('common.clear')"
-              >
-                <Icon name="x" size="sm" />
-              </button>
-            </div>
-          </div>
-          <div>
-            <label class="input-label">
-              {{ t('admin.announcements.endTime') }}
-              <span class="ml-1 text-xs font-normal text-gray-400">({{ t('common.optional') }})</span>
-            </label>
-            <div class="flex gap-2">
-              <input v-model="editForm.end_time_str" type="datetime-local" class="input flex-1" />
-              <button
-                v-if="editForm.end_time_str"
-                type="button"
-                @click="editForm.end_time_str = ''; editForm.clear_end_time = true"
-                class="btn btn-secondary"
-                :title="t('common.clear')"
-              >
-                <Icon name="x" size="sm" />
-              </button>
-            </div>
-          </div>
-        </div>
-        <div>
-          <label class="input-label">{{ t('admin.announcements.sortOrder') }}</label>
-          <input v-model.number="editForm.sort_order" type="number" min="0" class="input w-32" />
-        </div>
+
+        <AnnouncementTargetingEditor
+          v-model="form.targeting"
+          :groups="subscriptionGroups"
+        />
       </form>
+
       <template #footer>
         <div class="flex justify-end gap-3">
-          <button type="button" @click="closeEditDialog" class="btn btn-secondary">
+          <button type="button" @click="closeEdit" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
-          <button type="submit" form="edit-announcement-form" :disabled="updating" class="btn btn-primary">
-            {{ updating ? t('common.saving') : t('common.save') }}
+          <button type="submit" form="announcement-form" :disabled="saving" class="btn btn-primary">
+            {{ saving ? t('common.saving') : t('common.save') }}
           </button>
         </div>
       </template>
     </BaseDialog>
 
-    <!-- Delete Confirm Dialog -->
+    <!-- Delete Confirmation -->
     <ConfirmDialog
       :show="showDeleteDialog"
-      :title="t('admin.announcements.deleteConfirmTitle')"
-      :message="t('admin.announcements.deleteConfirmMessage')"
+      :title="t('admin.announcements.deleteAnnouncement')"
+      :message="t('admin.announcements.deleteConfirm')"
       :confirm-text="t('common.delete')"
-      confirm-variant="danger"
+      :cancel-text="t('common.cancel')"
+      danger
       @confirm="confirmDelete"
       @cancel="showDeleteDialog = false"
+    />
+
+    <!-- Read Status Dialog -->
+    <AnnouncementReadStatusDialog
+      :show="showReadStatusDialog"
+      :announcement-id="readStatusAnnouncementId"
+      @close="showReadStatusDialog = false"
     />
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { adminAPI } from '@/api/admin'
+import { formatDateTime, formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
+import type { AdminGroup, Announcement, AnnouncementTargeting } from '@/types'
+import type { Column } from '@/components/common/types'
+
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -319,133 +236,88 @@ import Pagination from '@/components/common/Pagination.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { adminAPI } from '@/api/admin'
-import type { Announcement, AnnouncementType } from '@/types'
-import { formatDateTime } from '@/utils/format'
+
+import AnnouncementTargetingEditor from '@/components/admin/announcements/AnnouncementTargetingEditor.vue'
+import AnnouncementReadStatusDialog from '@/components/admin/announcements/AnnouncementReadStatusDialog.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 
-// State
 const announcements = ref<Announcement[]>([])
 const loading = ref(false)
-const creating = ref(false)
-const updating = ref(false)
-const showCreateDialog = ref(false)
-const showEditDialog = ref(false)
-const showDeleteDialog = ref(false)
-const selectedAnnouncement = ref<Announcement | null>(null)
+
+const filters = reactive({
+  status: '',
+})
+const searchQuery = ref('')
 
 const pagination = reactive({
   page: 1,
   page_size: 20,
-  total: 0
+  total: 0,
+  pages: 0
 })
 
-const filters = reactive({
-  enabled: '',
-  type: ''
-})
-
-// Forms
-const createForm = reactive({
-  title: '',
-  content: '',
-  type: 'info' as AnnouncementType,
-  enabled: true,
-  start_time_str: '',
-  end_time_str: ''
-})
-
-const editForm = reactive({
-  id: 0,
-  title: '',
-  content: '',
-  type: 'info' as AnnouncementType,
-  enabled: true,
-  sort_order: 0,
-  start_time_str: '',
-  end_time_str: '',
-  clear_start_time: false,
-  clear_end_time: false
-})
-
-// Options
-const typeOptions = computed(() => [
-  { value: 'info', label: t('admin.announcements.types.info') },
-  { value: 'success', label: t('admin.announcements.types.success') },
-  { value: 'warning', label: t('admin.announcements.types.warning') },
-  { value: 'error', label: t('admin.announcements.types.error') }
-])
-
-const typeFilterOptions = computed(() => [
-  { value: '', label: t('admin.announcements.allTypes') },
-  ...typeOptions.value
-])
-
-const enabledFilterOptions = computed(() => [
+const statusFilterOptions = computed(() => [
   { value: '', label: t('admin.announcements.allStatus') },
-  { value: 'true', label: t('common.enabled') },
-  { value: 'false', label: t('common.disabled') }
+  { value: 'draft', label: t('admin.announcements.statusLabels.draft') },
+  { value: 'active', label: t('admin.announcements.statusLabels.active') },
+  { value: 'archived', label: t('admin.announcements.statusLabels.archived') }
 ])
 
-// Table columns
-const columns = computed(() => [
-  { key: 'content', label: t('admin.announcements.content'), sortable: false },
-  { key: 'type', label: t('admin.announcements.type'), width: '100px' },
-  { key: 'enabled', label: t('admin.announcements.status'), width: '100px' },
-  { key: 'schedule', label: t('admin.announcements.schedule'), width: '180px' },
-  { key: 'sort_order', label: t('admin.announcements.sortOrder'), width: '80px' },
-  { key: 'created_at', label: t('common.createdAt'), width: '160px' },
-  { key: 'actions', label: t('common.actions'), width: '100px' }
+const statusOptions = computed(() => [
+  { value: 'draft', label: t('admin.announcements.statusLabels.draft') },
+  { value: 'active', label: t('admin.announcements.statusLabels.active') },
+  { value: 'archived', label: t('admin.announcements.statusLabels.archived') }
 ])
 
-// Functions
-function getTypeBadgeClass(type: AnnouncementType): string {
-  const classes: Record<AnnouncementType, string> = {
-    info: 'badge-info',
-    success: 'badge-success',
-    warning: 'badge-warning',
-    error: 'badge-danger'
-  }
-  return classes[type] || 'badge-secondary'
+const columns = computed<Column[]>(() => [
+  { key: 'title', label: t('admin.announcements.columns.title') },
+  { key: 'status', label: t('admin.announcements.columns.status') },
+  { key: 'targeting', label: t('admin.announcements.columns.targeting') },
+  { key: 'timeRange', label: t('admin.announcements.columns.timeRange') },
+  { key: 'createdAt', label: t('admin.announcements.columns.createdAt') },
+  { key: 'actions', label: t('admin.announcements.columns.actions') }
+])
+
+const statusLabel = (status: string) => {
+  if (status === 'draft') return t('admin.announcements.statusLabels.draft')
+  if (status === 'active') return t('admin.announcements.statusLabels.active')
+  if (status === 'archived') return t('admin.announcements.statusLabels.archived')
+  return status
 }
 
-function truncateHtml(html: string, maxLength: number): string {
-  // Simple truncation - for display purposes
-  const text = html.replace(/<[^>]*>/g, '')
-  if (text.length <= maxLength) return html
-  return text.substring(0, maxLength) + '...'
+const targetingSummary = (targeting: AnnouncementTargeting) => {
+  const anyOf = targeting?.any_of ?? []
+  if (!anyOf || anyOf.length === 0) return t('admin.announcements.targetingSummaryAll')
+  return t('admin.announcements.targetingSummaryCustom', { groups: anyOf.length })
 }
 
-function datetimeLocalToTimestamp(str: string): number | null {
-  if (!str) return null
-  return Math.floor(new Date(str).getTime() / 1000)
-}
-
-function timestampToDatetimeLocal(timestamp: string | null): string {
-  if (!timestamp) return ''
-  const date = new Date(timestamp)
-  const offset = date.getTimezoneOffset() * 60000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
-}
+// ===== CRUD / list =====
+let currentController: AbortController | null = null
 
 async function loadAnnouncements() {
-  loading.value = true
+  if (currentController) currentController.abort()
+  currentController = new AbortController()
+
   try {
-    const response = await adminAPI.announcements.list(
-      pagination.page,
-      pagination.page_size,
-      {
-        enabled: filters.enabled ? filters.enabled === 'true' : undefined,
-        type: filters.type || undefined
-      }
-    )
-    announcements.value = response.items || []
-    pagination.total = response.total || 0
+    loading.value = true
+    const res = await adminAPI.announcements.list(pagination.page, pagination.page_size, {
+      status: filters.status || undefined,
+      search: searchQuery.value || undefined
+    })
+
+    announcements.value = res.items
+    pagination.total = res.total
+    pagination.pages = res.pages
+    pagination.page = res.page
+    pagination.page_size = res.page_size
   } catch (error: any) {
-    appStore.showError(error.message || t('common.loadFailed'))
+    if (currentController.signal.aborted || error?.name === 'AbortError') return
+    console.error('Error loading announcements:', error)
+    appStore.showError(error.response?.data?.detail || t('admin.announcements.failedToLoad'))
   } finally {
     loading.value = false
   }
@@ -456,117 +328,211 @@ function handlePageChange(page: number) {
   loadAnnouncements()
 }
 
-function handlePageSizeChange(size: number) {
-  pagination.page_size = size
+function handlePageSizeChange(pageSize: number) {
+  pagination.page_size = pageSize
   pagination.page = 1
   loadAnnouncements()
 }
 
-function resetCreateForm() {
-  createForm.title = ''
-  createForm.content = ''
-  createForm.type = 'info'
-  createForm.enabled = true
-  createForm.start_time_str = ''
-  createForm.end_time_str = ''
+function handleStatusChange() {
+  pagination.page = 1
+  loadAnnouncements()
 }
 
-async function handleCreate() {
-  if (!createForm.content.trim()) {
-    appStore.showError(t('admin.announcements.contentRequired'))
-    return
-  }
-
-  creating.value = true
-  try {
-    await adminAPI.announcements.create({
-      title: createForm.title || undefined,
-      content: createForm.content,
-      type: createForm.type,
-      enabled: createForm.enabled,
-      start_time: datetimeLocalToTimestamp(createForm.start_time_str),
-      end_time: datetimeLocalToTimestamp(createForm.end_time_str)
-    })
-    appStore.showSuccess(t('admin.announcements.createSuccess'))
-    showCreateDialog.value = false
-    resetCreateForm()
+let searchDebounceTimer: number | null = null
+function handleSearch() {
+  if (searchDebounceTimer) window.clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = window.setTimeout(() => {
+    pagination.page = 1
     loadAnnouncements()
+  }, 300)
+}
+
+// ===== Create/Edit dialog =====
+const showEditDialog = ref(false)
+const saving = ref(false)
+const editingAnnouncement = ref<Announcement | null>(null)
+
+const isEditing = computed(() => !!editingAnnouncement.value)
+
+const form = reactive({
+  title: '',
+  content: '',
+  status: 'draft',
+  starts_at_str: '',
+  ends_at_str: '',
+  targeting: { any_of: [] } as AnnouncementTargeting
+})
+
+const subscriptionGroups = ref<AdminGroup[]>([])
+
+async function loadSubscriptionGroups() {
+  try {
+    const all = await adminAPI.groups.getAll()
+    subscriptionGroups.value = (all || []).filter((g) => g.subscription_type === 'subscription')
   } catch (error: any) {
-    appStore.showError(error.message || t('admin.announcements.createFailed'))
-  } finally {
-    creating.value = false
+    console.error('Error loading groups:', error)
+    // not fatal
   }
 }
 
-function handleEdit(announcement: Announcement) {
-  selectedAnnouncement.value = announcement
-  editForm.id = announcement.id
-  editForm.title = announcement.title || ''
-  editForm.content = announcement.content
-  editForm.type = announcement.type
-  editForm.enabled = announcement.enabled
-  editForm.sort_order = announcement.sort_order
-  editForm.start_time_str = timestampToDatetimeLocal(announcement.start_time)
-  editForm.end_time_str = timestampToDatetimeLocal(announcement.end_time)
-  editForm.clear_start_time = false
-  editForm.clear_end_time = false
+function resetForm() {
+  form.title = ''
+  form.content = ''
+  form.status = 'draft'
+  form.starts_at_str = ''
+  form.ends_at_str = ''
+  form.targeting = { any_of: [] }
+}
+
+function fillFormFromAnnouncement(a: Announcement) {
+  form.title = a.title
+  form.content = a.content
+  form.status = a.status
+
+  // Backend returns RFC3339 strings
+  form.starts_at_str = a.starts_at ? formatDateTimeLocalInput(Math.floor(new Date(a.starts_at).getTime() / 1000)) : ''
+  form.ends_at_str = a.ends_at ? formatDateTimeLocalInput(Math.floor(new Date(a.ends_at).getTime() / 1000)) : ''
+
+  form.targeting = a.targeting ?? { any_of: [] }
+}
+
+function openCreateDialog() {
+  editingAnnouncement.value = null
+  resetForm()
   showEditDialog.value = true
 }
 
-function closeEditDialog() {
-  showEditDialog.value = false
-  selectedAnnouncement.value = null
+function openEditDialog(row: Announcement) {
+  editingAnnouncement.value = row
+  fillFormFromAnnouncement(row)
+  showEditDialog.value = true
 }
 
-async function handleUpdate() {
-  if (!editForm.content.trim()) {
-    appStore.showError(t('admin.announcements.contentRequired'))
+function closeEdit() {
+  showEditDialog.value = false
+  editingAnnouncement.value = null
+}
+
+function buildCreatePayload() {
+  const startsAt = parseDateTimeLocalInput(form.starts_at_str)
+  const endsAt = parseDateTimeLocalInput(form.ends_at_str)
+
+  return {
+    title: form.title,
+    content: form.content,
+    status: form.status as any,
+    targeting: form.targeting,
+    starts_at: startsAt ?? undefined,
+    ends_at: endsAt ?? undefined
+  }
+}
+
+function buildUpdatePayload(original: Announcement) {
+  const payload: any = {}
+
+  if (form.title !== original.title) payload.title = form.title
+  if (form.content !== original.content) payload.content = form.content
+  if (form.status !== original.status) payload.status = form.status
+
+  // starts_at / ends_at: distinguish unchanged vs clear(0) vs set
+  const originalStarts = original.starts_at ? Math.floor(new Date(original.starts_at).getTime() / 1000) : null
+  const originalEnds = original.ends_at ? Math.floor(new Date(original.ends_at).getTime() / 1000) : null
+
+  const newStarts = parseDateTimeLocalInput(form.starts_at_str)
+  const newEnds = parseDateTimeLocalInput(form.ends_at_str)
+
+  if (newStarts !== originalStarts) {
+    payload.starts_at = newStarts === null ? 0 : newStarts
+  }
+  if (newEnds !== originalEnds) {
+    payload.ends_at = newEnds === null ? 0 : newEnds
+  }
+
+  // targeting: do shallow compare by JSON
+  if (JSON.stringify(form.targeting ?? {}) !== JSON.stringify(original.targeting ?? {})) {
+    payload.targeting = form.targeting
+  }
+
+  return payload
+}
+
+async function handleSave() {
+  // Frontend validation for targeting (to avoid ANNOUNCEMENT_INVALID_TARGET)
+  const anyOf = form.targeting?.any_of ?? []
+  if (anyOf.length > 50) {
+    appStore.showError(t('admin.announcements.failedToCreate'))
     return
   }
+  for (const g of anyOf) {
+    const allOf = g?.all_of ?? []
+    if (allOf.length > 50) {
+      appStore.showError(t('admin.announcements.failedToCreate'))
+      return
+    }
+  }
 
-  updating.value = true
+  saving.value = true
   try {
-    await adminAPI.announcements.update(editForm.id, {
-      title: editForm.title || null,
-      content: editForm.content,
-      type: editForm.type,
-      enabled: editForm.enabled,
-      sort_order: editForm.sort_order,
-      start_time: datetimeLocalToTimestamp(editForm.start_time_str),
-      end_time: datetimeLocalToTimestamp(editForm.end_time_str),
-      clear_start_time: editForm.clear_start_time,
-      clear_end_time: editForm.clear_end_time
-    })
-    appStore.showSuccess(t('admin.announcements.updateSuccess'))
-    closeEditDialog()
-    loadAnnouncements()
+    if (!editingAnnouncement.value) {
+      const payload = buildCreatePayload()
+      await adminAPI.announcements.create(payload)
+      appStore.showSuccess(t('common.success'))
+      showEditDialog.value = false
+      await loadAnnouncements()
+      return
+    }
+
+    const original = editingAnnouncement.value
+    const payload = buildUpdatePayload(original)
+    await adminAPI.announcements.update(original.id, payload)
+    appStore.showSuccess(t('common.success'))
+    showEditDialog.value = false
+    editingAnnouncement.value = null
+    await loadAnnouncements()
   } catch (error: any) {
-    appStore.showError(error.message || t('admin.announcements.updateFailed'))
+    console.error('Failed to save announcement:', error)
+    appStore.showError(error.response?.data?.detail || (editingAnnouncement.value ? t('admin.announcements.failedToUpdate') : t('admin.announcements.failedToCreate')))
   } finally {
-    updating.value = false
+    saving.value = false
   }
 }
 
-function handleDelete(announcement: Announcement) {
-  selectedAnnouncement.value = announcement
+// ===== Delete =====
+const showDeleteDialog = ref(false)
+const deletingAnnouncement = ref<Announcement | null>(null)
+
+function handleDelete(row: Announcement) {
+  deletingAnnouncement.value = row
   showDeleteDialog.value = true
 }
 
 async function confirmDelete() {
-  if (!selectedAnnouncement.value) return
+  if (!deletingAnnouncement.value) return
 
   try {
-    await adminAPI.announcements.delete(selectedAnnouncement.value.id)
-    appStore.showSuccess(t('admin.announcements.deleteSuccess'))
+    await adminAPI.announcements.delete(deletingAnnouncement.value.id)
+    appStore.showSuccess(t('common.success'))
     showDeleteDialog.value = false
-    selectedAnnouncement.value = null
-    loadAnnouncements()
+    deletingAnnouncement.value = null
+    await loadAnnouncements()
   } catch (error: any) {
-    appStore.showError(error.message || t('admin.announcements.deleteFailed'))
+    console.error('Failed to delete announcement:', error)
+    appStore.showError(error.response?.data?.detail || t('admin.announcements.failedToDelete'))
   }
 }
 
-onMounted(() => {
-  loadAnnouncements()
+// ===== Read status =====
+const showReadStatusDialog = ref(false)
+const readStatusAnnouncementId = ref<number | null>(null)
+
+function openReadStatus(row: Announcement) {
+  readStatusAnnouncementId.value = row.id
+  showReadStatusDialog.value = true
+}
+
+onMounted(async () => {
+  await loadSubscriptionGroups()
+  await loadAnnouncements()
 })
 </script>

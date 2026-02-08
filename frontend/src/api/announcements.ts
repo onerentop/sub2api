@@ -1,22 +1,26 @@
 /**
- * Public Announcements API endpoints
- * Used by the frontend to display active announcements
+ * User Announcements API endpoints
  */
 
 import { apiClient } from './client'
-import type { ActiveAnnouncementsResponse } from '@/types'
+import type { UserAnnouncement } from '@/types'
 
-/**
- * Get currently active announcements for display
- * This endpoint is public and does not require authentication
- */
-export async function getActiveAnnouncements(): Promise<ActiveAnnouncementsResponse> {
-  const { data } = await apiClient.get<ActiveAnnouncementsResponse>('/announcements/active')
+export async function list(unreadOnly: boolean = false): Promise<UserAnnouncement[]> {
+  const { data } = await apiClient.get<UserAnnouncement[]>('/announcements', {
+    params: unreadOnly ? { unread_only: 1 } : {}
+  })
+  return data
+}
+
+export async function markRead(id: number): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>(`/announcements/${id}/read`)
   return data
 }
 
 const announcementsAPI = {
-  getActiveAnnouncements
+  list,
+  markRead
 }
 
 export default announcementsAPI
+

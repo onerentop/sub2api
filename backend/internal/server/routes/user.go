@@ -67,6 +67,13 @@ func RegisterUserRoutes(
 			usage.GET("/dashboard/quota/v2", h.Usage.DashboardQuotaV2)
 		}
 
+		// 公告（用户可见）
+		announcements := authenticated.Group("/announcements")
+		{
+			announcements.GET("", h.Announcement.List)
+			announcements.POST("/:id/read", h.Announcement.MarkRead)
+		}
+
 		// 卡密兑换
 		redeem := authenticated.Group("/redeem")
 		{

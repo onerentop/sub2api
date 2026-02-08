@@ -413,11 +413,11 @@ func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	announcements := admin.Group("/announcements")
 	{
 		announcements.GET("", h.Admin.Announcement.List)
-		announcements.GET("/:id", h.Admin.Announcement.GetByID)
 		announcements.POST("", h.Admin.Announcement.Create)
+		announcements.GET("/:id", h.Admin.Announcement.GetByID)
 		announcements.PUT("/:id", h.Admin.Announcement.Update)
 		announcements.DELETE("/:id", h.Admin.Announcement.Delete)
-		announcements.PUT("/sort", h.Admin.Announcement.UpdateSortOrders)
+		announcements.GET("/:id/read-status", h.Admin.Announcement.ListReadStatus)
 	}
 }
 

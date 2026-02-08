@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 // Announcement is the model entity for the Announcement schema.
@@ -17,27 +19,48 @@ type Announcement struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int64 `json:"id,omitempty"`
-	// 公告标题，用于管理识别
-	Title *string `json:"title,omitempty"`
-	// 公告内容，富文本HTML
+	// 公告标题
+	Title string `json:"title,omitempty"`
+	// 公告内容（支持 Markdown）
 	Content string `json:"content,omitempty"`
-	// 公告类型: info(信息), success(成功), warning(警告), error(紧急)
-	Type announcement.Type `json:"type,omitempty"`
-	// 排序权重，越小越靠前
-	SortOrder int `json:"sort_order,omitempty"`
-	// 是否启用
-	Enabled bool `json:"enabled,omitempty"`
-	// 生效时间，null表示立即生效
-	StartTime *time.Time `json:"start_time,omitempty"`
-	// 过期时间，null表示永不过期
-	EndTime *time.Time `json:"end_time,omitempty"`
+	// 状态: draft, active, archived
+	Status string `json:"status,omitempty"`
+	// 展示条件（JSON 规则）
+	Targeting domain.AnnouncementTargeting `json:"targeting,omitempty"`
+	// 开始展示时间（为空表示立即生效）
+	StartsAt *time.Time `json:"starts_at,omitempty"`
+	// 结束展示时间（为空表示永久生效）
+	EndsAt *time.Time `json:"ends_at,omitempty"`
+	// 创建人用户ID（管理员）
+	CreatedBy *int64 `json:"created_by,omitempty"`
+	// 更新人用户ID（管理员）
+	UpdatedBy *int64 `json:"updated_by,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
-	// 软删除时间
-	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the AnnouncementQuery when eager-loading is set.
+	Edges        AnnouncementEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// AnnouncementEdges holds the relations/edges for other nodes in the graph.
+type AnnouncementEdges struct {
+	// Reads holds the value of the reads edge.
+	Reads []*AnnouncementRead `json:"reads,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// ReadsOrErr returns the Reads value or an error if the edge
+// was not loaded in eager-loading.
+func (e AnnouncementEdges) ReadsOrErr() ([]*AnnouncementRead, error) {
+	if e.loadedTypes[0] {
+		return e.Reads, nil
+	}
+	return nil, &NotLoadedError{edge: "reads"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -45,13 +68,13 @@ func (*Announcement) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case announcement.FieldEnabled:
-			values[i] = new(sql.NullBool)
-		case announcement.FieldID, announcement.FieldSortOrder:
+		case announcement.FieldTargeting:
+			values[i] = new([]byte)
+		case announcement.FieldID, announcement.FieldCreatedBy, announcement.FieldUpdatedBy:
 			values[i] = new(sql.NullInt64)
-		case announcement.FieldTitle, announcement.FieldContent, announcement.FieldType:
+		case announcement.FieldTitle, announcement.FieldContent, announcement.FieldStatus:
 			values[i] = new(sql.NullString)
-		case announcement.FieldStartTime, announcement.FieldEndTime, announcement.FieldCreatedAt, announcement.FieldUpdatedAt, announcement.FieldDeletedAt:
+		case announcement.FieldStartsAt, announcement.FieldEndsAt, announcement.FieldCreatedAt, announcement.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -78,8 +101,7 @@ func (_m *Announcement) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field title", values[i])
 			} else if value.Valid {
-				_m.Title = new(string)
-				*_m.Title = value.String
+				_m.Title = value.String
 			}
 		case announcement.FieldContent:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -87,37 +109,47 @@ func (_m *Announcement) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Content = value.String
 			}
-		case announcement.FieldType:
+		case announcement.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field type", values[i])
+				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				_m.Type = announcement.Type(value.String)
+				_m.Status = value.String
 			}
-		case announcement.FieldSortOrder:
+		case announcement.FieldTargeting:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field targeting", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Targeting); err != nil {
+					return fmt.Errorf("unmarshal field targeting: %w", err)
+				}
+			}
+		case announcement.FieldStartsAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field starts_at", values[i])
+			} else if value.Valid {
+				_m.StartsAt = new(time.Time)
+				*_m.StartsAt = value.Time
+			}
+		case announcement.FieldEndsAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field ends_at", values[i])
+			} else if value.Valid {
+				_m.EndsAt = new(time.Time)
+				*_m.EndsAt = value.Time
+			}
+		case announcement.FieldCreatedBy:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field sort_order", values[i])
+				return fmt.Errorf("unexpected type %T for field created_by", values[i])
 			} else if value.Valid {
-				_m.SortOrder = int(value.Int64)
+				_m.CreatedBy = new(int64)
+				*_m.CreatedBy = value.Int64
 			}
-		case announcement.FieldEnabled:
-			if value, ok := values[i].(*sql.NullBool); !ok {
-				return fmt.Errorf("unexpected type %T for field enabled", values[i])
+		case announcement.FieldUpdatedBy:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_by", values[i])
 			} else if value.Valid {
-				_m.Enabled = value.Bool
-			}
-		case announcement.FieldStartTime:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field start_time", values[i])
-			} else if value.Valid {
-				_m.StartTime = new(time.Time)
-				*_m.StartTime = value.Time
-			}
-		case announcement.FieldEndTime:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field end_time", values[i])
-			} else if value.Valid {
-				_m.EndTime = new(time.Time)
-				*_m.EndTime = value.Time
+				_m.UpdatedBy = new(int64)
+				*_m.UpdatedBy = value.Int64
 			}
 		case announcement.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -131,13 +163,6 @@ func (_m *Announcement) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
-		case announcement.FieldDeletedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
-			} else if value.Valid {
-				_m.DeletedAt = new(time.Time)
-				*_m.DeletedAt = value.Time
-			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -149,6 +174,11 @@ func (_m *Announcement) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Announcement) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryReads queries the "reads" edge of the Announcement entity.
+func (_m *Announcement) QueryReads() *AnnouncementReadQuery {
+	return NewAnnouncementClient(_m.config).QueryReads(_m)
 }
 
 // Update returns a builder for updating this Announcement.
@@ -174,31 +204,36 @@ func (_m *Announcement) String() string {
 	var builder strings.Builder
 	builder.WriteString("Announcement(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
-	if v := _m.Title; v != nil {
-		builder.WriteString("title=")
-		builder.WriteString(*v)
-	}
+	builder.WriteString("title=")
+	builder.WriteString(_m.Title)
 	builder.WriteString(", ")
 	builder.WriteString("content=")
 	builder.WriteString(_m.Content)
 	builder.WriteString(", ")
-	builder.WriteString("type=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Type))
+	builder.WriteString("status=")
+	builder.WriteString(_m.Status)
 	builder.WriteString(", ")
-	builder.WriteString("sort_order=")
-	builder.WriteString(fmt.Sprintf("%v", _m.SortOrder))
+	builder.WriteString("targeting=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Targeting))
 	builder.WriteString(", ")
-	builder.WriteString("enabled=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))
-	builder.WriteString(", ")
-	if v := _m.StartTime; v != nil {
-		builder.WriteString("start_time=")
+	if v := _m.StartsAt; v != nil {
+		builder.WriteString("starts_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
-	if v := _m.EndTime; v != nil {
-		builder.WriteString("end_time=")
+	if v := _m.EndsAt; v != nil {
+		builder.WriteString("ends_at=")
 		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.CreatedBy; v != nil {
+		builder.WriteString("created_by=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.UpdatedBy; v != nil {
+		builder.WriteString("updated_by=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
@@ -206,11 +241,6 @@ func (_m *Announcement) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
-	builder.WriteString(", ")
-	if v := _m.DeletedAt; v != nil {
-		builder.WriteString("deleted_at=")
-		builder.WriteString(v.Format(time.ANSIC))
-	}
 	builder.WriteByte(')')
 	return builder.String()
 }

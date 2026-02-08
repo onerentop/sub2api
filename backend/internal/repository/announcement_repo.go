@@ -14,7 +14,6 @@ type announcementRepository struct {
 	client *dbent.Client
 }
 
-// NewAnnouncementRepository creates a new announcement repository
 func NewAnnouncementRepository(client *dbent.Client) service.AnnouncementRepository {
 	return &announcementRepository{client: client}
 }
@@ -22,19 +21,22 @@ func NewAnnouncementRepository(client *dbent.Client) service.AnnouncementReposit
 func (r *announcementRepository) Create(ctx context.Context, a *service.Announcement) error {
 	client := clientFromContext(ctx, r.client)
 	builder := client.Announcement.Create().
+		SetTitle(a.Title).
 		SetContent(a.Content).
-		SetType(announcement.Type(a.Type)).
-		SetSortOrder(a.SortOrder).
-		SetEnabled(a.Enabled)
+		SetStatus(a.Status).
+		SetTargeting(a.Targeting)
 
-	if a.Title != "" {
-		builder.SetTitle(a.Title)
+	if a.StartsAt != nil {
+		builder.SetStartsAt(*a.StartsAt)
 	}
-	if a.StartTime != nil {
-		builder.SetStartTime(*a.StartTime)
+	if a.EndsAt != nil {
+		builder.SetEndsAt(*a.EndsAt)
 	}
-	if a.EndTime != nil {
-		builder.SetEndTime(*a.EndTime)
+	if a.CreatedBy != nil {
+		builder.SetCreatedBy(*a.CreatedBy)
+	}
+	if a.UpdatedBy != nil {
+		builder.SetUpdatedBy(*a.UpdatedBy)
 	}
 
 	created, err := builder.Save(ctx)
@@ -42,24 +44,16 @@ func (r *announcementRepository) Create(ctx context.Context, a *service.Announce
 		return err
 	}
 
-	a.ID = created.ID
-	a.CreatedAt = created.CreatedAt
-	a.UpdatedAt = created.UpdatedAt
+	applyAnnouncementEntityToService(a, created)
 	return nil
 }
 
 func (r *announcementRepository) GetByID(ctx context.Context, id int64) (*service.Announcement, error) {
 	m, err := r.client.Announcement.Query().
-		Where(
-			announcement.IDEQ(id),
-			announcement.DeletedAtIsNil(),
-		).
+		Where(announcement.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
-		if dbent.IsNotFound(err) {
-			return nil, service.ErrAnnouncementNotFound
-		}
-		return nil, err
+		return nil, translatePersistenceError(err, service.ErrAnnouncementNotFound, nil)
 	}
 	return announcementEntityToService(m), nil
 }
@@ -67,35 +61,35 @@ func (r *announcementRepository) GetByID(ctx context.Context, id int64) (*servic
 func (r *announcementRepository) Update(ctx context.Context, a *service.Announcement) error {
 	client := clientFromContext(ctx, r.client)
 	builder := client.Announcement.UpdateOneID(a.ID).
+		SetTitle(a.Title).
 		SetContent(a.Content).
-		SetType(announcement.Type(a.Type)).
-		SetSortOrder(a.SortOrder).
-		SetEnabled(a.Enabled)
+		SetStatus(a.Status).
+		SetTargeting(a.Targeting)
 
-	if a.Title != "" {
-		builder.SetTitle(a.Title)
+	if a.StartsAt != nil {
+		builder.SetStartsAt(*a.StartsAt)
 	} else {
-		builder.ClearTitle()
+		builder.ClearStartsAt()
 	}
-
-	if a.StartTime != nil {
-		builder.SetStartTime(*a.StartTime)
+	if a.EndsAt != nil {
+		builder.SetEndsAt(*a.EndsAt)
 	} else {
-		builder.ClearStartTime()
+		builder.ClearEndsAt()
 	}
-
-	if a.EndTime != nil {
-		builder.SetEndTime(*a.EndTime)
+	if a.CreatedBy != nil {
+		builder.SetCreatedBy(*a.CreatedBy)
 	} else {
-		builder.ClearEndTime()
+		builder.ClearCreatedBy()
+	}
+	if a.UpdatedBy != nil {
+		builder.SetUpdatedBy(*a.UpdatedBy)
+	} else {
+		builder.ClearUpdatedBy()
 	}
 
 	updated, err := builder.Save(ctx)
 	if err != nil {
-		if dbent.IsNotFound(err) {
-			return service.ErrAnnouncementNotFound
-		}
-		return err
+		return translatePersistenceError(err, service.ErrAnnouncementNotFound, nil)
 	}
 
 	a.UpdatedAt = updated.UpdatedAt
@@ -104,33 +98,27 @@ func (r *announcementRepository) Update(ctx context.Context, a *service.Announce
 
 func (r *announcementRepository) Delete(ctx context.Context, id int64) error {
 	client := clientFromContext(ctx, r.client)
-	// 软删除
-	now := time.Now()
-	_, err := client.Announcement.UpdateOneID(id).
-		SetDeletedAt(now).
-		Save(ctx)
-	if err != nil {
-		if dbent.IsNotFound(err) {
-			return service.ErrAnnouncementNotFound
-		}
-		return err
-	}
-	return nil
+	_, err := client.Announcement.Delete().Where(announcement.IDEQ(id)).Exec(ctx)
+	return err
 }
 
-func (r *announcementRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Announcement, *pagination.PaginationResult, error) {
-	return r.ListWithFilters(ctx, params, nil, "")
-}
+func (r *announcementRepository) List(
+	ctx context.Context,
+	params pagination.PaginationParams,
+	filters service.AnnouncementListFilters,
+) ([]service.Announcement, *pagination.PaginationResult, error) {
+	q := r.client.Announcement.Query()
 
-func (r *announcementRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, enabled *bool, announcementType string) ([]service.Announcement, *pagination.PaginationResult, error) {
-	q := r.client.Announcement.Query().
-		Where(announcement.DeletedAtIsNil())
-
-	if enabled != nil {
-		q = q.Where(announcement.EnabledEQ(*enabled))
+	if filters.Status != "" {
+		q = q.Where(announcement.StatusEQ(filters.Status))
 	}
-	if announcementType != "" {
-		q = q.Where(announcement.TypeEQ(announcement.Type(announcementType)))
+	if filters.Search != "" {
+		q = q.Where(
+			announcement.Or(
+				announcement.TitleContainsFold(filters.Search),
+				announcement.ContentContainsFold(filters.Search),
+			),
+		)
 	}
 
 	total, err := q.Count(ctx)
@@ -141,7 +129,7 @@ func (r *announcementRepository) ListWithFilters(ctx context.Context, params pag
 	items, err := q.
 		Offset(params.Offset()).
 		Limit(params.Limit()).
-		Order(dbent.Asc(announcement.FieldSortOrder), dbent.Desc(announcement.FieldID)).
+		Order(dbent.Desc(announcement.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -151,59 +139,30 @@ func (r *announcementRepository) ListWithFilters(ctx context.Context, params pag
 	return out, paginationResultFromTotal(int64(total), params), nil
 }
 
-func (r *announcementRepository) ListActive(ctx context.Context) ([]service.Announcement, error) {
-	now := time.Now()
-	items, err := r.client.Announcement.Query().
+func (r *announcementRepository) ListActive(ctx context.Context, now time.Time) ([]service.Announcement, error) {
+	q := r.client.Announcement.Query().
 		Where(
-			announcement.DeletedAtIsNil(),
-			announcement.EnabledEQ(true),
-			// start_time is null OR start_time <= now
-			announcement.Or(
-				announcement.StartTimeIsNil(),
-				announcement.StartTimeLTE(now),
-			),
-			// end_time is null OR end_time > now
-			announcement.Or(
-				announcement.EndTimeIsNil(),
-				announcement.EndTimeGT(now),
-			),
+			announcement.StatusEQ(service.AnnouncementStatusActive),
+			announcement.Or(announcement.StartsAtIsNil(), announcement.StartsAtLTE(now)),
+			announcement.Or(announcement.EndsAtIsNil(), announcement.EndsAtGT(now)),
 		).
-		Order(dbent.Asc(announcement.FieldSortOrder), dbent.Desc(announcement.FieldID)).
-		All(ctx)
+		Order(dbent.Desc(announcement.FieldID))
+
+	items, err := q.All(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return announcementEntitiesToService(items), nil
 }
 
-func (r *announcementRepository) UpdateSortOrders(ctx context.Context, items []service.AnnouncementSortItem) error {
-	client := clientFromContext(ctx, r.client)
-	for _, item := range items {
-		_, err := client.Announcement.UpdateOneID(item.ID).
-			SetSortOrder(item.SortOrder).
-			Save(ctx)
-		if err != nil {
-			return err
-		}
+func applyAnnouncementEntityToService(dst *service.Announcement, src *dbent.Announcement) {
+	if dst == nil || src == nil {
+		return
 	}
-	return nil
+	dst.ID = src.ID
+	dst.CreatedAt = src.CreatedAt
+	dst.UpdatedAt = src.UpdatedAt
 }
-
-func (r *announcementRepository) GetMaxSortOrder(ctx context.Context) (int, error) {
-	m, err := r.client.Announcement.Query().
-		Where(announcement.DeletedAtIsNil()).
-		Order(dbent.Desc(announcement.FieldSortOrder)).
-		First(ctx)
-	if err != nil {
-		if dbent.IsNotFound(err) {
-			return 0, nil
-		}
-		return 0, err
-	}
-	return m.SortOrder, nil
-}
-
-// Entity to Service conversions
 
 func announcementEntityToService(m *dbent.Announcement) *service.Announcement {
 	if m == nil {
@@ -211,16 +170,16 @@ func announcementEntityToService(m *dbent.Announcement) *service.Announcement {
 	}
 	return &service.Announcement{
 		ID:        m.ID,
-		Title:     derefString(m.Title),
+		Title:     m.Title,
 		Content:   m.Content,
-		Type:      service.AnnouncementType(m.Type),
-		SortOrder: m.SortOrder,
-		Enabled:   m.Enabled,
-		StartTime: m.StartTime,
-		EndTime:   m.EndTime,
+		Status:    m.Status,
+		Targeting: m.Targeting,
+		StartsAt:  m.StartsAt,
+		EndsAt:    m.EndsAt,
+		CreatedBy: m.CreatedBy,
+		UpdatedBy: m.UpdatedBy,
 		CreatedAt: m.CreatedAt,
 		UpdatedAt: m.UpdatedAt,
-		DeletedAt: m.DeletedAt,
 	}
 }
 

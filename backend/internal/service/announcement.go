@@ -1,107 +1,64 @@
 package service
 
 import (
+	"context"
 	"time"
-)
 
-// AnnouncementType 公告类型
-type AnnouncementType string
+	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+)
 
 const (
-	AnnouncementTypeInfo    AnnouncementType = "info"
-	AnnouncementTypeSuccess AnnouncementType = "success"
-	AnnouncementTypeWarning AnnouncementType = "warning"
-	AnnouncementTypeError   AnnouncementType = "error"
+	AnnouncementStatusDraft    = domain.AnnouncementStatusDraft
+	AnnouncementStatusActive   = domain.AnnouncementStatusActive
+	AnnouncementStatusArchived = domain.AnnouncementStatusArchived
 )
 
-// Announcement 公告实体
-type Announcement struct {
-	ID        int64            `json:"id"`
-	Title     string           `json:"title"`
-	Content   string           `json:"content"`
-	Type      AnnouncementType `json:"type"`
-	SortOrder int              `json:"sort_order"`
-	Enabled   bool             `json:"enabled"`
-	StartTime *time.Time       `json:"start_time,omitempty"`
-	EndTime   *time.Time       `json:"end_time,omitempty"`
-	CreatedAt time.Time        `json:"created_at"`
-	UpdatedAt time.Time        `json:"updated_at"`
-	DeletedAt *time.Time       `json:"-"`
+const (
+	AnnouncementConditionTypeSubscription = domain.AnnouncementConditionTypeSubscription
+	AnnouncementConditionTypeBalance      = domain.AnnouncementConditionTypeBalance
+)
+
+const (
+	AnnouncementOperatorIn  = domain.AnnouncementOperatorIn
+	AnnouncementOperatorGT  = domain.AnnouncementOperatorGT
+	AnnouncementOperatorGTE = domain.AnnouncementOperatorGTE
+	AnnouncementOperatorLT  = domain.AnnouncementOperatorLT
+	AnnouncementOperatorLTE = domain.AnnouncementOperatorLTE
+	AnnouncementOperatorEQ  = domain.AnnouncementOperatorEQ
+)
+
+var (
+	ErrAnnouncementNotFound      = domain.ErrAnnouncementNotFound
+	ErrAnnouncementInvalidTarget = domain.ErrAnnouncementInvalidTarget
+)
+
+type AnnouncementTargeting = domain.AnnouncementTargeting
+
+type AnnouncementConditionGroup = domain.AnnouncementConditionGroup
+
+type AnnouncementCondition = domain.AnnouncementCondition
+
+type Announcement = domain.Announcement
+
+type AnnouncementListFilters struct {
+	Status string
+	Search string
 }
 
-// IsActive 检查公告是否当前有效
-func (a *Announcement) IsActive() bool {
-	if !a.Enabled {
-		return false
-	}
-	if a.DeletedAt != nil {
-		return false
-	}
-	now := time.Now()
-	if a.StartTime != nil && now.Before(*a.StartTime) {
-		return false
-	}
-	if a.EndTime != nil && now.After(*a.EndTime) {
-		return false
-	}
-	return true
+type AnnouncementRepository interface {
+	Create(ctx context.Context, a *Announcement) error
+	GetByID(ctx context.Context, id int64) (*Announcement, error)
+	Update(ctx context.Context, a *Announcement) error
+	Delete(ctx context.Context, id int64) error
+
+	List(ctx context.Context, params pagination.PaginationParams, filters AnnouncementListFilters) ([]Announcement, *pagination.PaginationResult, error)
+	ListActive(ctx context.Context, now time.Time) ([]Announcement, error)
 }
 
-// IsScheduled 检查是否为定时公告（尚未生效）
-func (a *Announcement) IsScheduled() bool {
-	if a.StartTime == nil {
-		return false
-	}
-	return time.Now().Before(*a.StartTime)
-}
-
-// IsExpired 检查是否已过期
-func (a *Announcement) IsExpired() bool {
-	if a.EndTime == nil {
-		return false
-	}
-	return time.Now().After(*a.EndTime)
-}
-
-// CreateAnnouncementInput 创建公告输入
-type CreateAnnouncementInput struct {
-	Title     string
-	Content   string
-	Type      AnnouncementType
-	Enabled   bool
-	StartTime *time.Time
-	EndTime   *time.Time
-}
-
-// UpdateAnnouncementInput 更新公告输入
-type UpdateAnnouncementInput struct {
-	Title     *string
-	Content   *string
-	Type      *AnnouncementType
-	SortOrder *int
-	Enabled   *bool
-	StartTime *time.Time
-	EndTime   *time.Time
-	// ClearStartTime 用于清除生效时间
-	ClearStartTime bool
-	// ClearEndTime 用于清除过期时间
-	ClearEndTime bool
-}
-
-// AnnouncementSortItem 排序项
-type AnnouncementSortItem struct {
-	ID        int64 `json:"id"`
-	SortOrder int   `json:"sort_order"`
-}
-
-// ActiveAnnouncementsResponse 活动公告响应
-type ActiveAnnouncementsResponse struct {
-	Announcements []Announcement       `json:"announcements"`
-	Settings      AnnouncementSettings `json:"settings"`
-}
-
-// AnnouncementSettings 公告设置
-type AnnouncementSettings struct {
-	Enabled  bool `json:"enabled"`
-	Interval int  `json:"interval"` // 轮播间隔（毫秒）
+type AnnouncementReadRepository interface {
+	MarkRead(ctx context.Context, announcementID, userID int64, readAt time.Time) error
+	GetReadMapByUser(ctx context.Context, userID int64, announcementIDs []int64) (map[int64]time.Time, error)
+	GetReadMapByUsers(ctx context.Context, announcementID int64, userIDs []int64) (map[int64]time.Time, error)
+	CountByAnnouncementID(ctx context.Context, announcementID int64) (int64, error)
 }

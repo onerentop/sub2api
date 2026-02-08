@@ -1143,55 +1143,77 @@ export interface UpdatePromoCodeRequest {
 
 // ==================== Announcement Types ====================
 
-export type AnnouncementType = 'info' | 'success' | 'warning' | 'error'
+export type AnnouncementStatus = 'draft' | 'active' | 'archived'
+
+export type AnnouncementConditionType = 'subscription' | 'balance'
+
+export type AnnouncementOperator = 'in' | 'gt' | 'gte' | 'lt' | 'lte' | 'eq'
+
+export interface AnnouncementCondition {
+  type: AnnouncementConditionType
+  operator: AnnouncementOperator
+  group_ids?: number[]
+  value?: number
+}
+
+export interface AnnouncementConditionGroup {
+  all_of?: AnnouncementCondition[]
+}
+
+export interface AnnouncementTargeting {
+  any_of?: AnnouncementConditionGroup[]
+}
 
 export interface Announcement {
   id: number
-  title: string | null
+  title: string
   content: string
-  type: AnnouncementType
-  sort_order: number
-  enabled: boolean
-  start_time: string | null
-  end_time: string | null
+  status: AnnouncementStatus
+  targeting: AnnouncementTargeting
+  starts_at?: string
+  ends_at?: string
+  created_by?: number
+  updated_by?: number
   created_at: string
   updated_at: string
 }
 
-export interface AnnouncementSettings {
-  enabled: boolean
-  interval: number
-}
-
-export interface ActiveAnnouncementsResponse {
-  announcements: Announcement[]
-  settings: AnnouncementSettings
+export interface UserAnnouncement {
+  id: number
+  title: string
+  content: string
+  starts_at?: string
+  ends_at?: string
+  read_at?: string
+  created_at: string
+  updated_at: string
 }
 
 export interface CreateAnnouncementRequest {
-  title?: string
+  title: string
   content: string
-  type?: AnnouncementType
-  enabled?: boolean
-  start_time?: number | null
-  end_time?: number | null
+  status?: AnnouncementStatus
+  targeting: AnnouncementTargeting
+  starts_at?: number
+  ends_at?: number
 }
 
 export interface UpdateAnnouncementRequest {
-  title?: string | null
+  title?: string
   content?: string
-  type?: AnnouncementType
-  sort_order?: number
-  enabled?: boolean
-  start_time?: number | null
-  end_time?: number | null
-  clear_start_time?: boolean
-  clear_end_time?: boolean
+  status?: AnnouncementStatus
+  targeting?: AnnouncementTargeting
+  starts_at?: number
+  ends_at?: number
 }
 
-export interface AnnouncementSortItem {
-  id: number
-  sort_order: number
+export interface AnnouncementUserReadStatus {
+  user_id: number
+  email: string
+  username: string
+  balance: number
+  eligible: boolean
+  read_at?: string
 }
 
 // ==================== TOTP Types ====================

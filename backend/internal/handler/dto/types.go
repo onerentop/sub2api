@@ -19,7 +19,6 @@ type User struct {
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 
-	// 余额计费模式限额覆盖
 	BalanceDailyQuota  *float64 `json:"balance_daily_quota,omitempty"`
 	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
 
@@ -82,7 +81,6 @@ type Group struct {
 	// 无效请求兜底分组
 	FallbackGroupIDOnInvalidRequest *int64 `json:"fallback_group_id_on_invalid_request"`
 
-	// 余额计费模式限额
 	BalanceDailyQuota  *float64 `json:"balance_daily_quota,omitempty"`
 	BalanceWeeklyQuota *float64 `json:"balance_weekly_quota,omitempty"`
 
@@ -415,30 +413,4 @@ type PromoCodeUsage struct {
 	UsedAt      time.Time `json:"used_at"`
 
 	User *User `json:"user,omitempty"`
-}
-
-// Announcement 公告
-type Announcement struct {
-	ID        int64      `json:"id"`
-	Title     string     `json:"title,omitempty"`
-	Content   string     `json:"content"`
-	Type      string     `json:"type"`
-	SortOrder int        `json:"sort_order"`
-	Enabled   bool       `json:"enabled"`
-	StartTime *time.Time `json:"start_time,omitempty"`
-	EndTime   *time.Time `json:"end_time,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-}
-
-// AnnouncementSettings 公告设置
-type AnnouncementSettings struct {
-	Enabled  bool `json:"enabled"`
-	Interval int  `json:"interval"` // 轮播间隔（毫秒）
-}
-
-// ActiveAnnouncementsResponse 活动公告响应
-type ActiveAnnouncementsResponse struct {
-	Announcements []Announcement       `json:"announcements"`
-	Settings      AnnouncementSettings `json:"settings"`
 }

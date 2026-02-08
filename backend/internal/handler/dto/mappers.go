@@ -12,18 +12,18 @@ func UserFromServiceShallow(u *service.User) *User {
 		return nil
 	}
 	return &User{
-		ID:                 u.ID,
-		Email:              u.Email,
-		Username:           u.Username,
-		Role:               u.Role,
-		Balance:            u.Balance,
-		Concurrency:        u.Concurrency,
-		Status:             u.Status,
-		AllowedGroups:      u.AllowedGroups,
+		ID:            u.ID,
+		Email:         u.Email,
+		Username:      u.Username,
+		Role:          u.Role,
+		Balance:       u.Balance,
+		Concurrency:   u.Concurrency,
+		Status:        u.Status,
+		AllowedGroups: u.AllowedGroups,
 		BalanceDailyQuota:  u.BalanceDailyQuota,
 		BalanceWeeklyQuota: u.BalanceWeeklyQuota,
-		CreatedAt:          u.CreatedAt,
-		UpdatedAt:          u.UpdatedAt,
+		CreatedAt:     u.CreatedAt,
+		UpdatedAt:     u.UpdatedAt,
 	}
 }
 
@@ -564,47 +564,5 @@ func PromoCodeUsageFromService(u *service.PromoCodeUsage) *PromoCodeUsage {
 		BonusAmount: u.BonusAmount,
 		UsedAt:      u.UsedAt,
 		User:        UserFromServiceShallow(u.User),
-	}
-}
-
-// AnnouncementFromService converts a service Announcement to DTO
-func AnnouncementFromService(a *service.Announcement) *Announcement {
-	if a == nil {
-		return nil
-	}
-	return &Announcement{
-		ID:        a.ID,
-		Title:     a.Title,
-		Content:   a.Content,
-		Type:      string(a.Type),
-		SortOrder: a.SortOrder,
-		Enabled:   a.Enabled,
-		StartTime: a.StartTime,
-		EndTime:   a.EndTime,
-		CreatedAt: a.CreatedAt,
-		UpdatedAt: a.UpdatedAt,
-	}
-}
-
-// AnnouncementSettingsFromService converts announcement settings
-func AnnouncementSettingsFromService(s service.AnnouncementSettings) AnnouncementSettings {
-	return AnnouncementSettings{
-		Enabled:  s.Enabled,
-		Interval: s.Interval,
-	}
-}
-
-// ActiveAnnouncementsResponseFromService converts the active announcements response
-func ActiveAnnouncementsResponseFromService(r *service.ActiveAnnouncementsResponse) *ActiveAnnouncementsResponse {
-	if r == nil {
-		return nil
-	}
-	announcements := make([]Announcement, 0, len(r.Announcements))
-	for i := range r.Announcements {
-		announcements = append(announcements, *AnnouncementFromService(&r.Announcements[i]))
-	}
-	return &ActiveAnnouncementsResponse{
-		Announcements: announcements,
-		Settings:      AnnouncementSettingsFromService(r.Settings),
 	}
 }
