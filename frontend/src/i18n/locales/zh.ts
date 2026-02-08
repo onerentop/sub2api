@@ -228,7 +228,8 @@ export default {
     recharge: '充值',
     products: '商品管理',
     orders: '订单管理',
-    socialOAuth: '社交登录'
+    socialOAuth: '社交登录',
+    buySubscription: '购买订阅'
   },
 
   // Auth

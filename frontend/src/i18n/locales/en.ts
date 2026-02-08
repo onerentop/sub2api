@@ -231,7 +231,8 @@ export default {
     recharge: 'Recharge',
     products: 'Products',
     orders: 'Orders',
-    socialOAuth: 'Social Login'
+    socialOAuth: 'Social Login',
+    buySubscription: 'Buy Subscription'
   },
 
   // Auth
