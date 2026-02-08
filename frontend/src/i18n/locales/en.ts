@@ -2479,6 +2479,7 @@ export default {
       failedToLoadErrorTrend: 'Failed to load error trend',
       failedToLoadErrorDistribution: 'Failed to load error distribution',
       failedToLoadErrorDetail: 'Failed to load error detail',
+      failedToLoadSwitchTrend: 'Failed to load switch rate trend',
       retryFailed: 'Retry failed',
       tpsK: 'TPS (K)',
       top: 'Top:',
@@ -3087,7 +3088,9 @@ export default {
         rateLimited: 'Rate-limited {count}',
         scopeRateLimitedTooltip: '{scope} scope rate limited: {count} accounts',
         errorAccounts: 'Errors {count}',
-        loadFailed: 'Failed to load concurrency data'
+        loadFailed: 'Failed to load concurrency data',
+        switchToPlatform: 'Switch to Platform',
+        switchToUser: 'Switch to User'
       },
       realtime: {
         title: 'Realtime',

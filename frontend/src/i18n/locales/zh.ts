@@ -2628,6 +2628,7 @@ export default {
       failedToLoadErrorTrend: '加载错误趋势失败',
       failedToLoadErrorDistribution: '加载错误分布失败',
       failedToLoadErrorDetail: '加载错误详情失败',
+      failedToLoadSwitchTrend: '加载切换率趋势失败',
       retryFailed: '重试失败',
       tpsK: 'TPS（千）',
       top: '最高：',
@@ -3241,7 +3242,9 @@ export default {
         rateLimited: '限流 {count}',
         scopeRateLimitedTooltip: '{scope} 配额域限流中：{count} 个账号',
         errorAccounts: '异常 {count}',
-        loadFailed: '加载并发数据失败'
+        loadFailed: '加载并发数据失败',
+        switchToPlatform: '切换到按平台',
+        switchToUser: '切换到按用户'
       },
       realtime: {
         title: '实时信息',
