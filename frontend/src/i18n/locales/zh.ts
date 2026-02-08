@@ -325,7 +325,31 @@ export default {
       sessionExpired: '授权会话已过期，请重新登录',
       invalidProvider: '无效的登录方式',
       unknownError: '发生未知错误，请重试'
-    }
+    },
+    // Password Reset
+    forgotPassword: '忘记密码？',
+    forgotPasswordTitle: '重置密码',
+    forgotPasswordHint: '输入您的邮箱地址，我们将向您发送重置密码的链接。',
+    sendResetLink: '发送重置链接',
+    sendingResetLink: '发送中...',
+    sendResetLinkFailed: '发送重置链接失败，请稍后再试。',
+    resetEmailSent: '重置链接已发送',
+    resetEmailSentHint: '请检查您的邮箱，点击链接重置密码。',
+    rememberedPassword: '想起密码了？',
+    resetPasswordTitle: '设置新密码',
+    resetPasswordHint: '请输入您的新密码。',
+    newPasswordPlaceholder: '输入新密码',
+    confirmPasswordRequired: '请确认密码',
+    passwordsDoNotMatch: '两次输入的密码不一致',
+    resetPassword: '重置密码',
+    resettingPassword: '重置中...',
+    resetPasswordFailed: '重置密码失败，请稍后再试。',
+    passwordResetSuccess: '密码重置成功',
+    passwordResetSuccessHint: '您的密码已成功重置，现在可以使用新密码登录。',
+    invalidOrExpiredToken: '链接无效或已过期',
+    invalidResetLink: '重置链接无效',
+    invalidResetLinkHint: '此重置链接无效或已过期，请重新申请。',
+    requestNewResetLink: '重新获取重置链接'
   },
 
   // Dashboard
@@ -506,6 +530,7 @@ export default {
     quotaAmountHint: '设置此 API Key 的独立消费额度（美元），0 表示无限制',
     resetQuotaUsed: '重置已用额度',
     resetQuotaTitle: '重置已用额度',
+    resetQuotaConfirmMessage: '确定要重置 "{name}" 的已用额度吗？当前已用额度为 ${used}。',
     reset: '重置',
     quotaResetSuccess: '已用额度重置成功',
     failedToResetQuota: '重置已用额度失败',
@@ -573,7 +598,8 @@ export default {
     exportExcelSuccess: '使用数据导出成功（Excel格式）',
     exportExcelFailed: '使用数据导出失败',
     imageUnit: '张',
-    userAgent: 'User-Agent'
+    userAgent: 'User-Agent',
+    reasoningEffort: '推理强度'
   },
 
   // Redeem
@@ -1515,7 +1541,18 @@ export default {
         codeAssist: 'Code Assist',
         antigravityOauth: 'Antigravity OAuth',
         api_key: 'API Key',
-        cookie: 'Cookie'
+        cookie: 'Cookie',
+        upstream: '上游转发',
+        upstreamDesc: '转发请求到自定义上游 API 端点'
+      },
+      // Upstream account settings
+      upstream: {
+        baseUrl: '上游 URL',
+        baseUrlHint: '上游 API 的基础 URL（必填）',
+        apiKey: 'API Key',
+        apiKeyHint: '上游 API 的 API Key',
+        pleaseEnterBaseUrl: '请输入上游 URL',
+        pleaseEnterApiKey: '请输入 API Key'
       },
       status: {
         active: '正常',
@@ -1775,6 +1812,13 @@ export default {
       mixedSchedulingHint: '启用后可参与 Anthropic/Gemini 分组的调度',
       mixedSchedulingTooltip:
         '！！注意！！ Antigravity Claude 和 Anthropic Claude 无法在同个上下文中使用，如果你同时有 Anthropic 账号和 Antigravity 账号，开启此选项会导致经常 400 报错。开启后，请用分组功能做好 Antigravity 账号和 Anthropic 账号的隔离。一定要弄明白再开启！！',
+      // Mixed channel warning
+      mixedChannelWarning:
+        '分组 {groupName} 当前选择的平台是 {currentPlatform}，但该分组中已有账号属于 {otherPlatform}。不同平台的账号无法互相调度，可能导致请求失败。',
+      mixedChannelWarningTitle: '平台不匹配警告',
+      // Model mapping validation
+      targetNoWildcard: '目标模型不能包含通配符 *',
+      wildcardOnlyAtEnd: '通配符 * 只能出现在模型名称末尾',
       creating: '创建中...',
       updating: '更新中...',
       accountCreated: '账号创建成功',

@@ -328,7 +328,31 @@ export default {
       sessionExpired: 'Authorization session has expired, please try again',
       invalidProvider: 'Invalid login provider',
       unknownError: 'An unknown error occurred, please try again'
-    }
+    },
+    // Password Reset
+    forgotPassword: 'Forgot password?',
+    forgotPasswordTitle: 'Reset Password',
+    forgotPasswordHint: 'Enter your email address and we will send you a link to reset your password.',
+    sendResetLink: 'Send Reset Link',
+    sendingResetLink: 'Sending...',
+    sendResetLinkFailed: 'Failed to send reset link. Please try again later.',
+    resetEmailSent: 'Reset Link Sent',
+    resetEmailSentHint: 'Please check your email and click the link to reset your password.',
+    rememberedPassword: 'Remembered your password?',
+    resetPasswordTitle: 'Set New Password',
+    resetPasswordHint: 'Please enter your new password.',
+    newPasswordPlaceholder: 'Enter new password',
+    confirmPasswordRequired: 'Please confirm your password',
+    passwordsDoNotMatch: 'Passwords do not match',
+    resetPassword: 'Reset Password',
+    resettingPassword: 'Resetting...',
+    resetPasswordFailed: 'Failed to reset password. Please try again later.',
+    passwordResetSuccess: 'Password Reset Successful',
+    passwordResetSuccessHint: 'Your password has been reset successfully. You can now log in with your new password.',
+    invalidOrExpiredToken: 'Invalid or expired link',
+    invalidResetLink: 'Invalid Reset Link',
+    invalidResetLinkHint: 'This reset link is invalid or has expired. Please request a new one.',
+    requestNewResetLink: 'Request New Reset Link'
   },
 
   // Dashboard
@@ -510,6 +534,7 @@ export default {
     quotaAmountHint: 'Set independent spending quota for this API Key (USD), 0 for unlimited',
     resetQuotaUsed: 'Reset quota used',
     resetQuotaTitle: 'Reset Quota Used',
+    resetQuotaConfirmMessage: 'Are you sure you want to reset the quota used for "{name}"? Current used quota is ${used}.',
     reset: 'Reset',
     quotaResetSuccess: 'Quota used reset successfully',
     failedToResetQuota: 'Failed to reset quota used',
@@ -577,7 +602,8 @@ export default {
     exportExcelSuccess: 'Usage data exported successfully (Excel format)',
     exportExcelFailed: 'Failed to export usage data',
     imageUnit: ' images',
-    userAgent: 'User-Agent'
+    userAgent: 'User-Agent',
+    reasoningEffort: 'Reasoning Effort'
   },
 
   // Redeem
@@ -1390,7 +1416,18 @@ export default {
         responsesApi: 'Responses API',
         googleOauth: 'Google OAuth',
         codeAssist: 'Code Assist',
-        antigravityOauth: 'Antigravity OAuth'
+        antigravityOauth: 'Antigravity OAuth',
+        upstream: 'Upstream Forward',
+        upstreamDesc: 'Forward requests to custom upstream API endpoint'
+      },
+      // Upstream account settings
+      upstream: {
+        baseUrl: 'Upstream URL',
+        baseUrlHint: 'Base URL of upstream API (required)',
+        apiKey: 'API Key',
+        apiKeyHint: 'API Key for upstream API',
+        pleaseEnterBaseUrl: 'Please enter upstream URL',
+        pleaseEnterApiKey: 'Please enter API Key'
       },
       status: {
         active: 'Active',
@@ -1642,6 +1679,13 @@ export default {
       mixedSchedulingHint: 'Enable to participate in Anthropic/Gemini group scheduling',
       mixedSchedulingTooltip:
         '!! WARNING !! Antigravity Claude and Anthropic Claude cannot be used in the same context. If you have both Anthropic and Antigravity accounts, enabling this option will cause frequent 400 errors. When enabled, please use the group feature to isolate Antigravity accounts from Anthropic accounts. Make sure you understand this before enabling!!',
+      // Mixed channel warning
+      mixedChannelWarning:
+        'Group {groupName} is currently set to {currentPlatform}, but contains accounts from {otherPlatform}. Accounts from different platforms cannot be scheduled together, which may cause request failures.',
+      mixedChannelWarningTitle: 'Platform Mismatch Warning',
+      // Model mapping validation
+      targetNoWildcard: 'Target model cannot contain wildcard *',
+      wildcardOnlyAtEnd: 'Wildcard * can only appear at the end of model name',
       creating: 'Creating...',
       updating: 'Updating...',
       accountCreated: 'Account created successfully',
