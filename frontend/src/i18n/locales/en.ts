@@ -879,8 +879,16 @@ export default {
       allowAllGroupsHint: 'User can use any non-exclusive group',
       allowedGroupsUpdated: 'Allowed groups updated successfully',
       defaultRate: 'Default Rate',
+      customRate: 'Custom Rate',
       failedToLoadGroups: 'Failed to load groups',
       failedToUpdateAllowedGroups: 'Failed to update allowed groups',
+      // Group config modal
+      groupConfig: 'Group Config',
+      groupConfigHint: 'Configure group access and rate for {email}',
+      groupConfigUpdated: 'Group configuration updated successfully',
+      exclusiveGroups: 'Exclusive Groups',
+      publicGroups: 'Public Groups',
+      passwordCopied: 'Password copied',
       deposit: 'Deposit',
       withdraw: 'Withdraw',
       depositAmount: 'Deposit Amount',
@@ -2002,7 +2010,22 @@ export default {
       dataExportConfirm: 'Export',
       dataExportIncludeProxies: 'Include proxy configuration',
       dataExported: 'Account list exported successfully',
-      dataExportFailed: 'Export failed'
+      dataExportFailed: 'Export failed',
+      // Data import modal
+      dataImportTitle: 'Import Accounts',
+      dataImportFile: 'Select File',
+      dataImportSelectFile: 'Select File',
+      dataImportHint: 'Supports JSON format account data files',
+      dataImporting: 'Importing...',
+      dataImportButton: 'Import',
+      dataImportWarning: 'Import will overwrite configuration of accounts with the same name',
+      dataImportSuccess: 'Accounts imported successfully',
+      dataImportFailed: 'Account import failed',
+      dataImportResult: 'Import Result',
+      dataImportResultSummary: 'Created {created}, updated {updated}, skipped {skipped}',
+      dataImportCompletedWithErrors: 'Import completed with some errors',
+      dataImportErrors: 'Import Errors',
+      dataImportParseFailed: 'File parsing failed'
     },
 
     // Proxies
@@ -2110,6 +2133,21 @@ export default {
       dataExportConfirm: 'Export',
       dataExported: 'Proxy list exported successfully',
       dataExportFailed: 'Export failed',
+      // Data import modal
+      dataImportTitle: 'Import Proxies',
+      dataImportFile: 'Select File',
+      dataImportSelectFile: 'Select File',
+      dataImportHint: 'Supports JSON format proxy data files',
+      dataImporting: 'Importing...',
+      dataImportButton: 'Import',
+      dataImportWarning: 'Import will overwrite configuration of proxies with the same name',
+      dataImportSuccess: 'Proxies imported successfully',
+      dataImportFailed: 'Proxy import failed',
+      dataImportResult: 'Import Result',
+      dataImportResultSummary: 'Created {created}, updated {updated}, skipped {skipped}',
+      dataImportCompletedWithErrors: 'Import completed with some errors',
+      dataImportErrors: 'Import Errors',
+      dataImportParseFailed: 'File parsing failed',
       // Protocols
       protocols: {
         http: 'HTTP',
@@ -2439,6 +2477,8 @@ export default {
       latencyHistogram: 'Request Duration Histogram',
       errorTrend: 'Error Trend',
       errorDistribution: 'Error Distribution',
+      switchRate: 'Switch Rate',
+      switchRateTrend: 'Switch Rate Trend',
       // Health Score & Diagnosis
       health: 'Health',
       healthCondition: 'Health Condition',
@@ -3006,6 +3046,8 @@ export default {
         ignoreContextCanceledHint: 'When enabled, client disconnect (context canceled) errors will not be written to the error log.',
         ignoreNoAvailableAccounts: 'Ignore no available accounts errors',
         ignoreNoAvailableAccountsHint: 'When enabled, "No available accounts" errors will not be written to the error log (not recommended; usually a config issue).',
+        ignoreInvalidApiKeyErrors: 'Ignore invalid API Key errors',
+        ignoreInvalidApiKeyErrorsHint: 'When enabled, errors from requests with invalid API Keys will not be written to the error log.',
         autoRefresh: 'Auto Refresh',
         enableAutoRefresh: 'Enable auto refresh',
         enableAutoRefreshHint: 'Automatically refresh dashboard data at a fixed interval.',
@@ -3028,6 +3070,7 @@ export default {
         byPlatform: 'By Platform',
         byGroup: 'By Group',
         byAccount: 'By Account',
+        byUser: 'By User',
         totalRows: '{count} rows',
         disabledHint: 'Realtime monitoring is disabled in settings.',
         empty: 'No data',
@@ -3076,7 +3119,8 @@ export default {
         upstreamErrors: 'Upstream error statistics, excluding rate limit errors (429/529).',
         latency: 'Request duration statistics, including p50, p90, p95, p99 percentiles.',
         ttft: 'Time To First Token, measuring the speed of first token return in streaming responses.',
-        health: 'System health score (0-100), considering SLA, error rate, and resource usage.'
+        health: 'System health score (0-100), considering SLA, error rate, and resource usage.',
+        switchRateTrend: 'Switch rate trend chart, showing the proportion of requests that needed account switching. High switch rate may indicate account availability issues.'
       },
       charts: {
         emptyRequest: 'No requests in this window.',

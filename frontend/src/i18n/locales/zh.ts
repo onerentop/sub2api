@@ -933,8 +933,16 @@ export default {
       allowAllGroupsHint: '用户可以使用任何非专属分组',
       allowedGroupsUpdated: '允许分组更新成功',
       defaultRate: '默认倍率',
+      customRate: '自定义倍率',
       failedToLoadGroups: '加载分组列表失败',
       failedToUpdateAllowedGroups: '更新允许分组失败',
+      // Group config modal
+      groupConfig: '分组配置',
+      groupConfigHint: '为 {email} 配置分组访问权限和倍率',
+      groupConfigUpdated: '分组配置更新成功',
+      exclusiveGroups: '独占分组',
+      publicGroups: '公共分组',
+      passwordCopied: '密码已复制',
       deposit: '充值',
       withdraw: '退款',
       depositAmount: '充值金额',
@@ -2094,7 +2102,22 @@ export default {
       dataExportConfirm: '导出',
       dataExportIncludeProxies: '包含代理配置',
       dataExported: '账号列表导出成功',
-      dataExportFailed: '导出失败'
+      dataExportFailed: '导出失败',
+      // Data import modal
+      dataImportTitle: '导入账号',
+      dataImportFile: '选择文件',
+      dataImportSelectFile: '选择文件',
+      dataImportHint: '支持 JSON 格式的账号数据文件',
+      dataImporting: '导入中...',
+      dataImportButton: '导入',
+      dataImportWarning: '导入将覆盖同名账号的配置',
+      dataImportSuccess: '账号导入成功',
+      dataImportFailed: '账号导入失败',
+      dataImportResult: '导入结果',
+      dataImportResultSummary: '创建 {created} 个，更新 {updated} 个，跳过 {skipped} 个',
+      dataImportCompletedWithErrors: '导入完成，但有部分错误',
+      dataImportErrors: '导入错误',
+      dataImportParseFailed: '文件解析失败'
     },
 
     // Proxies Management
@@ -2226,6 +2249,21 @@ export default {
       dataExportConfirm: '导出',
       dataExported: '代理列表导出成功',
       dataExportFailed: '导出失败',
+      // Data import modal
+      dataImportTitle: '导入代理',
+      dataImportFile: '选择文件',
+      dataImportSelectFile: '选择文件',
+      dataImportHint: '支持 JSON 格式的代理数据文件',
+      dataImporting: '导入中...',
+      dataImportButton: '导入',
+      dataImportWarning: '导入将覆盖同名代理的配置',
+      dataImportSuccess: '代理导入成功',
+      dataImportFailed: '代理导入失败',
+      dataImportResult: '导入结果',
+      dataImportResultSummary: '创建 {created} 个，更新 {updated} 个，跳过 {skipped} 个',
+      dataImportCompletedWithErrors: '导入完成，但有部分错误',
+      dataImportErrors: '导入错误',
+      dataImportParseFailed: '文件解析失败',
       // Protocols
       protocols: {
         http: 'HTTP',
@@ -2588,6 +2626,8 @@ export default {
       latencyHistogram: '请求时长分布',
       errorTrend: '错误趋势',
       errorDistribution: '错误分布',
+      switchRate: '切换率',
+      switchRateTrend: '切换率趋势',
       // Health Score & Diagnosis
       health: '健康',
       healthCondition: '健康状况',
@@ -3159,7 +3199,9 @@ export default {
         ignoreContextCanceled: '忽略客户端断连错误',
         ignoreContextCanceledHint: '启用后，客户端主动断开连接（context canceled）的错误将不会写入错误日志。',
         ignoreNoAvailableAccounts: '忽略无可用账号错误',
-        ignoreNoAvailableAccountsHint: '启用后，“No available accounts” 错误将不会写入错误日志（不推荐，这通常是配置问题）。',
+        ignoreNoAvailableAccountsHint: '启用后，"No available accounts" 错误将不会写入错误日志（不推荐，这通常是配置问题）。',
+        ignoreInvalidApiKeyErrors: '忽略无效 API Key 错误',
+        ignoreInvalidApiKeyErrorsHint: '启用后，无效 API Key 的请求错误将不会写入错误日志。',
         autoRefresh: '自动刷新',
         enableAutoRefresh: '启用自动刷新',
         enableAutoRefreshHint: '自动刷新仪表板数据，启用后会定期拉取最新数据。',
@@ -3182,6 +3224,7 @@ export default {
         byPlatform: '按平台',
         byGroup: '按分组',
         byAccount: '按账号',
+        byUser: '按用户',
         totalRows: '共 {count} 项',
         disabledHint: '已在设置中关闭实时监控。',
         empty: '暂无数据',
@@ -3230,7 +3273,8 @@ export default {
         errors: '错误统计，包括总错误数、错误率和上游错误率。',
         latency: '请求时长统计，包括 p50、p90、p95、p99 等百分位数。',
         ttft: '首 Token 延迟（Time To First Token），衡量流式响应的首 Token 返回速度。',
-        health: '系统健康评分（0-100），综合考虑 SLA、错误率和资源使用情况。'
+        health: '系统健康评分（0-100），综合考虑 SLA、错误率和资源使用情况。',
+        switchRateTrend: '切换率趋势图，显示系统在处理请求时需要切换账号的比例变化。高切换率可能表示账号可用性问题。'
       },
       charts: {
         emptyRequest: '该时间窗口内暂无请求。',
