@@ -848,7 +848,13 @@ export default {
       configureAiAccounts: '配置 AI 平台账号',
       systemSettings: '系统设置',
       configureSystem: '配置系统设置',
-      failedToLoad: '加载仪表盘数据失败'
+      failedToLoad: '加载仪表盘数据失败',
+      newUsersToday: '今日新用户',
+      active: '活跃',
+      ok: '正常',
+      err: '错误',
+      create: '创建',
+      userUsageTrend: '用户使用趋势 (Top 12)'
     },
 
     // Users Management
