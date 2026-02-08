@@ -66,7 +66,9 @@ export default {
       port: '端口',
       password: '密码（可选）',
       database: '数据库',
-      passwordPlaceholder: '密码'
+      passwordPlaceholder: '密码',
+      enableTls: '启用 TLS',
+      enableTlsHint: '启用与 Redis 服务器的 TLS 加密连接'
     },
     admin: {
       title: '管理员账户',
@@ -336,9 +338,13 @@ export default {
     resetEmailSent: '重置链接已发送',
     resetEmailSentHint: '请检查您的邮箱，点击链接重置密码。',
     rememberedPassword: '想起密码了？',
+    backToLogin: '返回登录',
     resetPasswordTitle: '设置新密码',
     resetPasswordHint: '请输入您的新密码。',
+    newPassword: '新密码',
     newPasswordPlaceholder: '输入新密码',
+    confirmPassword: '确认密码',
+    confirmPasswordPlaceholder: '确认新密码',
     confirmPasswordRequired: '请确认密码',
     passwordsDoNotMatch: '两次输入的密码不一致',
     resetPassword: '重置密码',
@@ -524,6 +530,7 @@ export default {
       geminiCliDesc: '导入为 Gemini CLI 配置',
     },
     // Quota and Expiration (API Key independent quota/expiration feature)
+    quota: '额度',
     quotaLimit: '额度限制',
     quotaUsed: '已用额度',
     quotaAmountPlaceholder: '输入额度金额，0 表示无限制',
@@ -963,6 +970,9 @@ export default {
       amountRequired: '请输入有效金额',
       insufficientBalance: '余额不足',
       setAllowedGroups: '设置允许分组',
+      allowedGroups: {
+        title: '允许分组'
+      },
       allowedGroupsHint: '选择此用户可以使用的标准分组。订阅类型分组请在订阅管理中配置。',
       noStandardGroups: '暂无标准分组',
       allowAllGroups: '允许全部分组',
@@ -3154,6 +3164,16 @@ export default {
         showAdvancedDeveloperSettings: '显示高级开发者设置 (Distributed Lock)',
         advancedSettingsSummary: '高级设置 (分布式锁)',
         evalIntervalHint: '检测任务的执行频率，建议保持默认。',
+        metricThresholds: '指标阈值',
+        metricThresholdsHint: '配置告警指标的阈值，超过阈值的值将显示为红色',
+        slaMinPercent: 'SLA 最低百分比',
+        slaMinPercentHint: 'SLA 低于此值将显示为红色（默认：99.5%）',
+        ttftP99MaxMs: 'TTFT P99 最大值 (ms)',
+        ttftP99MaxMsHint: 'TTFT P99 超过此值将显示为红色（默认：500ms）',
+        requestErrorRateMaxPercent: '请求错误率最大值 (%)',
+        requestErrorRateMaxPercentHint: '请求错误率超过此值将显示为红色（默认：5%）',
+        upstreamErrorRateMaxPercent: '上游错误率最大值 (%)',
+        upstreamErrorRateMaxPercentHint: '上游错误率超过此值将显示为红色（默认：5%）',
         validation: {
           title: '请先修正以下问题',
           invalid: '设置不合法',

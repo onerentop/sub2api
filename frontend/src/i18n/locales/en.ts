@@ -69,7 +69,9 @@ export default {
       port: 'Port',
       password: 'Password (optional)',
       database: 'Database',
-      passwordPlaceholder: 'Password'
+      passwordPlaceholder: 'Password',
+      enableTls: 'Enable TLS',
+      enableTlsHint: 'Enable TLS encrypted connection to Redis server'
     },
     admin: {
       title: 'Admin Account',
@@ -339,9 +341,13 @@ export default {
     resetEmailSent: 'Reset Link Sent',
     resetEmailSentHint: 'Please check your email and click the link to reset your password.',
     rememberedPassword: 'Remembered your password?',
+    backToLogin: 'Back to Login',
     resetPasswordTitle: 'Set New Password',
     resetPasswordHint: 'Please enter your new password.',
+    newPassword: 'New Password',
     newPasswordPlaceholder: 'Enter new password',
+    confirmPassword: 'Confirm Password',
+    confirmPasswordPlaceholder: 'Confirm new password',
     confirmPasswordRequired: 'Please confirm your password',
     passwordsDoNotMatch: 'Passwords do not match',
     resetPassword: 'Reset Password',
@@ -528,6 +534,7 @@ export default {
       geminiCliDesc: 'Import as Gemini CLI configuration',
     },
     // Quota and Expiration (API Key independent quota/expiration feature)
+    quota: 'Quota',
     quotaLimit: 'Quota Limit',
     quotaUsed: 'Quota Used',
     quotaAmountPlaceholder: 'Enter quota amount, 0 for unlimited',
@@ -908,6 +915,9 @@ export default {
       insufficientBalance: 'Insufficient balance',
       deleteConfirm: "Are you sure you want to delete '{email}'? This action cannot be undone.",
       setAllowedGroups: 'Set Allowed Groups',
+      allowedGroups: {
+        title: 'Allowed Groups'
+      },
       allowedGroupsHint:
         'Select which standard groups this user can use. Subscription groups are managed separately.',
       noStandardGroups: 'No standard groups available',
@@ -3000,6 +3010,16 @@ export default {
         showAdvancedDeveloperSettings: 'Show advanced developer settings (Distributed Lock)',
         advancedSettingsSummary: 'Advanced settings (Distributed Lock)',
         evalIntervalHint: 'How often the evaluator runs. Keeping the default is recommended.',
+        metricThresholds: 'Metric Thresholds',
+        metricThresholdsHint: 'Configure alert thresholds for metrics, values exceeding thresholds will be displayed in red',
+        slaMinPercent: 'SLA Minimum Percentage',
+        slaMinPercentHint: 'SLA below this value will be displayed in red (default: 99.5%)',
+        ttftP99MaxMs: 'TTFT P99 Maximum (ms)',
+        ttftP99MaxMsHint: 'TTFT P99 above this value will be displayed in red (default: 500ms)',
+        requestErrorRateMaxPercent: 'Request Error Rate Maximum (%)',
+        requestErrorRateMaxPercentHint: 'Request error rate above this value will be displayed in red (default: 5%)',
+        upstreamErrorRateMaxPercent: 'Upstream Error Rate Maximum (%)',
+        upstreamErrorRateMaxPercentHint: 'Upstream error rate above this value will be displayed in red (default: 5%)',
         validation: {
           title: 'Please fix the following issues',
           invalid: 'Invalid settings',
