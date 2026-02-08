@@ -2164,6 +2164,7 @@ export default {
         balance: '余额',
         concurrency: '并发数',
         subscription: '订阅',
+        invitation: '邀请码',
         // 管理员在用户管理页面调整余额/并发时产生的记录
         admin_balance: '余额（管理员）',
         admin_concurrency: '并发数（管理员）'
@@ -2172,6 +2173,7 @@ export default {
       balance: '余额',
       concurrency: '并发数',
       subscription: '订阅',
+      invitation: '邀请码',
       allTypes: '全部类型',
       allStatus: '全部状态',
       unused: '未使用',
