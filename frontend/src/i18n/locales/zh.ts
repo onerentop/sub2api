@@ -508,12 +508,6 @@ export default {
     expirationDate: '过期日期',
     expirationDateHint: '设置 API Key 的过期时间',
     currentExpiration: '当前过期时间',
-    customKeyLabel: '自定义密钥',
-    customKeyPlaceholder: '输入自定义密钥（可选）',
-    customKeyHint: '留空将自动生成，自定义密钥需至少 32 位',
-    customKeyTooShort: '自定义密钥需至少 32 位',
-    customKeyInvalidChars: '自定义密钥只能包含字母、数字和 -_',
-    customKeyRequired: '请输入自定义密钥',
   },
 
   // Usage
@@ -962,7 +956,6 @@ export default {
       useDepositWithdrawButtons: '请使用充值/退款按钮调整余额',
       // Balance/Concurrency History Modal
       balanceHistoryTitle: '余额和并发历史',
-      currentBalance: '当前余额',
       totalRecharged: '累计充值',
       noBalanceHistory: '暂无历史记录',
       allTypes: '全部类型',

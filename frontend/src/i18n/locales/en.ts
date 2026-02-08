@@ -512,12 +512,6 @@ export default {
     expirationDate: 'Expiration Date',
     expirationDateHint: 'Set the expiration date for this API Key',
     currentExpiration: 'Current expiration',
-    customKeyLabel: 'Custom Key',
-    customKeyPlaceholder: 'Enter custom key (optional)',
-    customKeyHint: 'Leave empty to auto-generate, custom key requires at least 32 characters',
-    customKeyTooShort: 'Custom key requires at least 32 characters',
-    customKeyInvalidChars: 'Custom key can only contain letters, numbers and -_',
-    customKeyRequired: 'Please enter custom key',
   },
 
   // Usage
@@ -915,7 +909,6 @@ export default {
       },
       // Balance/Concurrency History Modal
       balanceHistoryTitle: 'Balance & Concurrency History',
-      currentBalance: 'Current Balance',
       totalRecharged: 'Total Recharged',
       noBalanceHistory: 'No history records',
       allTypes: 'All Types',
