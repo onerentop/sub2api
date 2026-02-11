@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // TransformGeminiToClaude 将 Gemini 响应转换为 Claude 格式（非流式）
@@ -52,6 +54,7 @@ type NonStreamingProcessor struct {
 	thinkingSignature string
 	trailingSignature string
 	hasToolCall       bool
+	webSearchCount    int // web search 次数
 }
 
 // NewNonStreamingProcessor 创建非流式响应处理器
@@ -212,15 +215,48 @@ func (p *NonStreamingProcessor) processPart(part *GeminiPart) {
 }
 
 func (p *NonStreamingProcessor) processGrounding(grounding *GeminiGroundingMetadata) {
-	groundingText := buildGroundingText(grounding)
-	if groundingText == "" {
+	if grounding == nil {
+		return
+	}
+	if len(grounding.WebSearchQueries) == 0 && len(grounding.GroundingChunks) == 0 {
 		return
 	}
 
 	p.flushThinking()
 	p.flushText()
-	p.textBuilder += groundingText
-	p.flushText()
+
+	// 只生成 1 对 server_tool_use + web_search_tool_result
+	// Gemini 的 queries 和 chunks 是独立的扁平数组，无法一一对应
+	query := "web search"
+	if len(grounding.WebSearchQueries) > 0 {
+		query = strings.Join(grounding.WebSearchQueries, ", ")
+	}
+
+	// 使用 uuid 生成唯一 ID
+	toolID := "srvtoolu_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:24]
+
+	// 1. server_tool_use 块
+	p.contentBlocks = append(p.contentBlocks, ClaudeContentItem{
+		Type:  "server_tool_use",
+		ID:    toolID,
+		Name:  "web_search",
+		Input: map[string]string{"query": query},
+	})
+
+	// 2. web_search_tool_result 块
+	results := buildWebSearchResults(grounding.GroundingChunks)
+	resultsJSON, _ := json.Marshal(results)
+
+	p.contentBlocks = append(p.contentBlocks, ClaudeContentItem{
+		Type:                "web_search_tool_result",
+		ToolUseID:           toolID,
+		SearchResultContent: json.RawMessage(resultsJSON),
+	})
+
+	p.webSearchCount = 1
+
+	log.Printf("[Antigravity] Emitting web search blocks: queries=%d chunks=%d",
+		len(grounding.WebSearchQueries), len(grounding.GroundingChunks))
 }
 
 // flushText 刷新 text builder
@@ -282,6 +318,11 @@ func (p *NonStreamingProcessor) buildResponse(geminiResp *GeminiResponse, respon
 		usage.OutputTokens = geminiResp.UsageMetadata.CandidatesTokenCount
 		usage.CacheReadInputTokens = cached
 	}
+	if p.webSearchCount > 0 {
+		usage.ServerToolUse = &ServerToolUseUsage{
+			WebSearchRequests: p.webSearchCount,
+		}
+	}
 
 	// 生成响应 ID
 	respID := responseID
@@ -303,42 +344,30 @@ func (p *NonStreamingProcessor) buildResponse(geminiResp *GeminiResponse, respon
 	}
 }
 
-func buildGroundingText(grounding *GeminiGroundingMetadata) string {
-	if grounding == nil {
-		return ""
-	}
-
-	var builder strings.Builder
-
-	if len(grounding.WebSearchQueries) > 0 {
-		_, _ = builder.WriteString("\n\n---\nWeb search queries: ")
-		_, _ = builder.WriteString(strings.Join(grounding.WebSearchQueries, ", "))
-	}
-
-	if len(grounding.GroundingChunks) > 0 {
-		var links []string
-		for i, chunk := range grounding.GroundingChunks {
-			if chunk.Web == nil {
-				continue
-			}
-			title := strings.TrimSpace(chunk.Web.Title)
-			if title == "" {
-				title = "Source"
-			}
-			uri := strings.TrimSpace(chunk.Web.URI)
-			if uri == "" {
-				uri = "#"
-			}
-			links = append(links, fmt.Sprintf("[%d] [%s](%s)", i+1, title, uri))
+// buildWebSearchResults 从 GroundingChunks 构建 WebSearchResult 数组
+func buildWebSearchResults(chunks []GeminiGroundingChunk) []WebSearchResult {
+	results := make([]WebSearchResult, 0) // 空切片而非 nil，确保 JSON 序列化为 [] 而非 null
+	for _, chunk := range chunks {
+		if chunk.Web == nil {
+			continue
+		}
+		title := strings.TrimSpace(chunk.Web.Title)
+		if title == "" {
+			title = "Source"
+		}
+		uri := strings.TrimSpace(chunk.Web.URI)
+		if uri == "" {
+			continue // 无 URL 的结果跳过
 		}
 
-		if len(links) > 0 {
-			_, _ = builder.WriteString("\n\nSources:\n")
-			_, _ = builder.WriteString(strings.Join(links, "\n"))
-		}
+		results = append(results, WebSearchResult{
+			Type:             "web_search_result",
+			URL:              uri,
+			Title:            title,
+			EncryptedContent: title + " - " + uri, // 明文摘要（不走 Anthropic，无需真加密）
+		})
 	}
-
-	return builder.String()
+	return results
 }
 
 // generateRandomID 生成随机 ID

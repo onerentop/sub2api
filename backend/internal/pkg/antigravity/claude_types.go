@@ -104,7 +104,7 @@ type ClaudeResponse struct {
 
 // ClaudeContentItem Claude 响应内容项
 type ClaudeContentItem struct {
-	Type string `json:"type"` // text, thinking, tool_use
+	Type string `json:"type"` // text, thinking, tool_use, server_tool_use, web_search_tool_result
 
 	// text
 	Text string `json:"text,omitempty"`
@@ -113,18 +113,37 @@ type ClaudeContentItem struct {
 	Thinking  string `json:"thinking,omitempty"`
 	Signature string `json:"signature,omitempty"`
 
-	// tool_use
+	// tool_use / server_tool_use
 	ID    string `json:"id,omitempty"`
 	Name  string `json:"name,omitempty"`
 	Input any    `json:"input,omitempty"`
+
+	// web_search_tool_result
+	ToolUseID           string          `json:"tool_use_id,omitempty"`
+	SearchResultContent json.RawMessage `json:"content,omitempty"` // []WebSearchResult 序列化后的 JSON
 }
 
 // ClaudeUsage Claude 用量统计
 type ClaudeUsage struct {
-	InputTokens              int `json:"input_tokens"`
-	OutputTokens             int `json:"output_tokens"`
-	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
-	CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
+	InputTokens              int                `json:"input_tokens"`
+	OutputTokens             int                `json:"output_tokens"`
+	CacheCreationInputTokens int                `json:"cache_creation_input_tokens,omitempty"`
+	CacheReadInputTokens     int                `json:"cache_read_input_tokens,omitempty"`
+	ServerToolUse            *ServerToolUseUsage `json:"server_tool_use,omitempty"`
+}
+
+// ServerToolUseUsage 服务端工具用量
+type ServerToolUseUsage struct {
+	WebSearchRequests int `json:"web_search_requests"`
+}
+
+// WebSearchResult web search 搜索结果
+type WebSearchResult struct {
+	Type             string `json:"type"`                        // "web_search_result"
+	URL              string `json:"url"`
+	Title            string `json:"title"`
+	EncryptedContent string `json:"encrypted_content,omitempty"` // 明文摘要（不走 Anthropic，无需真加密）
+	PageAge          string `json:"page_age,omitempty"`          // Gemini 不提供，留空
 }
 
 // ClaudeError Claude 错误响应
