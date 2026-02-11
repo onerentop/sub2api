@@ -3,6 +3,14 @@ name: Dev Private Rollback
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: '回退环境'
+        required: true
+        type: choice
+        default: 'test'
+        options:
+          - test
+          - prod
       action:
         description: '选择操作'
         required: true
@@ -23,26 +31,30 @@ on:
         default: false
 
 jobs:
-  rollback:
+  # =========================================================================
+  # 测试环境回退
+  # =========================================================================
+  rollback-test:
     runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'test'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: SSH Remote Rollback
+      - name: SSH Remote Rollback (Test)
         uses: appleboy/ssh-action@master
         env:
           PRIVATE_REGISTRY_USERNAME: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
           PRIVATE_REGISTRY_PASSWORD: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
-          DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
+          DEPLOY_DIR: ${{ secrets.TEST_DEPLOY_DIR }}
           ACTION: ${{ inputs.action }}
           CUSTOM_TAG: ${{ inputs.custom_tag }}
           CONFIRM: ${{ inputs.confirm }}
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          password: ${{ secrets.DEPLOY_PASSWORD }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          host: ${{ secrets.TEST_DEPLOY_HOST }}
+          username: ${{ secrets.TEST_DEPLOY_USER }}
+          password: ${{ secrets.TEST_DEPLOY_PASSWORD }}
+          port: ${{ secrets.TEST_DEPLOY_PORT || 22 }}
           envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,ACTION,CUSTOM_TAG,CONFIRM
           script: |
             set -e
@@ -52,6 +64,9 @@ jobs:
             FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}"
 
             echo "=========================================="
+            echo "🧪 回退【测试环境】"
+            echo "=========================================="
+            echo ""
             echo "🔍 当前本地可用的镜像版本:"
             echo "=========================================="
             docker images "${FULL_IMAGE}" --format "table {{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}" | head -20
@@ -80,49 +95,31 @@ jobs:
                 ;;
 
               rollback_to_previous)
-                # 检查确认
                 if [ "$CONFIRM" != "true" ]; then
-                  echo "=========================================="
                   echo "❌ 错误: 请勾选「确认执行回退」后再运行"
-                  echo "=========================================="
                   exit 1
                 fi
-
-                # 获取上一版本（排除当前运行的标签，取最新的）
                 if [ -n "$CURRENT_TAG" ]; then
                   TARGET_TAG=$(docker images "${FULL_IMAGE}" --format "{{.Tag}}" | grep -v "^${CURRENT_TAG}$" | head -1)
                 else
-                  # 如果无法获取当前标签，取第二个
                   TARGET_TAG=$(docker images "${FULL_IMAGE}" --format "{{.Tag}}" | sed -n '2p')
                 fi
-
                 if [ -z "$TARGET_TAG" ]; then
-                  echo "=========================================="
                   echo "❌ 错误: 没有可用的上一版本镜像"
-                  echo "=========================================="
                   exit 1
                 fi
-
                 echo "🔄 将回退到上一版本: ${TARGET_TAG}"
                 ;;
 
               rollback_to_custom)
-                # 检查确认
                 if [ "$CONFIRM" != "true" ]; then
-                  echo "=========================================="
                   echo "❌ 错误: 请勾选「确认执行回退」后再运行"
-                  echo "=========================================="
                   exit 1
                 fi
-
-                # 检查自定义标签
                 if [ -z "$CUSTOM_TAG" ]; then
-                  echo "=========================================="
                   echo "❌ 错误: 请填写自定义镜像标签"
-                  echo "=========================================="
                   exit 1
                 fi
-
                 TARGET_TAG="$CUSTOM_TAG"
                 echo "🔄 将回退到指定版本: ${TARGET_TAG}"
                 ;;
@@ -135,28 +132,17 @@ jobs:
 
             TARGET_IMAGE="${FULL_IMAGE}:${TARGET_TAG}"
 
-            # 检查目标镜像是否存在于本地
             if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${TARGET_IMAGE}$"; then
-              echo "=========================================="
-              echo "⚠️ 本地不存在镜像: ${TARGET_IMAGE}"
-              echo "尝试从远程仓库拉取..."
-              echo "=========================================="
-
-              # 登录私有仓库
+              echo "⚠️ 本地不存在镜像: ${TARGET_IMAGE}，尝试拉取..."
               echo "$PRIVATE_REGISTRY_PASSWORD" | docker login ${REGISTRY} -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
-
               if ! docker pull "${TARGET_IMAGE}"; then
                 echo "❌ 拉取失败: ${TARGET_IMAGE}"
-                echo "请检查镜像标签是否正确"
                 exit 1
               fi
             fi
 
-            echo "=========================================="
             echo "🔄 开始回退到: ${TARGET_IMAGE}"
-            echo "=========================================="
 
-            # 更新 .env 中的镜像名
             touch .env
             if grep -q "^DOCKER_IMAGE_NAME=" .env 2>/dev/null; then
               sed -i "s|^DOCKER_IMAGE_NAME=.*|DOCKER_IMAGE_NAME=${TARGET_IMAGE}|" .env
@@ -164,19 +150,149 @@ jobs:
               echo "DOCKER_IMAGE_NAME=${TARGET_IMAGE}" >> .env
             fi
 
-            # 重启服务
             echo "📦 停止当前容器..."
             docker-compose down
-
             echo "🚀 启动回退版本..."
             docker-compose up -d
-
-            # 等待服务启动
             sleep 5
 
             echo ""
             echo "=========================================="
-            echo "✅ 回退完成!"
+            echo "✅ 测试环境回退完成!"
+            echo "=========================================="
+            echo "🎯 目标镜像: ${TARGET_IMAGE}"
+            echo ""
+            echo "📊 当前服务状态:"
+            docker-compose ps
+
+  # =========================================================================
+  # 生产环境回退
+  # =========================================================================
+  rollback-prod:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'prod'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: SSH Remote Rollback (Prod)
+        uses: appleboy/ssh-action@master
+        env:
+          PRIVATE_REGISTRY_USERNAME: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
+          PRIVATE_REGISTRY_PASSWORD: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
+          DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
+          ACTION: ${{ inputs.action }}
+          CUSTOM_TAG: ${{ inputs.custom_tag }}
+          CONFIRM: ${{ inputs.confirm }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          password: ${{ secrets.DEPLOY_PASSWORD }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,ACTION,CUSTOM_TAG,CONFIRM
+          script: |
+            set -e
+
+            REGISTRY="docker.topren.top"
+            IMAGE_NAME="sub2api"
+            FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}"
+
+            echo "=========================================="
+            echo "🚀 回退【生产环境】"
+            echo "=========================================="
+            echo ""
+            echo "🔍 当前本地可用的镜像版本:"
+            echo "=========================================="
+            docker images "${FULL_IMAGE}" --format "table {{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}" | head -20
+            echo ""
+
+            # 获取当前运行的镜像标签
+            cd "$DEPLOY_DIR"
+            CURRENT_TAG=""
+            if grep -q "^DOCKER_IMAGE_NAME=" .env 2>/dev/null; then
+              CURRENT_IMAGE=$(grep "^DOCKER_IMAGE_NAME=" .env | cut -d'=' -f2)
+              CURRENT_TAG=$(echo "$CURRENT_IMAGE" | sed 's/.*://')
+            fi
+            echo "📌 当前运行的镜像标签: ${CURRENT_TAG:-未知}"
+            echo ""
+
+            # 根据操作类型执行
+            case "$ACTION" in
+              list)
+                echo "=========================================="
+                echo "✅ 仅列出模式，未执行回退操作"
+                echo "=========================================="
+                echo ""
+                echo "💡 提示: 选择 'rollback_to_previous' 可快速回退到上一版本"
+                echo "💡 提示: 选择 'rollback_to_custom' 并填写标签可回退到指定版本"
+                exit 0
+                ;;
+
+              rollback_to_previous)
+                if [ "$CONFIRM" != "true" ]; then
+                  echo "❌ 错误: 请勾选「确认执行回退」后再运行"
+                  exit 1
+                fi
+                if [ -n "$CURRENT_TAG" ]; then
+                  TARGET_TAG=$(docker images "${FULL_IMAGE}" --format "{{.Tag}}" | grep -v "^${CURRENT_TAG}$" | head -1)
+                else
+                  TARGET_TAG=$(docker images "${FULL_IMAGE}" --format "{{.Tag}}" | sed -n '2p')
+                fi
+                if [ -z "$TARGET_TAG" ]; then
+                  echo "❌ 错误: 没有可用的上一版本镜像"
+                  exit 1
+                fi
+                echo "🔄 将回退到上一版本: ${TARGET_TAG}"
+                ;;
+
+              rollback_to_custom)
+                if [ "$CONFIRM" != "true" ]; then
+                  echo "❌ 错误: 请勾选「确认执行回退」后再运行"
+                  exit 1
+                fi
+                if [ -z "$CUSTOM_TAG" ]; then
+                  echo "❌ 错误: 请填写自定义镜像标签"
+                  exit 1
+                fi
+                TARGET_TAG="$CUSTOM_TAG"
+                echo "🔄 将回退到指定版本: ${TARGET_TAG}"
+                ;;
+
+              *)
+                echo "❌ 未知操作: $ACTION"
+                exit 1
+                ;;
+            esac
+
+            TARGET_IMAGE="${FULL_IMAGE}:${TARGET_TAG}"
+
+            if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${TARGET_IMAGE}$"; then
+              echo "⚠️ 本地不存在镜像: ${TARGET_IMAGE}，尝试拉取..."
+              echo "$PRIVATE_REGISTRY_PASSWORD" | docker login ${REGISTRY} -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
+              if ! docker pull "${TARGET_IMAGE}"; then
+                echo "❌ 拉取失败: ${TARGET_IMAGE}"
+                exit 1
+              fi
+            fi
+
+            echo "🔄 开始回退到: ${TARGET_IMAGE}"
+
+            touch .env
+            if grep -q "^DOCKER_IMAGE_NAME=" .env 2>/dev/null; then
+              sed -i "s|^DOCKER_IMAGE_NAME=.*|DOCKER_IMAGE_NAME=${TARGET_IMAGE}|" .env
+            else
+              echo "DOCKER_IMAGE_NAME=${TARGET_IMAGE}" >> .env
+            fi
+
+            echo "📦 停止当前容器..."
+            docker-compose down
+            echo "🚀 启动回退版本..."
+            docker-compose up -d
+            sleep 5
+
+            echo ""
+            echo "=========================================="
+            echo "✅ 生产环境回退完成!"
             echo "=========================================="
             echo "🎯 目标镜像: ${TARGET_IMAGE}"
             echo ""
