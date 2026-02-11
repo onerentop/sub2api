@@ -145,7 +145,7 @@ jobs:
             docker pull "$DOCKER_IMAGE_COMMIT" || echo "Warning: commit tag not available yet"
 
             # 5. 重启服务
-            docker-compose up -d
+            docker compose up -d
 
             # 6. 清理旧镜像 (保留最近 3 个不同的镜像版本用于回退)
             echo "📦 当前镜像列表:"
@@ -176,7 +176,7 @@ jobs:
             echo "==========================================="
             echo "🧪 测试环境部署完成!"
             echo "==========================================="
-            docker-compose ps
+            docker compose ps
 
   # =========================================================================
   # 生产环境部署：仅 pre 分支部署到生产服务器
@@ -260,7 +260,7 @@ jobs:
             docker pull "$DOCKER_IMAGE_COMMIT" || echo "Warning: commit tag not available yet"
 
             # 5. 重启服务
-            docker-compose up -d
+            docker compose up -d
 
             # 6. 清理旧镜像 (保留最近 3 个不同的镜像版本用于回退)
             # 按镜像 ID 去重后计数，确保保留真正不同的版本
@@ -294,4 +294,4 @@ jobs:
             echo "==========================================="
             echo "🚀 生产环境部署完成!"
             echo "==========================================="
-            docker-compose ps
+            docker compose ps
