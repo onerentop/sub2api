@@ -10,6 +10,15 @@ on:
         description: '部署分支（留空使用默认分支）'
         required: false
         type: string
+      environment:
+        description: '部署环境（留空时按分支策略自动选择）'
+        required: false
+        type: choice
+        default: 'auto'
+        options:
+          - auto
+          - test
+          - prod
 
 jobs:
   build-and-push:
@@ -56,9 +65,133 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
+  # =========================================================================
+  # 测试环境部署：test 分支自动部署到测试服务器
+  # =========================================================================
+  deploy-test:
     needs: build-and-push
     runs-on: ubuntu-latest
+    # 自动模式：test 分支 → 测试环境
+    # 手动模式：environment=test 或 (environment=auto 且 test 分支)
+    if: |
+      (github.event_name == 'push' && github.ref_name == 'test') ||
+      (github.event_name == 'workflow_dispatch' && (
+        github.event.inputs.environment == 'test' ||
+        (github.event.inputs.environment == 'auto' && github.ref_name == 'test')
+      ))
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 处理分支名，将 / 替换为 - 以适配 Docker Tag 规范
+      - name: Sanitize Branch Name
+        id: branch_name
+        run: |
+          # 获取原始分支名
+          RAW_BRANCH="${{ github.ref_name }}"
+          # 将 / 替换为 -
+          SANITIZED_BRANCH="${RAW_BRANCH//\//-}"
+          echo "Original: $RAW_BRANCH"
+          echo "Sanitized: $SANITIZED_BRANCH"
+          echo "tag=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Generate Commit Tag
+        id: commit_tag
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "tag=dev-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: SSH Deploy to Test Server
+        uses: appleboy/ssh-action@master
+        env:
+          PRIVATE_REGISTRY_USERNAME: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
+          PRIVATE_REGISTRY_PASSWORD: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
+          DEPLOY_DIR: ${{ secrets.TEST_DEPLOY_DIR }}
+          IMAGE_TAG: ${{ steps.branch_name.outputs.tag }}
+          COMMIT_TAG: ${{ steps.commit_tag.outputs.tag }}
+        with:
+          host: ${{ secrets.TEST_DEPLOY_HOST }}
+          username: ${{ secrets.TEST_DEPLOY_USER }}
+          password: ${{ secrets.TEST_DEPLOY_PASSWORD }}
+          port: ${{ secrets.TEST_DEPLOY_PORT || 22 }}
+          envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,IMAGE_TAG,COMMIT_TAG
+          script: |
+            echo "==========================================="
+            echo "🧪 部署到【测试环境】"
+            echo "==========================================="
+
+            # 1. 登录私有仓库
+            echo "$PRIVATE_REGISTRY_PASSWORD" | docker login docker.topren.top -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
+
+            # 2. 进入目录
+            cd "$DEPLOY_DIR"
+
+            # 3. 设置镜像名环境变量
+            export DOCKER_IMAGE_NAME="docker.topren.top/sub2api:${IMAGE_TAG}"
+            export DOCKER_IMAGE_COMMIT="docker.topren.top/sub2api:${COMMIT_TAG}"
+            echo "Deploying image: $DOCKER_IMAGE_NAME"
+            echo "Commit tag: $DOCKER_IMAGE_COMMIT"
+
+            # 更新 .env 中的镜像名
+            touch .env
+            if grep -q "^DOCKER_IMAGE_NAME=" .env 2>/dev/null; then
+              sed -i "s|^DOCKER_IMAGE_NAME=.*|DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}|" .env
+            else
+              echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >> .env
+            fi
+
+            # 4. 拉取镜像（分支标签 + commit 标签用于回退）
+            docker pull "$DOCKER_IMAGE_NAME"
+            docker pull "$DOCKER_IMAGE_COMMIT" || echo "Warning: commit tag not available yet"
+
+            # 5. 重启服务
+            docker-compose up -d
+
+            # 6. 清理旧镜像 (保留最近 3 个不同的镜像版本用于回退)
+            echo "📦 当前镜像列表:"
+            docker images "docker.topren.top/sub2api" --format "table {{.Tag}}\t{{.ID}}\t{{.CreatedAt}}"
+
+            UNIQUE_IDS=$(docker images "docker.topren.top/sub2api" --format "{{.ID}}" | awk '!seen[$0]++')
+            KEEP_COUNT=3
+            CURRENT=0
+            IMAGES_TO_DELETE=""
+            for ID in $UNIQUE_IDS; do
+              CURRENT=$((CURRENT + 1))
+              if [ $CURRENT -gt $KEEP_COUNT ]; then
+                IMAGES_TO_DELETE="$IMAGES_TO_DELETE $ID"
+              fi
+            done
+
+            if [ -n "$IMAGES_TO_DELETE" ]; then
+              echo "🗑️ 清理旧镜像 (保留最近 $KEEP_COUNT 个版本):"
+              echo "$IMAGES_TO_DELETE"
+              echo "$IMAGES_TO_DELETE" | xargs -r docker rmi -f 2>/dev/null || true
+            else
+              echo "✅ 无需清理旧镜像"
+            fi
+            docker image prune -f
+
+            # 7. 显示部署状态
+            echo ""
+            echo "==========================================="
+            echo "🧪 测试环境部署完成!"
+            echo "==========================================="
+            docker-compose ps
+
+  # =========================================================================
+  # 生产环境部署：仅 pre 分支部署到生产服务器
+  # =========================================================================
+  deploy-prod:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    # 自动模式：pre 分支 → 生产环境
+    # 手动模式：environment=prod 或 (environment=auto 且 pre 分支)
+    if: |
+      (github.event_name == 'push' && github.ref_name == 'pre') ||
+      (github.event_name == 'workflow_dispatch' && (
+        github.event.inputs.environment == 'prod' ||
+        (github.event.inputs.environment == 'auto' && github.ref_name == 'pre')
+      ))
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -83,7 +216,7 @@ jobs:
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           echo "tag=dev-${SHORT_SHA}" >> $GITHUB_OUTPUT
 
-      - name: SSH Remote Deploy
+      - name: SSH Deploy to Production Server
         uses: appleboy/ssh-action@master
         env:
           PRIVATE_REGISTRY_USERNAME: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
@@ -98,6 +231,10 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           envs: PRIVATE_REGISTRY_USERNAME,PRIVATE_REGISTRY_PASSWORD,DEPLOY_DIR,IMAGE_TAG,COMMIT_TAG
           script: |
+            echo "==========================================="
+            echo "🚀 部署到【生产环境】"
+            echo "==========================================="
+
             # 1. 登录私有仓库
             echo "$PRIVATE_REGISTRY_PASSWORD" | docker login docker.topren.top -u "$PRIVATE_REGISTRY_USERNAME" --password-stdin
 
@@ -153,5 +290,8 @@ jobs:
             docker image prune -f
 
             # 7. 显示部署状态
-            echo "Deploy completed!"
+            echo ""
+            echo "==========================================="
+            echo "🚀 生产环境部署完成!"
+            echo "==========================================="
             docker-compose ps
