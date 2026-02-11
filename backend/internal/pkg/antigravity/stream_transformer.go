@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // BlockType 内容块类型
@@ -39,6 +41,7 @@ type StreamingProcessor struct {
 	inputTokens     int
 	outputTokens    int
 	cacheReadTokens int
+	webSearchCount  int // web search 次数
 }
 
 // NewStreamingProcessor 创建流式响应处理器
@@ -144,6 +147,11 @@ func (p *StreamingProcessor) Finish() ([]byte, *ClaudeUsage) {
 		InputTokens:          p.inputTokens,
 		OutputTokens:         p.outputTokens,
 		CacheReadInputTokens: p.cacheReadTokens,
+	}
+	if p.webSearchCount > 0 {
+		usage.ServerToolUse = &ServerToolUseUsage{
+			WebSearchRequests: p.webSearchCount,
+		}
 	}
 
 	return result.Bytes(), usage
@@ -456,6 +464,96 @@ func (p *StreamingProcessor) emitEmptyThinkingWithSignature(signature string) []
 	return result.Bytes()
 }
 
+// emitWebSearchBlocks 发送 web search 相关的 SSE content blocks
+// 注意：不复用 startBlock/endBlock，因为 web_search_tool_result 的 SSE 格式特殊：
+// - server_tool_use: content_block_start + input_json_delta + content_block_stop
+// - web_search_tool_result: content_block_start（含全部结果）+ content_block_stop（无 delta）
+func (p *StreamingProcessor) emitWebSearchBlocks() []byte {
+	if len(p.webSearchQueries) == 0 && len(p.groundingChunks) == 0 {
+		return nil
+	}
+
+	var result bytes.Buffer
+
+	// 只生成 1 对
+	query := "web search"
+	if len(p.webSearchQueries) > 0 {
+		query = strings.Join(p.webSearchQueries, ", ")
+	}
+
+	// 使用 uuid 生成唯一 ID
+	toolID := "srvtoolu_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:24]
+
+	// === 1. server_tool_use 块 ===
+
+	// content_block_start
+	startEvent := map[string]any{
+		"type":  "content_block_start",
+		"index": p.blockIndex,
+		"content_block": map[string]any{
+			"type":  "server_tool_use",
+			"id":    toolID,
+			"name":  "web_search",
+			"input": map[string]any{},
+		},
+	}
+	result.Write(p.formatSSE("content_block_start", startEvent))
+
+	// input_json_delta
+	queryJSON, _ := json.Marshal(map[string]string{"query": query})
+	deltaEvent := map[string]any{
+		"type":  "content_block_delta",
+		"index": p.blockIndex,
+		"delta": map[string]any{
+			"type":         "input_json_delta",
+			"partial_json": string(queryJSON),
+		},
+	}
+	result.Write(p.formatSSE("content_block_delta", deltaEvent))
+
+	// content_block_stop
+	stopEvent := map[string]any{
+		"type":  "content_block_stop",
+		"index": p.blockIndex,
+	}
+	result.Write(p.formatSSE("content_block_stop", stopEvent))
+
+	p.blockIndex++
+
+	// === 2. web_search_tool_result 块 ===
+
+	// 构建搜索结果
+	results := buildWebSearchResults(p.groundingChunks)
+
+	// content_block_start（全部结果在 start 事件中，无 delta）
+	resultStartEvent := map[string]any{
+		"type":  "content_block_start",
+		"index": p.blockIndex,
+		"content_block": map[string]any{
+			"type":        "web_search_tool_result",
+			"tool_use_id": toolID,
+			"content":     results,
+		},
+	}
+	result.Write(p.formatSSE("content_block_start", resultStartEvent))
+
+	// content_block_stop（无 delta）
+	resultStopEvent := map[string]any{
+		"type":  "content_block_stop",
+		"index": p.blockIndex,
+	}
+	result.Write(p.formatSSE("content_block_stop", resultStopEvent))
+
+	p.blockIndex++
+
+	p.webSearchCount = 1
+
+	log.Printf("[Antigravity] Emitting web search SSE blocks: queries=%d chunks=%d",
+		len(p.webSearchQueries), len(p.groundingChunks))
+
+	return result.Bytes()
+}
+
 // emitFinish 发送结束事件
 func (p *StreamingProcessor) emitFinish(finishReason string) []byte {
 	var result bytes.Buffer
@@ -469,22 +567,8 @@ func (p *StreamingProcessor) emitFinish(finishReason string) []byte {
 		p.trailingSignature = ""
 	}
 
-	if len(p.webSearchQueries) > 0 || len(p.groundingChunks) > 0 {
-		groundingText := buildGroundingText(&GeminiGroundingMetadata{
-			WebSearchQueries: p.webSearchQueries,
-			GroundingChunks:  p.groundingChunks,
-		})
-		if groundingText != "" {
-			_, _ = result.Write(p.startBlock(BlockTypeText, map[string]any{
-				"type": "text",
-				"text": "",
-			}))
-			_, _ = result.Write(p.emitDelta("text_delta", map[string]any{
-				"text": groundingText,
-			}))
-			_, _ = result.Write(p.endBlock())
-		}
-	}
+	// 输出 web search 结构化块（server_tool_use + web_search_tool_result）
+	_, _ = result.Write(p.emitWebSearchBlocks())
 
 	// 确定 stop_reason
 	stopReason := "end_turn"
@@ -498,6 +582,11 @@ func (p *StreamingProcessor) emitFinish(finishReason string) []byte {
 		InputTokens:          p.inputTokens,
 		OutputTokens:         p.outputTokens,
 		CacheReadInputTokens: p.cacheReadTokens,
+	}
+	if p.webSearchCount > 0 {
+		usage.ServerToolUse = &ServerToolUseUsage{
+			WebSearchRequests: p.webSearchCount,
+		}
 	}
 
 	deltaEvent := map[string]any{

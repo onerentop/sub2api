@@ -514,6 +514,40 @@ func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDu
 					ID: block.ToolUseID,
 				},
 			})
+
+		case "server_tool_use":
+			// 多轮对话中传回的 server_tool_use，转为文本描述
+			// 由于 Gemini 不识别此类型，转为 text part 保留上下文
+			queryStr := ""
+			if block.Input != nil {
+				if inputMap, ok := block.Input.(map[string]any); ok {
+					if q, ok := inputMap["query"].(string); ok {
+						queryStr = q
+					}
+				}
+			}
+			if queryStr != "" {
+				parts = append(parts, GeminiPart{
+					Text: fmt.Sprintf("[Web Search: %s]", queryStr),
+				})
+			}
+
+		case "web_search_tool_result":
+			// 多轮对话中传回的 web_search_tool_result，提取 URL/title 转为文本
+			var searchText strings.Builder
+			searchText.WriteString("[Search Results]\n")
+			// content 字段是 json.RawMessage，尝试解析为 []WebSearchResult
+			var searchResults []WebSearchResult
+			if len(block.Content) > 0 {
+				if err := json.Unmarshal(block.Content, &searchResults); err == nil {
+					for i, sr := range searchResults {
+						searchText.WriteString(fmt.Sprintf("[%d] %s: %s\n", i+1, sr.Title, sr.URL))
+					}
+				}
+			}
+			if searchText.Len() > len("[Search Results]\n") {
+				parts = append(parts, GeminiPart{Text: searchText.String()})
+			}
 		}
 	}
 
