@@ -172,12 +172,12 @@
           color="purple"
         />
 
-        <!-- Claude 4.5 -->
+        <!-- Claude -->
         <UsageProgressBar
-          v-if="antigravityClaude45UsageFromAPI !== null"
-          :label="t('admin.accounts.usageWindow.claude45')"
-          :utilization="antigravityClaude45UsageFromAPI.utilization"
-          :resets-at="antigravityClaude45UsageFromAPI.resetTime"
+          v-if="antigravityClaudeUsageFromAPI !== null"
+          :label="t('admin.accounts.usageWindow.claude')"
+          :utilization="antigravityClaudeUsageFromAPI.utilization"
+          :resets-at="antigravityClaudeUsageFromAPI.resetTime"
           color="amber"
         />
       </div>
@@ -523,6 +523,39 @@ const getAntigravityUsageFromAPI = (
   }
 }
 
+// 从 API 配额数据中按前缀匹配获取使用率（适应模型名变化，如 claude-opus-4-6、claude-sonnet-4-20250514 等）
+const getAntigravityUsageByPrefix = (
+  prefix: string
+): AntigravityUsageResult | null => {
+  const quota = usageInfo.value?.antigravity_quota
+  if (!quota) return null
+
+  let maxUtilization = 0
+  let earliestReset: string | null = null
+  let hasAnyData = false
+
+  for (const [model, modelQuota] of Object.entries(quota)) {
+    if (!model.startsWith(prefix) || !modelQuota) continue
+    hasAnyData = true
+
+    if (modelQuota.utilization > maxUtilization) {
+      maxUtilization = modelQuota.utilization
+    }
+    if (modelQuota.reset_time) {
+      if (!earliestReset || modelQuota.reset_time < earliestReset) {
+        earliestReset = modelQuota.reset_time
+      }
+    }
+  }
+
+  if (!hasAnyData) return null
+
+  return {
+    utilization: maxUtilization,
+    resetTime: earliestReset
+  }
+}
+
 // Gemini 3 Pro from API
 const antigravity3ProUsageFromAPI = computed(() =>
   getAntigravityUsageFromAPI(['gemini-3-pro-low', 'gemini-3-pro-high', 'gemini-3-pro-preview'])
@@ -534,9 +567,9 @@ const antigravity3FlashUsageFromAPI = computed(() => getAntigravityUsageFromAPI(
 // Gemini 3 Image from API
 const antigravity3ImageUsageFromAPI = computed(() => getAntigravityUsageFromAPI(['gemini-3-pro-image']))
 
-// Claude 4.5 from API
-const antigravityClaude45UsageFromAPI = computed(() =>
-  getAntigravityUsageFromAPI(['claude-sonnet-4-5', 'claude-opus-4-5-thinking'])
+// Claude from API (prefix match: covers claude-opus-4-6, claude-sonnet-4-20250514, etc.)
+const antigravityClaudeUsageFromAPI = computed(() =>
+  getAntigravityUsageByPrefix('claude-')
 )
 
 // Antigravity 账户类型（从 load_code_assist 响应中提取）
