@@ -83,6 +83,10 @@ type softDeleteQuery interface {
 // Interceptors 返回查询拦截器列表。
 // 拦截器会自动为所有查询添加 deleted_at IS NULL 条件，
 // 确保软删除的记录不会出现在普通查询结果中。
+//
+// 兼容 Ent v0.14+：
+// v0.14 移除了 *XxxQuery 上的 WhereP 方法（改为通过 intercept.Query 包装器提供），
+// 因此除了检查 softDeleteQuery 接口外，还通过反射调用 Where 方法来添加谓词。
 func (d SoftDeleteMixin) Interceptors() []ent.Interceptor {
 	return []ent.Interceptor{
 		ent.InterceptFunc(func(next ent.Querier) ent.Querier {
@@ -93,7 +97,12 @@ func (d SoftDeleteMixin) Interceptors() []ent.Interceptor {
 				}
 				// 为查询添加 deleted_at IS NULL 条件
 				if q, ok := query.(softDeleteQuery); ok {
+					// Ent 旧版本：Query 类型直接实现 WhereP
 					d.applyPredicate(q)
+				} else {
+					// Ent v0.14+：Query 类型不再直接实现 WhereP，
+					// 通过反射调用 Where 方法（Where 接受的 predicate.X 底层类型为 func(*sql.Selector)）
+					d.applyPredicateReflect(query)
 				}
 				return next.Query(ctx, query)
 			})
@@ -138,11 +147,40 @@ func (d SoftDeleteMixin) Hooks() []ent.Hook {
 }
 
 // applyPredicate 为查询添加 deleted_at IS NULL 条件。
-// 这是软删除过滤的核心实现。
+// 这是软删除过滤的核心实现（用于实现 WhereP 接口的类型）。
 func (d SoftDeleteMixin) applyPredicate(w interface{ WhereP(...func(*sql.Selector)) }) {
 	w.WhereP(
 		sql.FieldIsNull(d.Fields()[0].Descriptor().Name),
 	)
+}
+
+// applyPredicateReflect 通过反射为查询添加 deleted_at IS NULL 条件。
+// 适用于 Ent v0.14+ 中 *XxxQuery 不再直接实现 WhereP 的情况。
+// 通过反射调用 Where 方法，传入 predicate 函数（底层类型为 func(*sql.Selector)）。
+func (d SoftDeleteMixin) applyPredicateReflect(query ent.Query) {
+	qv := reflect.ValueOf(query)
+	whereMethod := qv.MethodByName("Where")
+	if !whereMethod.IsValid() {
+		return
+	}
+	// 构建 deleted_at IS NULL 谓词
+	pred := sql.FieldIsNull(d.Fields()[0].Descriptor().Name)
+	// Where 方法接受可变参数 predicate.X（底层类型为 func(*sql.Selector)），
+	// 通过反射构建正确类型的参数
+	methodType := whereMethod.Type()
+	if methodType.NumIn() < 1 || !methodType.IsVariadic() {
+		return
+	}
+	// 获取可变参数的元素类型（如 predicate.Proxy）
+	elemType := methodType.In(0).Elem()
+	// 将 func(*sql.Selector) 转换为目标谓词类型
+	predValue := reflect.MakeFunc(elemType, func(args []reflect.Value) []reflect.Value {
+		sel := args[0].Interface().(*sql.Selector)
+		pred(sel)
+		return nil
+	})
+	// 调用 Where(predValue)
+	whereMethod.Call([]reflect.Value{predValue})
 }
 
 func mutateWithClient(ctx context.Context, m ent.Mutation, fallback ent.Mutator) (ent.Value, error) {
